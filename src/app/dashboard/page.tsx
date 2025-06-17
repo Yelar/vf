@@ -527,9 +527,10 @@ export default function Dashboard() {
                   inputProps={{
                     titleText,
                     subtitleText,
+                    backgroundVideo,
                   }}
-                  durationInFrames={150}
-                  fps={30}
+                  durationInFrames={300}
+                  fps={60}
                   compositionWidth={1080}
                   compositionHeight={1920}
                   style={{
