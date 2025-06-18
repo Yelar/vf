@@ -11,17 +11,23 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Upload, Play, Download, Trash2, Smartphone, Video, Sparkles } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Upload, Play, Download, Trash2, Smartphone, Video, Sparkles, Mic, Volume2 } from "lucide-react";
 
 export default function Dashboard() {
-  const [titleText, setTitleText] = useState('Your Title');
-  const [subtitleText, setSubtitleText] = useState('Your Subtitle');
   const [isRendering, setIsRendering] = useState(false);
   const [backgroundVideo, setBackgroundVideo] = useState<string | null>(null);
   const [backgroundVideoFile, setBackgroundVideoFile] = useState<File | null>(null);
   const [selectedPresetVideo, setSelectedPresetVideo] = useState<string>('none');
   const [renderProgress, setRenderProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Text-to-speech states
+  const [speechText, setSpeechText] = useState('');
+  const [generatedAudio, setGeneratedAudio] = useState<string | null>(null);
+  const [isGeneratingSpeech, setIsGeneratingSpeech] = useState(false);
+  const [audioDuration, setAudioDuration] = useState<number | null>(null);
+  const [selectedVoice, setSelectedVoice] = useState('EXAVITQu4vr4xnSDxMaL');
 
   // List of preset background videos (update this list when you add new videos)
   const presetVideos = [
@@ -33,6 +39,66 @@ export default function Dashboard() {
     // 2. Add a new line here like: { value: 'filename', label: '🎬 Display Name', path: '/bg-videos/filename.mp4' }
     // 3. Save and refresh browser
   ];
+
+  // Available Eleven Labs voices
+  const voiceOptions = [
+    { value: 'EXAVITQu4vr4xnSDxMaL', label: '👩 Bella - Friendly Female' },
+    { value: 'pNInz6obpgDQGcFmaJgB', label: '👨 Adam - Professional Male' },
+    { value: 'ErXwobaYiN019PkySvjV', label: '👨 Antoni - Warm Male' },
+    { value: 'VR6AewLTigWG4xSOukaG', label: '👨 Arnold - Deep Male' },
+    { value: 'MF3mGyEYCl7XYWbV9V6O', label: '👩 Elli - Young Female' },
+    { value: 'TxGEqnHWrfWFTfGW9XjX', label: '👨 Josh - Casual Male' },
+  ];
+
+  const generateSpeech = async () => {
+    if (!speechText.trim()) {
+      alert('Please enter text for speech generation');
+      return;
+    }
+
+    setIsGeneratingSpeech(true);
+    try {
+      console.log('🎤 Generating speech with Eleven Labs...');
+      
+      const response = await fetch('/api/generate-speech', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text: speechText,
+          voiceId: selectedVoice,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to generate speech');
+      }
+
+      const data = await response.json();
+      setGeneratedAudio(data.audio);
+
+      // Get audio duration by creating a temporary audio element
+      const audio = new Audio(data.audio);
+      audio.onloadedmetadata = () => {
+        setAudioDuration(audio.duration);
+        console.log('🎵 Audio generated successfully, duration:', audio.duration, 'seconds');
+      };
+
+      console.log('✅ Speech generated successfully');
+    } catch (error) {
+      console.error('❌ Speech generation error:', error);
+      alert(`Failed to generate speech: ${error}`);
+    } finally {
+      setIsGeneratingSpeech(false);
+    }
+  };
+
+  const clearGeneratedAudio = () => {
+    setGeneratedAudio(null);
+    setAudioDuration(null);
+  };
 
   const handleRenderVideo = async () => {
     setIsRendering(true);
@@ -50,7 +116,7 @@ export default function Dashboard() {
         videoSource = preset?.path || null; // Preset video path
       }
       
-      await createAndDownloadVideo(titleText, subtitleText, videoSource);
+      await createAndDownloadVideo(speechText, videoSource, generatedAudio, audioDuration);
       
     } catch (error) {
       console.error('❌ Error creating YouTube Shorts video:', error);
@@ -127,11 +193,11 @@ export default function Dashboard() {
     }
   };
 
-  const createAndDownloadVideo = async (title: string, subtitle: string, videoSource: File | string | null) => {
+  const createAndDownloadVideo = async (text: string, videoSource: File | string | null, audioSrc: string | null = null, audioDur: number | null = null) => {
     return new Promise<void>((resolve, reject) => {
       try {
         console.log('🎬 Starting YouTube Shorts video generation...');
-        console.log('Creating vertical video with title:', title, 'subtitle:', subtitle);
+        console.log('Creating vertical video with text:', text);
         
         // Create VERTICAL canvas for YouTube Shorts (9:16 aspect ratio) - MAXIMUM QUALITY
         const canvas = document.createElement('canvas');
@@ -179,8 +245,39 @@ export default function Dashboard() {
           backgroundVideoElement.playbackRate = 1.0;
         }
 
+        // Create audio context and destination for mixing audio
+        let audioContext: AudioContext | null = null;
+        let audioDestination: MediaStreamAudioDestinationNode | null = null;
+        let audioElement: HTMLAudioElement | null = null;
+
+        if (audioSrc) {
+          audioContext = new AudioContext();
+          audioDestination = audioContext.createMediaStreamDestination();
+          
+          // Create audio element and connect to context
+          audioElement = new Audio(audioSrc);
+          audioElement.crossOrigin = 'anonymous';
+          audioElement.preload = 'auto';
+          audioElement.volume = 1.0;
+          
+          // Connect audio element to the destination
+          const source = audioContext.createMediaElementSource(audioElement);
+          source.connect(audioDestination);
+          source.connect(audioContext.destination); // Also play through speakers for monitoring
+          
+          console.log('🎵 Audio context and element created for video generation');
+        }
+
         // Create stream matching YouTube Shorts specs - MAXIMUM QUALITY
         const stream = canvas.captureStream(60); // 60 FPS for maximum smoothness
+        
+        // Add audio track to the stream if available
+        if (audioDestination && audioDestination.stream.getAudioTracks().length > 0) {
+          const audioTrack = audioDestination.stream.getAudioTracks()[0];
+          stream.addTrack(audioTrack);
+          console.log('🎵 Audio track added to video stream');
+        }
+        
         console.log('🎥 Canvas stream created at 60 FPS for maximum quality');
         
         // Use MAXIMUM quality recording settings
@@ -239,12 +336,14 @@ export default function Dashboard() {
           
           // Success notification
           const videoSize = (blob.size / (1024 * 1024)).toFixed(1);
-          alert(`🎬 YouTube Shorts Video Created Successfully!\n\n✅ Size: ${videoSize}MB\n✅ Format: 1080×1920 (9:16)\n✅ Duration: 5 seconds\n✅ Type: ${fileExtension.toUpperCase()}\n✅ Perfect for mobile!`);
+          const actualDuration = audioDur || 5;
+          const hasAudio = audioSrc ? '✅ With AI Speech Audio' : '⚪ No audio';
+          alert(`🎬 YouTube Shorts Video Created Successfully!\n\n✅ Size: ${videoSize}MB\n✅ Format: 1080×1920 (9:16)\n✅ Duration: ${actualDuration.toFixed(1)}s\n${hasAudio}\n✅ Word-by-word text\n✅ Type: ${fileExtension.toUpperCase()}\n✅ Perfect for mobile!`);
           
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
-          a.download = `${title.replace(/[^a-z0-9]/gi, '-').toLowerCase()}-youtube-shorts.${fileExtension}`;
+          a.download = `${text.slice(0, 30).replace(/[^a-z0-9]/gi, '-').toLowerCase()}-youtube-shorts.${fileExtension}`;
           document.body.appendChild(a);
           a.click();
           document.body.removeChild(a);
@@ -266,12 +365,22 @@ export default function Dashboard() {
 
         // Animation variables for YouTube Shorts - MAXIMUM SMOOTHNESS
         let frame = 0;
-        const totalFrames = 300; // 5 seconds at 60fps for maximum smoothness
+        let audioStarted = false;
         
-        console.log('🎬 Starting animation with', totalFrames, 'frames for 5 seconds at 60fps - MAXIMUM QUALITY');
+        // Adjust video duration based on audio duration (minimum 5 seconds)
+        const videoDuration = audioDur ? Math.max(audioDur, 5) : 5;
+        const totalFrames = Math.floor(videoDuration * 60); // 60fps for maximum smoothness
+        
+        console.log('🎬 Starting animation with', totalFrames, 'frames for', videoDuration, 'seconds at 60fps - MAXIMUM QUALITY');
+        
+
         
         const animate = () => {
-          // NO FRAME RATE LIMITING - Maximum smoothness like original video
+          // Mark when audio actually starts
+          if (audioElement && audioElement.currentTime > 0 && !audioStarted) {
+            audioStarted = true;
+            console.log('🎵 Audio playback detected, syncing animation');
+          }
 
           if (frame >= totalFrames) {
             console.log('🎬 Animation complete, stopping recorder... Frame:', frame, '/', totalFrames);
@@ -358,13 +467,58 @@ export default function Dashboard() {
           ctx.translate(canvas.width / 2, canvas.height / 2 + translateY);
           ctx.scale(scale, scale);
           
-          // Text styling optimized for vertical format
+          // Word-by-word text display synchronized with audio
+          let currentTime = frame / 60;
+          
+          // Use actual audio time if audio is playing for better sync
+          if (audioElement && !audioElement.paused && !audioElement.ended) {
+            currentTime = audioElement.currentTime;
+          }
+          
+          const words = text.split(' ');
+          
+          // Improved timing calculation for natural speech
+          let currentWordIndex = 0;
+          
+          if (words.length > 0 && currentTime > 0) {
+            // Use actual speech duration with slight delay for natural start
+            const speechStartDelay = 0.3; // 300ms delay before first word
+            const effectiveTime = Math.max(0, currentTime - speechStartDelay);
+            const speechDuration = Math.max(videoDuration - speechStartDelay - 0.5, 2); // Leave 500ms at end
+            
+            // Adjust timing based on word length (longer words get more time)
+            let totalTimeUnits = 0;
+            const wordTimeUnits = words.map(word => {
+              const baseTime = 1;
+              const lengthMultiplier = Math.max(0.7, Math.min(1.5, word.length / 6)); // Longer words get more time
+              const timeUnit = baseTime * lengthMultiplier;
+              totalTimeUnits += timeUnit;
+              return timeUnit;
+            });
+            
+            // Find current word based on accumulated time
+            let accumulatedTime = 0;
+            const timePerUnit = speechDuration / totalTimeUnits;
+            
+            for (let i = 0; i < words.length; i++) {
+              const wordDuration = wordTimeUnits[i] * timePerUnit;
+              if (effectiveTime <= accumulatedTime + wordDuration) {
+                currentWordIndex = i;
+                break;
+              }
+              accumulatedTime += wordDuration;
+              currentWordIndex = i + 1;
+            }
+            
+            // Ensure we don't go beyond the last word
+            currentWordIndex = Math.min(currentWordIndex, words.length - 1);
+          }
+
           ctx.shadowColor = 'rgba(0,0,0,0.8)';
           ctx.shadowBlur = 8;
           ctx.shadowOffsetX = 3;
           ctx.shadowOffsetY = 3;
           
-          // Title - optimized size for vertical format
           ctx.fillStyle = 'white';
           ctx.strokeStyle = 'rgba(0,0,0,0.5)';
           ctx.lineWidth = 4;
@@ -372,55 +526,45 @@ export default function Dashboard() {
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           
-          // Wrap text if too long for vertical format
-          const maxWidth = canvas.width * 0.9;
-          const words = title.split(' ');
-          let line = '';
-          let y = -60;
+                    const y = -40;
           
-          for (let n = 0; n < words.length; n++) {
-            const testLine = line + words[n] + ' ';
-            const metrics = ctx.measureText(testLine);
-            const testWidth = metrics.width;
-            
-            if (testWidth > maxWidth && n > 0) {
-              ctx.strokeText(line, 0, y);
-              ctx.fillText(line, 0, y);
-              line = words[n] + ' ';
-              y += 90;
-            } else {
-              line = testLine;
+          // Show only one word at a time for maximum focus
+          const maxWordsOnScreen = 1;
+          const startWordIndex = Math.max(0, currentWordIndex);
+          const endWordIndex = Math.min(words.length - 1, startWordIndex + maxWordsOnScreen - 1);
+          
+          const displayWords = [];
+          for (let i = startWordIndex; i <= endWordIndex; i++) {
+            if (i < words.length) {
+              displayWords.push({
+                word: words[i],
+                index: i,
+                isCurrentWord: i === currentWordIndex
+              });
             }
           }
-          ctx.strokeText(line, 0, y);
-          ctx.fillText(line, 0, y);
-
-          // Subtitle
-          ctx.globalAlpha = opacity * 0.9;
-          ctx.font = '50px Arial, sans-serif';
-          ctx.lineWidth = 3;
-          ctx.shadowBlur = 6;
           
-          const subtitleWords = subtitle.split(' ');
-          let subtitleLine = '';
-          let subtitleY = y + 120;
+          // Create display text with max 2 words
+          let displayText = '';
+          displayWords.forEach((wordData, idx) => {
+            displayText += wordData.word;
+            if (idx < displayWords.length - 1) displayText += ' ';
+          });
           
-          for (let n = 0; n < subtitleWords.length; n++) {
-            const testLine = subtitleLine + subtitleWords[n] + ' ';
-            const metrics = ctx.measureText(testLine);
-            const testWidth = metrics.width;
+          // Draw the text
+          if (displayText) {
+            ctx.strokeText(displayText, 0, y);
             
-            if (testWidth > maxWidth && n > 0) {
-              ctx.strokeText(subtitleLine, 0, subtitleY);
-              ctx.fillText(subtitleLine, 0, subtitleY);
-              subtitleLine = subtitleWords[n] + ' ';
-              subtitleY += 70;
-            } else {
-              subtitleLine = testLine;
-            }
+            // Draw words with individual highlighting
+            let x = -ctx.measureText(displayText).width / 2;
+            displayWords.forEach((wordData, idx) => {
+              ctx.fillStyle = wordData.isCurrentWord ? '#FFD700' : 'white';
+              const wordText = wordData.word + (idx < displayWords.length - 1 ? ' ' : '');
+              const wordWidth = ctx.measureText(wordText).width;
+              ctx.fillText(wordText, x + wordWidth / 2, y);
+              x += wordWidth;
+            });
           }
-          ctx.strokeText(subtitleLine, 0, subtitleY);
-          ctx.fillText(subtitleLine, 0, subtitleY);
 
           ctx.restore();
 
@@ -458,6 +602,39 @@ export default function Dashboard() {
           requestAnimationFrame(animate);
         };
 
+        // Start recording with audio sync
+        const startRecording = async () => {
+          console.log('🎬 Starting MediaRecorder for MAXIMUM QUALITY video...');
+          
+          // Start MediaRecorder first
+          mediaRecorder.start(50); // Collect data every 50ms for maximum quality
+          
+          // Small delay to ensure recording has started
+          await new Promise(resolve => setTimeout(resolve, 100));
+          
+          // Start audio playback if available
+          if (audioElement && audioContext) {
+            try {
+              // Resume audio context if suspended
+              if (audioContext.state === 'suspended') {
+                await audioContext.resume();
+              }
+              
+              audioElement.currentTime = 0;
+              await audioElement.play();
+              console.log('🎵 Audio playback started and synced');
+              
+              // Small delay to ensure audio has started
+              await new Promise(resolve => setTimeout(resolve, 50));
+            } catch (error) {
+              console.error('❌ Error starting audio:', error);
+            }
+          }
+          
+          // Start animation after audio
+          animate();
+        };
+
         // Start background video if available
         if (backgroundVideoElement) {
           backgroundVideoElement.onloadeddata = () => {
@@ -467,21 +644,13 @@ export default function Dashboard() {
             backgroundVideoElement.play();
             
             // Add small delay to ensure first frame is ready
-            setTimeout(() => {
-              console.log('🎬 Starting MediaRecorder for MAXIMUM QUALITY 5-second video...');
-              mediaRecorder.start(50); // Collect data every 50ms for maximum quality
-              animate();
-            }, 50);
+            setTimeout(startRecording, 50);
           };
           backgroundVideoElement.load();
         } else {
           console.log('🔴 Starting recording without background video...');
           // Add small delay to ensure first frame is ready
-          setTimeout(() => {
-            console.log('🎬 Starting MediaRecorder for MAXIMUM QUALITY 5-second video...');
-            mediaRecorder.start(50); // Collect data every 50ms for maximum quality
-            animate();
-          }, 50);
+          setTimeout(startRecording, 50);
         }
 
       } catch (error) {
@@ -525,11 +694,12 @@ export default function Dashboard() {
                 <Player
                   component={SampleVideo}
                   inputProps={{
-                    titleText,
-                    subtitleText,
+                    speechText,
                     backgroundVideo,
+                    audioSrc: generatedAudio,
+                    audioDuration,
                   }}
-                  durationInFrames={300}
+                  durationInFrames={audioDuration ? Math.floor(Math.max(audioDuration, 5) * 60) : 300}
                   fps={60}
                   compositionWidth={1080}
                   compositionHeight={1920}
@@ -550,35 +720,95 @@ export default function Dashboard() {
 
           {/* Controls */}
           <div className="space-y-6">
-            {/* Text Settings */}
+
+
+            {/* Text-to-Speech */}
             <Card>
               <CardHeader>
-                <CardTitle>Text Content</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <Mic className="h-5 w-5" />
+                  Text-to-Speech
+                </CardTitle>
                 <CardDescription>
-                  Customize your video text and messaging
+                  Generate AI voice narration using Eleven Labs
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="title">Title</Label>
-                  <Input
-                    id="title"
-                    value={titleText}
-                    onChange={(e) => setTitleText(e.target.value)}
-                    placeholder="Enter your title"
-                    className="text-lg"
+                  <Label htmlFor="speech-text">Speech Text</Label>
+                  <Textarea
+                    id="speech-text"
+                    value={speechText}
+                    onChange={(e) => setSpeechText(e.target.value)}
+                    placeholder="Enter text to convert to speech..."
+                    rows={3}
+                    className="resize-none"
                   />
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="subtitle">Subtitle</Label>
-                  <Input
-                    id="subtitle"
-                    value={subtitleText}
-                    onChange={(e) => setSubtitleText(e.target.value)}
-                    placeholder="Enter your subtitle"
-                  />
+                  <Label>Voice Selection</Label>
+                  <Select value={selectedVoice} onValueChange={setSelectedVoice}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose a voice" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {voiceOptions.map((voice) => (
+                        <SelectItem key={voice.value} value={voice.value}>
+                          {voice.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
+
+                <Button 
+                  onClick={generateSpeech}
+                  disabled={isGeneratingSpeech || !speechText.trim()}
+                  className="w-full"
+                >
+                  {isGeneratingSpeech ? (
+                    <>
+                      <Upload className="mr-2 h-4 w-4 animate-spin" />
+                      Generating Speech...
+                    </>
+                  ) : (
+                    <>
+                      <Volume2 className="mr-2 h-4 w-4" />
+                      Generate Speech
+                    </>
+                  )}
+                </Button>
+
+                {generatedAudio && (
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Generated Audio:</Label>
+                    <audio
+                      src={generatedAudio}
+                      controls
+                      className="w-full"
+                      preload="metadata"
+                    />
+                    <div className="flex items-center justify-between">
+                      <Badge variant="outline" className="w-fit">
+                        ✅ Audio ready
+                      </Badge>
+                      {audioDuration && (
+                        <Badge variant="secondary" className="w-fit">
+                          {audioDuration.toFixed(1)}s duration
+                        </Badge>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={clearGeneratedAudio}
+                        title="Clear generated audio"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -756,8 +986,12 @@ export default function Dashboard() {
                 <Badge variant="secondary">Smooth</Badge>
               </div>
               <div className="space-y-2">
-                <div className="text-2xl font-bold text-purple-600">5s</div>
-                <Badge variant="secondary">Duration</Badge>
+                <div className="text-2xl font-bold text-purple-600">
+                  {audioDuration ? `${audioDuration.toFixed(1)}s` : '5s'}
+                </div>
+                <Badge variant="secondary">
+                  {audioDuration ? 'Audio Length' : 'Duration'}
+                </Badge>
               </div>
               <div className="space-y-2">
                 <div className="text-2xl font-bold text-orange-600">WebM</div>

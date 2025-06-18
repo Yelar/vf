@@ -4,25 +4,25 @@ import {
   interpolate,
   useCurrentFrame,
   useVideoConfig,
-  delayRender,
-  continueRender,
+  Audio,
 } from 'remotion';
 
 interface SampleVideoProps {
-  titleText: string;
-  subtitleText: string;
+  speechText: string;
   backgroundVideo?: string | null;
+  audioSrc?: string | null;
+  audioDuration?: number | null;
 }
 
 export const SampleVideo: React.FC<SampleVideoProps> = ({
-  titleText,
-  subtitleText,
+  speechText,
   backgroundVideo,
+  audioSrc,
+  audioDuration,
 }) => {
   const frame = useCurrentFrame();
   const {durationInFrames, fps} = useVideoConfig();
   const videoRef = useRef<HTMLVideoElement>(null);
-  const playbackHandle = useRef<number | undefined>(undefined);
 
   // Sync background video with Remotion timeline - OPTIMIZED FOR SMOOTHNESS
   useEffect(() => {
@@ -30,42 +30,12 @@ export const SampleVideo: React.FC<SampleVideoProps> = ({
       const video = videoRef.current;
       const currentTime = frame / fps;
       
-      // Handle video playback
-      playbackHandle.current = delayRender("Syncing background video playback state");
-      
-      const handlePause = () => {
-        video.pause();
-        if (playbackHandle.current) {
-          continueRender(playbackHandle.current);
-        }
-      };
-
-      const handlePlay = () => {
-        video.play().catch(() => {
-          // Ignore play errors in preview
-        });
-        if (playbackHandle.current) {
-          continueRender(playbackHandle.current);
-        }
-      };
-
-      video.addEventListener('pause', handlePause);
-      video.addEventListener('play', handlePlay);
-      
-      // Much less frequent updates - only sync every 0.5 seconds of difference
+      // Sync video time with timeline
       if (Math.abs(video.currentTime - currentTime) > 0.5) {
         video.currentTime = currentTime % (video.duration || 5);
       }
-
-      return () => {
-        video.removeEventListener('pause', handlePause);
-        video.removeEventListener('play', handlePlay);
-        if (playbackHandle.current) {
-          continueRender(playbackHandle.current);
-        }
-      };
     }
-  }, [Math.floor(frame / 30), backgroundVideo, fps, frame]); // Added fps and frame to dependencies
+  }, [Math.floor(frame / 30), backgroundVideo, fps, frame]);
 
   const opacity = interpolate(frame, [0, 30], [0, 1], {
     extrapolateLeft: 'clamp',
@@ -110,6 +80,11 @@ export const SampleVideo: React.FC<SampleVideoProps> = ({
         fontFamily: 'Arial, sans-serif',
       }}
     >
+      {/* Audio Track */}
+      {audioSrc && (
+        <Audio src={audioSrc} />
+      )}
+
       {/* Background Video - OPTIMIZED FOR PERFORMANCE */}
       {backgroundVideo && (
         <video
@@ -160,29 +135,82 @@ export const SampleVideo: React.FC<SampleVideoProps> = ({
           transform: `translateY(${translateY}px) scale(${scale})`,
           textAlign: 'center',
           color: 'white',
+          padding: '40px',
+          maxWidth: '90%',
         }}
       >
-        <h1
+        {/* Word-by-word text display */}
+        <div
           style={{
-            fontSize: 100,
+            fontSize: 80,
             fontWeight: 'bold',
             margin: 0,
-            marginBottom: 20,
-            textShadow: '2px 2px 4px rgba(0,0,0,0.5)',
+            lineHeight: 1.2,
+            textShadow: '3px 3px 6px rgba(0,0,0,0.8)',
+            wordWrap: 'break-word',
+            hyphens: 'auto',
           }}
         >
-          {titleText}
-        </h1>
-        <p
-          style={{
-            fontSize: 40,
-            margin: 0,
-            opacity: 0.9,
-            textShadow: '1px 1px 2px rgba(0,0,0,0.5)',
-          }}
-        >
-          {subtitleText}
-        </p>
+          {(() => {
+            if (!speechText) return '';
+            
+            const words = speechText.split(' ');
+            const currentTime = frame / fps;
+            const totalDuration = audioDuration || (durationInFrames / fps);
+            
+            // Calculate words per second with natural speech pacing
+            const adjustedDuration = Math.max(totalDuration * 0.95, 3); // Use 95% for natural pacing
+            const wordsPerSecond = words.length / adjustedDuration;
+            const currentWordIndex = Math.floor(currentTime * wordsPerSecond);
+            
+                         // Show only one word at a time for maximum focus
+             const maxWordsOnScreen = 1;
+             const startWordIndex = Math.max(0, currentWordIndex);
+             const endWordIndex = Math.min(words.length - 1, startWordIndex + maxWordsOnScreen - 1);
+             
+             const visibleWordsElements = [];
+             for (let i = startWordIndex; i <= endWordIndex; i++) {
+               if (i < words.length) {
+                 const isCurrentWord = i === currentWordIndex;
+                 
+                 visibleWordsElements.push(
+                   <span
+                     key={i}
+                     style={{
+                       color: isCurrentWord ? '#FFD700' : 'white',
+                       transition: 'color 0.2s ease',
+                       marginRight: '0.3em',
+                       display: 'inline-block',
+                       transform: isCurrentWord ? 'scale(1.1)' : 'scale(1)',
+                       textShadow: isCurrentWord ? '0 0 10px rgba(255, 215, 0, 0.5)' : 'none',
+                     }}
+                   >
+                     {words[i]}
+                   </span>
+                 );
+               }
+             }
+             
+             // Add blinking cursor after the current word
+             if (currentWordIndex < words.length && visibleWordsElements.length > 0) {
+               visibleWordsElements.push(
+                 <span
+                   key="cursor"
+                   style={{
+                     opacity: Math.sin(frame * 0.5) > 0 ? 1 : 0.2,
+                     color: '#FFD700',
+                     marginLeft: '0.2em',
+                     fontSize: '0.9em',
+                   }}
+                 >
+                   |
+                 </span>
+               );
+             }
+             
+             return visibleWordsElements;
+          })()}
+        </div>
       </div>
       
       {/* Animated particles - only show when no background video - OPTIMIZED */}
