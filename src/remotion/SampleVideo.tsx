@@ -163,52 +163,40 @@ export const SampleVideo: React.FC<SampleVideoProps> = ({
             const wordsPerSecond = words.length / adjustedDuration;
             const currentWordIndex = Math.floor(currentTime * wordsPerSecond);
             
-                         // Show only one word at a time for maximum focus
-             const maxWordsOnScreen = 1;
-             const startWordIndex = Math.max(0, currentWordIndex);
-             const endWordIndex = Math.min(words.length - 1, startWordIndex + maxWordsOnScreen - 1);
-             
-             const visibleWordsElements = [];
-             for (let i = startWordIndex; i <= endWordIndex; i++) {
-               if (i < words.length) {
-                 const isCurrentWord = i === currentWordIndex;
-                 
-                 visibleWordsElements.push(
-                   <span
-                     key={i}
-                     style={{
-                       color: isCurrentWord ? '#FFD700' : 'white',
-                       transition: 'color 0.2s ease',
-                       marginRight: '0.3em',
-                       display: 'inline-block',
-                       transform: isCurrentWord ? 'scale(1.1)' : 'scale(1)',
-                       textShadow: isCurrentWord ? '0 0 10px rgba(255, 215, 0, 0.5)' : 'none',
-                     }}
-                   >
-                     {words[i]}
-                   </span>
-                 );
-               }
-             }
-             
-             // Add blinking cursor after the current word
-             if (currentWordIndex < words.length && visibleWordsElements.length > 0) {
-               visibleWordsElements.push(
-                 <span
-                   key="cursor"
-                   style={{
-                     opacity: Math.sin(frame * 0.5) > 0 ? 1 : 0.2,
-                     color: '#FFD700',
-                     marginLeft: '0.2em',
-                     fontSize: '0.9em',
-                   }}
-                 >
-                   |
-                 </span>
-               );
-             }
-             
-             return visibleWordsElements;
+            // Show ONLY the current word - ONE WORD AT A TIME
+            if (currentWordIndex >= 0 && currentWordIndex < words.length) {
+              const currentWord = words[currentWordIndex];
+              
+              return (
+                <>
+                  <span
+                    style={{
+                      color: '#FFD700', // Gold color for the current word
+                      display: 'inline-block',
+                      transform: 'scale(1.1)',
+                      textShadow: '0 0 15px rgba(255, 215, 0, 0.6), 3px 3px 6px rgba(0,0,0,0.8)',
+                      transition: 'all 0.3s ease-in-out',
+                    }}
+                  >
+                    {currentWord}
+                  </span>
+                  
+                  {/* Blinking cursor after the word */}
+                  <span
+                    style={{
+                      opacity: Math.sin(frame * 0.5) > 0 ? 1 : 0.3,
+                      color: '#FFD700',
+                      marginLeft: '0.2em',
+                      fontSize: '0.9em',
+                    }}
+                  >
+                    |
+                  </span>
+                </>
+              );
+            }
+            
+            return '';
           })()}
         </div>
       </div>

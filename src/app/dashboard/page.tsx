@@ -528,42 +528,18 @@ export default function Dashboard() {
           
                     const y = -40;
           
-          // Show only one word at a time for maximum focus
-          const maxWordsOnScreen = 1;
-          const startWordIndex = Math.max(0, currentWordIndex);
-          const endWordIndex = Math.min(words.length - 1, startWordIndex + maxWordsOnScreen - 1);
-          
-          const displayWords = [];
-          for (let i = startWordIndex; i <= endWordIndex; i++) {
-            if (i < words.length) {
-              displayWords.push({
-                word: words[i],
-                index: i,
-                isCurrentWord: i === currentWordIndex
-              });
-            }
-          }
-          
-          // Create display text with max 2 words
-          let displayText = '';
-          displayWords.forEach((wordData, idx) => {
-            displayText += wordData.word;
-            if (idx < displayWords.length - 1) displayText += ' ';
-          });
-          
-          // Draw the text
-          if (displayText) {
-            ctx.strokeText(displayText, 0, y);
+          // Show ONLY the current word - ONE WORD AT A TIME
+          if (currentWordIndex >= 0 && currentWordIndex < words.length) {
+            const currentWord = words[currentWordIndex];
             
-            // Draw words with individual highlighting
-            let x = -ctx.measureText(displayText).width / 2;
-            displayWords.forEach((wordData, idx) => {
-              ctx.fillStyle = wordData.isCurrentWord ? '#FFD700' : 'white';
-              const wordText = wordData.word + (idx < displayWords.length - 1 ? ' ' : '');
-              const wordWidth = ctx.measureText(wordText).width;
-              ctx.fillText(wordText, x + wordWidth / 2, y);
-              x += wordWidth;
-            });
+            // Set style for the current word
+            ctx.fillStyle = '#FFD700'; // Gold color
+            ctx.strokeStyle = 'rgba(0,0,0,0.8)';
+            ctx.lineWidth = 6;
+            
+            // Draw the current word only
+            ctx.strokeText(currentWord, 0, y);
+            ctx.fillText(currentWord, 0, y);
           }
 
           ctx.restore();
