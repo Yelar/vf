@@ -9,6 +9,14 @@ export async function POST(req: NextRequest) {
   try {
     const { speechText, backgroundVideo, audioSrc, audioDuration, bgMusic } = await req.json();
 
+    // Get user info from middleware headers
+    const userEmail = req.headers.get('x-user-email') || 'unknown';
+    console.log(`🎬 User ${userEmail} starting Remotion video render`);
+
+    if (!speechText) {
+      return NextResponse.json({ error: 'Speech text is required' }, { status: 400 });
+    }
+
     const entry = path.join(process.cwd(), 'src', 'remotion', 'Root.tsx');
 
     // Bundle Remotion project

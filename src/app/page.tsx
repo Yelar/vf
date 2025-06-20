@@ -41,7 +41,7 @@ export default function Home() {
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <Button asChild size="lg" className="text-lg px-8 py-6">
-              <Link href="/dashboard">
+              <Link href="/auth/signin">
                 <Video className="mr-2 h-5 w-5" />
                 Start Creating
                 <ArrowRight className="ml-2 h-5 w-5" />
@@ -60,8 +60,8 @@ export default function Home() {
           </div>
 
           <div className="flex flex-wrap justify-center gap-2">
-            <Badge variant="secondary">Free to Use</Badge>
-            <Badge variant="secondary">No Sign-up Required</Badge>
+            <Badge variant="secondary">AI-Powered</Badge>
+            <Badge variant="secondary">Easy Sign-up</Badge>
             <Badge variant="secondary">High Quality Output</Badge>
           </div>
         </div>

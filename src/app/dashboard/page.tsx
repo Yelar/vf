@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
+import { useSession, signOut } from 'next-auth/react';
+import { AuthGuard } from '@/components/auth/AuthGuard';
 import { Player } from '@remotion/player';
 import { SampleVideo } from '@/remotion/SampleVideo';
 import { Button } from "@/components/ui/button";
@@ -12,9 +14,10 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
-import { Upload, Play, Download, Trash2, Smartphone, Video, Sparkles, Mic, Volume2, Music } from "lucide-react";
+import { Upload, Play, Download, Trash2, Smartphone, Video, Sparkles, Mic, Volume2, Music, LogOut, User } from "lucide-react";
 
-export default function Dashboard() {
+function DashboardContent() {
+  const { data: session } = useSession();
   const [isRendering, setIsRendering] = useState(false);
   const [backgroundVideo, setBackgroundVideo] = useState<string | null>(null);
   const [backgroundVideoFile, setBackgroundVideoFile] = useState<File | null>(null);
@@ -93,6 +96,15 @@ export default function Dashboard() {
         throw new Error(error.error || 'Failed to generate speech');
       }
 
+      if (!response.ok) {
+        const errorData = await response.json();
+        if (response.status === 401) {
+          alert('Your session has expired. Please sign in again.');
+          return;
+        }
+        throw new Error(errorData.message || 'Failed to generate speech');
+      }
+
       const data = await response.json();
       setGeneratedAudio(data.audio);
 
@@ -145,6 +157,10 @@ export default function Dashboard() {
 
     if (!response.ok) {
       const error = await response.json();
+      if (response.status === 401) {
+        alert('Your session has expired. Please sign in again.');
+        return;
+      }
       throw new Error(error.error || 'Server rendering failed');
     }
 
@@ -750,12 +766,29 @@ export default function Dashboard() {
       <div className="mx-auto max-w-7xl space-y-8">
         {/* Header */}
         <div className="text-center space-y-4">
-          <div className="flex items-center justify-center gap-2">
-            <Smartphone className="h-8 w-8 text-primary" />
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
-              YouTube Shorts Generator
-            </h1>
-            <Sparkles className="h-8 w-8 text-purple-600" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center justify-center gap-2 flex-1">
+              <Smartphone className="h-8 w-8 text-primary" />
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
+                YouTube Shorts Generator
+              </h1>
+              <Sparkles className="h-8 w-8 text-purple-600" />
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <User className="h-4 w-4" />
+                <span>{session?.user?.name || session?.user?.email}</span>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => signOut()}
+                className="flex items-center gap-2"
+              >
+                <LogOut className="h-4 w-4" />
+                Sign Out
+              </Button>
+            </div>
           </div>
           <p className="text-muted-foreground text-lg">
             Create stunning vertical videos perfect for YouTube Shorts, Instagram Reels, and TikTok
@@ -1209,5 +1242,13 @@ export default function Dashboard() {
         </Card>
       </div>
     </div>
+  );
+}
+
+export default function Dashboard() {
+  return (
+    <AuthGuard>
+      <DashboardContent />
+    </AuthGuard>
   );
 }

@@ -39,5 +39,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# User uploads and database
 /public/bg-videos
 /public/bg-music
+users.db

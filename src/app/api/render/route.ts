@@ -9,6 +9,14 @@ export const POST = async (req: NextRequest) => {
   try {
     const inputProps = await req.json()
 
+    // Get user info from middleware headers
+    const userEmail = req.headers.get('x-user-email') || 'unknown';
+    console.log(`🎬 User ${userEmail} starting DialogueVideo render`);
+
+    if (!inputProps.transcript || !Array.isArray(inputProps.transcript)) {
+      return new Response('Transcript is required', { status: 400 });
+    }
+
     const entry = path.join(process.cwd(), 'src', 'remotion', 'Root.tsx')
 
     const bundleLocation = await bundle({
@@ -39,6 +47,8 @@ export const POST = async (req: NextRequest) => {
     
     // Clean up temporary file
     await fs.unlink(outputPath).catch(() => {})
+    
+    console.log(`✅ User ${userEmail} successfully rendered video`);
     
     return new Response(file, {
       headers: {

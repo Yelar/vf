@@ -4,6 +4,10 @@ export async function POST(request: NextRequest) {
   try {
     const { text, voiceId = 'EXAVITQu4vr4xnSDxMaL' } = await request.json(); // Default to Bella voice
 
+    // Get user info from middleware headers
+    const userEmail = request.headers.get('x-user-email') || 'unknown';
+    console.log(`🎤 User ${userEmail} generating speech for text: "${text.slice(0, 50)}..."`);
+
     if (!text) {
       return NextResponse.json({ error: 'Text is required' }, { status: 400 });
     }
