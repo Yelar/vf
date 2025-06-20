@@ -12,7 +12,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
-import { Upload, Play, Download, Trash2, Smartphone, Video, Sparkles, Mic, Volume2 } from "lucide-react";
+import { Upload, Play, Download, Trash2, Smartphone, Video, Sparkles, Mic, Volume2, Music } from "lucide-react";
 
 export default function Dashboard() {
   const [isRendering, setIsRendering] = useState(false);
@@ -31,6 +31,9 @@ export default function Dashboard() {
   
   // Render method selection
   const [renderMethod, setRenderMethod] = useState<'canvas' | 'remotion'>('canvas');
+  
+  // Background music states
+  const [selectedBgMusic, setSelectedBgMusic] = useState<string>('none');
 
   // List of preset background videos (update this list when you add new videos)
   const presetVideos = [
@@ -40,6 +43,17 @@ export default function Dashboard() {
     // TO ADD MORE VIDEOS:
     // 1. Place your MP4 file in public/bg-videos/ folder
     // 2. Add a new line here like: { value: 'filename', label: '🎬 Display Name', path: '/bg-videos/filename.mp4' }
+    // 3. Save and refresh browser
+  ];
+
+  // List of preset background music (update this list when you add new music)
+  const bgMusicOptions = [
+    { value: 'none', label: 'No background music', path: '' },
+    { value: 'mii', label: '🎵 Mii Theme - Nintendo', path: '/bg-music/Mii.mp3' },
+    
+    // TO ADD MORE MUSIC:
+    // 1. Place your MP3 file in public/bg-music/ folder
+    // 2. Add a new line here like: { value: 'filename', label: '🎵 Song Name', path: '/bg-music/filename.mp3' }
     // 3. Save and refresh browser
   ];
 
@@ -103,7 +117,7 @@ export default function Dashboard() {
     setAudioDuration(null);
   };
 
-  const renderWithRemotion = async (text: string, videoSource: File | string | null, audioSrc: string | null = null, audioDur: number | null = null) => {
+  const renderWithRemotion = async (text: string, videoSource: File | string | null, audioSrc: string | null = null, audioDur: number | null = null, bgMusicSrc: string | null = null) => {
     console.log('🎬 Starting server-side Remotion rendering...');
     
     // For file uploads, we need to convert to a data URL or upload to a temporary location
@@ -125,6 +139,7 @@ export default function Dashboard() {
         backgroundVideo: backgroundVideoUrl,
         audioSrc,
         audioDuration: audioDur,
+        bgMusic: bgMusicSrc,
       }),
     });
 
@@ -168,11 +183,18 @@ export default function Dashboard() {
         videoSource = preset?.path || null; // Preset video path
       }
       
+      // Determine which background music to use
+      let bgMusicSource: string | null = null;
+      if (selectedBgMusic && selectedBgMusic !== 'none') {
+        const musicOption = bgMusicOptions.find(m => m.value === selectedBgMusic);
+        bgMusicSource = musicOption?.path || null;
+      }
+      
       // Choose rendering method
       if (renderMethod === 'remotion') {
-        await renderWithRemotion(speechText, videoSource, generatedAudio, audioDuration);
+        await renderWithRemotion(speechText, videoSource, generatedAudio, audioDuration, bgMusicSource);
       } else {
-        await createAndDownloadVideo(speechText, videoSource, generatedAudio, audioDuration);
+        await createAndDownloadVideo(speechText, videoSource, generatedAudio, audioDuration, bgMusicSource);
       }
       
     } catch (error) {
@@ -250,7 +272,7 @@ export default function Dashboard() {
     }
   };
 
-  const createAndDownloadVideo = async (text: string, videoSource: File | string | null, audioSrc: string | null = null, audioDur: number | null = null) => {
+  const createAndDownloadVideo = async (text: string, videoSource: File | string | null, audioSrc: string | null = null, audioDur: number | null = null, bgMusicSrc: string | null = null) => {
     return new Promise<void>((resolve, reject) => {
       try {
         console.log('🎬 Starting YouTube Shorts video generation...');
@@ -306,23 +328,43 @@ export default function Dashboard() {
         let audioContext: AudioContext | null = null;
         let audioDestination: MediaStreamAudioDestinationNode | null = null;
         let audioElement: HTMLAudioElement | null = null;
+        let bgMusicElement: HTMLAudioElement | null = null;
 
-        if (audioSrc) {
+        if (audioSrc || bgMusicSrc) {
           audioContext = new AudioContext();
           audioDestination = audioContext.createMediaStreamDestination();
           
-          // Create audio element and connect to context
-          audioElement = new Audio(audioSrc);
-          audioElement.crossOrigin = 'anonymous';
-          audioElement.preload = 'auto';
-          audioElement.volume = 1.0;
+          // Create speech audio element if available
+          if (audioSrc) {
+            audioElement = new Audio(audioSrc);
+            audioElement.crossOrigin = 'anonymous';
+            audioElement.preload = 'auto';
+            audioElement.volume = 1.0;
+            
+            // Connect speech audio element to the destination
+            const speechSource = audioContext.createMediaElementSource(audioElement);
+            speechSource.connect(audioDestination);
+            speechSource.connect(audioContext.destination); // Also play through speakers for monitoring
+          }
           
-          // Connect audio element to the destination
-          const source = audioContext.createMediaElementSource(audioElement);
-          source.connect(audioDestination);
-          source.connect(audioContext.destination); // Also play through speakers for monitoring
+          // Create background music element if available
+          if (bgMusicSrc) {
+            bgMusicElement = new Audio(bgMusicSrc);
+            bgMusicElement.crossOrigin = 'anonymous';
+            bgMusicElement.preload = 'auto';
+            bgMusicElement.volume = 0.3; // Lower volume for background music
+            bgMusicElement.loop = true; // Loop the background music
+            
+            // Connect background music to the destination
+            const musicSource = audioContext.createMediaElementSource(bgMusicElement);
+            musicSource.connect(audioDestination);
+            musicSource.connect(audioContext.destination); // Also play through speakers for monitoring
+          }
           
-          console.log('🎵 Audio context and element created for video generation');
+          console.log('🎵 Audio context created:', {
+            hasSpeech: !!audioSrc,
+            hasBgMusic: !!bgMusicSrc
+          });
         }
 
         // Create stream matching YouTube Shorts specs - MAXIMUM QUALITY
@@ -646,18 +688,28 @@ export default function Dashboard() {
           await new Promise(resolve => setTimeout(resolve, 100));
           
           // Start audio playback if available
-          if (audioElement && audioContext) {
+          if (audioContext) {
             try {
               // Resume audio context if suspended
               if (audioContext.state === 'suspended') {
                 await audioContext.resume();
               }
               
-              audioElement.currentTime = 0;
-              await audioElement.play();
-              console.log('🎵 Audio playback started and synced');
+              // Start speech audio
+              if (audioElement) {
+                audioElement.currentTime = 0;
+                await audioElement.play();
+                console.log('🎵 Speech audio playback started');
+              }
               
-              // Small delay to ensure audio has started
+              // Start background music
+              if (bgMusicElement) {
+                bgMusicElement.currentTime = 0;
+                await bgMusicElement.play();
+                console.log('🎵 Background music playback started');
+              }
+              
+              // Small delay to ensure all audio has started
               await new Promise(resolve => setTimeout(resolve, 50));
             } catch (error) {
               console.error('❌ Error starting audio:', error);
@@ -731,6 +783,7 @@ export default function Dashboard() {
                     backgroundVideo,
                     audioSrc: generatedAudio,
                     audioDuration,
+                    bgMusic: selectedBgMusic !== 'none' ? bgMusicOptions.find(m => m.value === selectedBgMusic)?.path : null,
                   }}
                   durationInFrames={audioDuration ? Math.floor(Math.max(audioDuration, 5) * 60) : 300}
                   fps={60}
@@ -956,6 +1009,64 @@ export default function Dashboard() {
               </CardContent>
             </Card>
 
+            {/* Background Music */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Music className="h-5 w-5" />
+                  Background Music
+                </CardTitle>
+                <CardDescription>
+                  Add background music to enhance your video
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Music Selection</Label>
+                  <Select value={selectedBgMusic} onValueChange={setSelectedBgMusic}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose background music" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {bgMusicOptions.map((music) => (
+                        <SelectItem key={music.value} value={music.value}>
+                          {music.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    🎵 Music will be played at 30% volume to not overpower speech
+                  </p>
+                </div>
+
+                {selectedBgMusic && selectedBgMusic !== 'none' && (
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Background Music Preview:</Label>
+                    {(() => {
+                      const selectedMusic = bgMusicOptions.find(m => m.value === selectedBgMusic);
+                      return selectedMusic?.path ? (
+                                                 <audio
+                           src={selectedMusic.path}
+                           className="w-full"
+                           controls
+                           preload="metadata"
+                         />
+                      ) : null;
+                    })()}
+                    <div className="flex items-center justify-between">
+                      <Badge variant="outline" className="w-fit">
+                        🎵 Background music selected
+                      </Badge>
+                      <Badge variant="secondary" className="w-fit">
+                        Loops automatically
+                      </Badge>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
             {/* Generation */}
             <Card>
               <CardHeader>
@@ -1099,4 +1210,4 @@ export default function Dashboard() {
       </div>
     </div>
   );
-} 
+}

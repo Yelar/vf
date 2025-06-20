@@ -13,6 +13,7 @@ interface SampleVideoProps {
   backgroundVideo?: string | null;
   audioSrc?: string | null;
   audioDuration?: number | null;
+  bgMusic?: string | null;
 }
 
 export const SampleVideo: React.FC<SampleVideoProps> = ({
@@ -20,6 +21,7 @@ export const SampleVideo: React.FC<SampleVideoProps> = ({
   backgroundVideo,
   audioSrc,
   audioDuration,
+  bgMusic,
 }) => {
   const frame = useCurrentFrame();
   const {durationInFrames, fps} = useVideoConfig();
@@ -72,6 +74,15 @@ export const SampleVideo: React.FC<SampleVideoProps> = ({
       {/* Audio Track */}
       {audioSrc && (
         <Audio src={audioSrc} />
+      )}
+
+      {/* Background Music */}
+      {bgMusic && (
+        <Audio 
+          src={bgMusic} 
+          volume={0.3} // Lower volume so it doesn't overpower the speech
+          loop
+        />
       )}
 
       {/* Background Video - OPTIMIZED FOR SEAMLESS PLAYBACK */}
@@ -151,18 +162,6 @@ export const SampleVideo: React.FC<SampleVideoProps> = ({
                     }}
                   >
                     {currentWord}
-                  </span>
-                  
-                  {/* Blinking cursor after the word */}
-                  <span
-                    style={{
-                      opacity: Math.sin(frame * 0.5) > 0 ? 1 : 0.3,
-                      color: '#FFD700',
-                      marginLeft: '0.2em',
-                      fontSize: '0.9em',
-                    }}
-                  >
-                    |
                   </span>
                 </>
               );

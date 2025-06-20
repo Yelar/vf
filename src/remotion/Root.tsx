@@ -43,6 +43,7 @@ export const RemotionRoot: React.FC = () => {
           backgroundVideo: null,
           audioSrc: null,
           audioDuration: null,
+          bgMusic: null,
         }}
       />
       <Composition

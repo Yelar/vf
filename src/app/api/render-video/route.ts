@@ -7,7 +7,7 @@ import fs from 'fs/promises';
 
 export async function POST(req: NextRequest) {
   try {
-    const { speechText, backgroundVideo, audioSrc, audioDuration } = await req.json();
+    const { speechText, backgroundVideo, audioSrc, audioDuration, bgMusic } = await req.json();
 
     const entry = path.join(process.cwd(), 'src', 'remotion', 'Root.tsx');
 
@@ -26,12 +26,19 @@ export async function POST(req: NextRequest) {
       resolvedBackgroundVideo = `http://localhost:3000${backgroundVideo}`;
     }
 
+    let resolvedBgMusic = bgMusic;
+    if (bgMusic && bgMusic.startsWith('/')) {
+      // Convert relative path to absolute URL for server-side rendering
+      resolvedBgMusic = `http://localhost:3000${bgMusic}`;
+    }
+
     // Get compositions
     const inputProps = {
       speechText,
       backgroundVideo: resolvedBackgroundVideo,
       audioSrc,
       audioDuration,
+      bgMusic: resolvedBgMusic,
     };
 
     const comps = await getCompositions(bundleLocation, {
@@ -66,7 +73,9 @@ export async function POST(req: NextRequest) {
       speechText: speechText?.slice(0, 50) + '...',
       hasAudio: !!audioSrc,
       hasBackground: !!resolvedBackgroundVideo,
-      backgroundVideoUrl: resolvedBackgroundVideo
+      backgroundVideoUrl: resolvedBackgroundVideo,
+      hasBgMusic: !!resolvedBgMusic,
+      bgMusicUrl: resolvedBgMusic
     });
 
     // Render the video with high quality settings
