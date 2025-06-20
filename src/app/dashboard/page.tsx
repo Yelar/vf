@@ -28,6 +28,9 @@ export default function Dashboard() {
   const [isGeneratingSpeech, setIsGeneratingSpeech] = useState(false);
   const [audioDuration, setAudioDuration] = useState<number | null>(null);
   const [selectedVoice, setSelectedVoice] = useState('EXAVITQu4vr4xnSDxMaL');
+  
+  // Render method selection
+  const [renderMethod, setRenderMethod] = useState<'canvas' | 'remotion'>('canvas');
 
   // List of preset background videos (update this list when you add new videos)
   const presetVideos = [
@@ -100,6 +103,55 @@ export default function Dashboard() {
     setAudioDuration(null);
   };
 
+  const renderWithRemotion = async (text: string, videoSource: File | string | null, audioSrc: string | null = null, audioDur: number | null = null) => {
+    console.log('🎬 Starting server-side Remotion rendering...');
+    
+    // For file uploads, we need to convert to a data URL or upload to a temporary location
+    let backgroundVideoUrl = null;
+    if (typeof videoSource === 'string') {
+      backgroundVideoUrl = videoSource; // Preset video path
+    } else if (videoSource) {
+      // Convert file to data URL for API
+      backgroundVideoUrl = URL.createObjectURL(videoSource);
+    }
+
+    const response = await fetch('/api/render-video', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        speechText: text,
+        backgroundVideo: backgroundVideoUrl,
+        audioSrc,
+        audioDuration: audioDur,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Server rendering failed');
+    }
+
+    // Download the rendered video
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${text.slice(0, 30).replace(/[^a-z0-9]/gi, '-').toLowerCase()}-remotion-video.mp4`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    // Clean up background video URL if it was created
+    if (backgroundVideoUrl && typeof videoSource !== 'string') {
+      URL.revokeObjectURL(backgroundVideoUrl);
+    }
+
+    console.log('✅ Remotion video downloaded successfully!');
+  };
+
   const handleRenderVideo = async () => {
     setIsRendering(true);
     setRenderProgress(0);
@@ -116,7 +168,12 @@ export default function Dashboard() {
         videoSource = preset?.path || null; // Preset video path
       }
       
-      await createAndDownloadVideo(speechText, videoSource, generatedAudio, audioDuration);
+      // Choose rendering method
+      if (renderMethod === 'remotion') {
+        await renderWithRemotion(speechText, videoSource, generatedAudio, audioDuration);
+      } else {
+        await createAndDownloadVideo(speechText, videoSource, generatedAudio, audioDuration);
+      }
       
     } catch (error) {
       console.error('❌ Error creating YouTube Shorts video:', error);
@@ -911,6 +968,29 @@ export default function Dashboard() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Render Method</Label>
+                  <Select value={renderMethod} onValueChange={(value: 'canvas' | 'remotion') => setRenderMethod(value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose render method" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="canvas">
+                        🎨 Canvas Rendering (Client-side, faster)
+                      </SelectItem>
+                      <SelectItem value="remotion">
+                        🎬 Remotion Rendering (Server-side, higher quality)
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    {renderMethod === 'canvas' 
+                      ? '⚡ Fast browser-based rendering with MediaRecorder API'
+                      : '🔥 Professional server-side rendering with Remotion (better quality, MP4 output)'
+                    }
+                  </p>
+                </div>
+
                 <Button 
                   onClick={handleRenderVideo}
                   disabled={isRendering}
@@ -955,7 +1035,7 @@ export default function Dashboard() {
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-center">
               <div className="space-y-2">
                 <div className="text-2xl font-bold text-primary">1080×1920</div>
-                <Badge variant="secondary">Vertical HD</Badge>
+                <Badge variant="secondary">YouTube Shorts</Badge>
               </div>
               <div className="space-y-2">
                 <div className="text-2xl font-bold text-green-600">30 FPS</div>
@@ -970,8 +1050,12 @@ export default function Dashboard() {
                 </Badge>
               </div>
               <div className="space-y-2">
-                <div className="text-2xl font-bold text-orange-600">WebM</div>
-                <Badge variant="secondary">VP9/VP8</Badge>
+                <div className="text-2xl font-bold text-orange-600">
+                  {renderMethod === 'remotion' ? 'MP4' : 'WebM'}
+                </div>
+                <Badge variant="secondary">
+                  {renderMethod === 'remotion' ? 'H.264' : 'VP9/VP8'}
+                </Badge>
               </div>
               <div className="space-y-2">
                 <div className="text-2xl font-bold text-blue-600">6 Mbps</div>
