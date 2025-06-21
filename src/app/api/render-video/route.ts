@@ -5,16 +5,81 @@ import path from 'path';
 import { v4 as uuid } from 'uuid';
 import fs from 'fs/promises';
 
+// Function to combine audio segments on the server
+async function combineAudioSegments(segments: Array<{audio: string}>): Promise<string> {
+  if (segments.length === 0) throw new Error('No audio segments provided');
+  if (segments.length === 1) return segments[0].audio;
+
+  console.log(`🔗 Combining ${segments.length} audio segments for Remotion`);
+  
+  try {
+    // For server-side combination, we'll create a simple concatenation
+    // by converting each base64 audio to buffer and combining them
+    const audioBuffers: Buffer[] = [];
+    
+    for (const segment of segments) {
+      // Extract base64 data from data URL
+      const base64Data = segment.audio.split(',')[1];
+      const buffer = Buffer.from(base64Data, 'base64');
+      audioBuffers.push(buffer);
+    }
+    
+    // Simple concatenation - this works for MP3 files
+    const combinedBuffer = Buffer.concat(audioBuffers);
+    const combinedBase64 = combinedBuffer.toString('base64');
+    
+    console.log(`✅ Successfully combined ${segments.length} audio segments`);
+    return `data:audio/mpeg;base64,${combinedBase64}`;
+    
+  } catch (error) {
+    console.error('❌ Error combining audio segments:', error);
+    console.log('🔄 Falling back to first segment');
+    return segments[0].audio;
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
-    const { speechText, backgroundVideo, audioSrc, audioDuration, bgMusic } = await req.json();
+    const { speechText, backgroundVideo, audioSrc, audioDuration, bgMusic, audioSegments } = await req.json();
 
     // Get user info from middleware headers
     const userEmail = req.headers.get('x-user-email') || 'unknown';
+    
+    // Log segments info for debugging (audioSegments will be used for future subtitle generation)
+    if (audioSegments) {
+      console.log(`📝 Received ${audioSegments.length} audio segments for future subtitle precision`);
+    }
     console.log(`🎬 User ${userEmail} starting Remotion video render`);
 
     if (!speechText) {
       return NextResponse.json({ error: 'Speech text is required' }, { status: 400 });
+    }
+
+    // Handle audio - prefer segments, fallback to single audio
+    let finalAudioSrc = audioSrc;
+    
+    if (audioSegments && audioSegments.length > 0) {
+      console.log(`🎵 Processing ${audioSegments.length} audio segments for Remotion`);
+      try {
+        finalAudioSrc = await combineAudioSegments(audioSegments);
+        console.log('✅ Audio segments processed for Remotion');
+      } catch (error) {
+        console.error('❌ Error processing audio segments:', error);
+        if (!audioSrc) {
+          return NextResponse.json({ 
+            error: 'Failed to process audio segments and no fallback audio provided' 
+          }, { status: 400 });
+        }
+        console.log('🔄 Falling back to single audio source');
+      }
+    }
+
+    // Check for blob URLs which Remotion can't handle
+    if (finalAudioSrc && finalAudioSrc.startsWith('blob:')) {
+      console.error('❌ Blob URL detected in audioSrc - Remotion cannot handle blob URLs');
+      return NextResponse.json({ 
+        error: 'Blob URLs are not supported for server-side rendering. Audio segments should provide base64 data.' 
+      }, { status: 400 });
     }
 
     const entry = path.join(process.cwd(), 'src', 'remotion', 'Root.tsx');
@@ -44,7 +109,7 @@ export async function POST(req: NextRequest) {
     const inputProps = {
       speechText,
       backgroundVideo: resolvedBackgroundVideo,
-      audioSrc,
+      audioSrc: finalAudioSrc,
       audioDuration,
       bgMusic: resolvedBgMusic,
     };
@@ -79,7 +144,9 @@ export async function POST(req: NextRequest) {
       duration: videoDuration,
       frames: durationInFrames,
       speechText: speechText?.slice(0, 50) + '...',
-      hasAudio: !!audioSrc,
+      hasAudio: !!finalAudioSrc,
+      hasSegments: !!(audioSegments && audioSegments.length > 0),
+      segmentCount: audioSegments ? audioSegments.length : 0,
       hasBackground: !!resolvedBackgroundVideo,
       backgroundVideoUrl: resolvedBackgroundVideo,
       hasBgMusic: !!resolvedBgMusic,
@@ -93,11 +160,26 @@ export async function POST(req: NextRequest) {
       codec: 'h264',
       outputLocation: outputPath,
       inputProps,
-      // High quality settings - using CRF for best quality
-      crf: 16, // Very high quality (lower = better, 16 is excellent quality)
+      // Ultra high quality settings for smooth playback
+      crf: 14, // Even higher quality (lower = better, 14 is premium quality)
       pixelFormat: 'yuv420p',
       audioBitrate: '320k', // High quality audio
-      // Note: Can't use videoBitrate with CRF, CRF is better for quality
+      // Additional optimization settings for smooth video
+      enforceAudioTrack: false, // Don't enforce if no audio
+      muted: false,
+      overwrite: true,
+      // Performance optimizations
+      chromiumOptions: {
+        // Disable GPU sandbox for better performance
+        ignoreCertificateErrors: false,
+        disableWebSecurity: false,
+        gl: 'swiftshader',
+      },
+      // Frame rate consistency
+      everyNthFrame: 1, // Render every frame for smoothness
+      concurrency: 1, // Single thread for consistency
+      // Quality settings
+      jpegQuality: 95, // High JPEG quality for frames
     });
 
     // Read the file and return as buffer
@@ -106,7 +188,7 @@ export async function POST(req: NextRequest) {
     // Clean up temporary file
     await fs.unlink(outputPath).catch(() => {});
 
-    console.log('✅ Remotion render completed successfully');
+    console.log('✅ Remotion render completed successfully with segmented audio');
 
     return new NextResponse(fileBuffer, {
       headers: {

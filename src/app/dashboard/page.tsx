@@ -28,9 +28,17 @@ function DashboardContent() {
   // Text-to-speech states
   const [speechText, setSpeechText] = useState('');
   const [generatedAudio, setGeneratedAudio] = useState<string | null>(null);
+  const [audioSegments, setAudioSegments] = useState<Array<{
+    text: string;
+    audio: string;
+    chunkIndex: number;
+    wordCount: number;
+    duration?: number;
+  }> | null>(null);
   const [isGeneratingSpeech, setIsGeneratingSpeech] = useState(false);
   const [audioDuration, setAudioDuration] = useState<number | null>(null);
   const [selectedVoice, setSelectedVoice] = useState('EXAVITQu4vr4xnSDxMaL');
+
   
   // Render method selection
   const [renderMethod, setRenderMethod] = useState<'canvas' | 'remotion'>('canvas');
@@ -70,6 +78,124 @@ function DashboardContent() {
     { value: 'TxGEqnHWrfWFTfGW9XjX', label: '👨 Josh - Casual Male' },
   ];
 
+  // Function to combine multiple audio segments into one using Web Audio API
+  const combineAudioSegments = async (segments: Array<{audio: string, duration?: number}>) => {
+    if (segments.length === 0) return null;
+    if (segments.length === 1) return segments[0].audio;
+
+    try {
+      // Create audio context
+      const AudioContextClass = window.AudioContext || (window as typeof window & {webkitAudioContext: typeof AudioContext}).webkitAudioContext;
+      const audioContext = new AudioContextClass();
+      
+      // Convert base64 audio to audio buffers
+      const audioBuffers: AudioBuffer[] = [];
+      let totalDuration = 0;
+
+      for (const segment of segments) {
+        // Convert data URL to array buffer
+        const base64Data = segment.audio.split(',')[1];
+        const arrayBuffer = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0)).buffer;
+        
+        // Decode audio data
+        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+        audioBuffers.push(audioBuffer);
+        totalDuration += audioBuffer.duration;
+      }
+
+      // Create a new buffer to hold the combined audio
+      const combinedBuffer = audioContext.createBuffer(
+        audioBuffers[0].numberOfChannels,
+        Math.ceil(totalDuration * audioBuffers[0].sampleRate),
+        audioBuffers[0].sampleRate
+      );
+
+      // Copy each segment into the combined buffer
+      let offset = 0;
+      for (let i = 0; i < audioBuffers.length; i++) {
+        const buffer = audioBuffers[i];
+        for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
+          const channelData = buffer.getChannelData(channel);
+          combinedBuffer.getChannelData(channel).set(channelData, offset);
+        }
+        offset += buffer.length;
+      }
+
+      // Convert combined buffer back to base64 audio
+      const length = combinedBuffer.length * combinedBuffer.numberOfChannels * 2;
+      const arrayBuffer = new ArrayBuffer(length);
+      const view = new DataView(arrayBuffer);
+      
+      let pos = 0;
+      for (let i = 0; i < combinedBuffer.length; i++) {
+        for (let channel = 0; channel < combinedBuffer.numberOfChannels; channel++) {
+          const sample = Math.max(-1, Math.min(1, combinedBuffer.getChannelData(channel)[i]));
+          view.setInt16(pos, sample * 0x7FFF, true);
+          pos += 2;
+        }
+      }
+
+      // Create WAV file
+      const wavBuffer = createWavFile(arrayBuffer, combinedBuffer.sampleRate, combinedBuffer.numberOfChannels);
+      const blob = new Blob([wavBuffer], { type: 'audio/wav' });
+      const url = URL.createObjectURL(blob);
+      
+      return url;
+    } catch (error) {
+      console.error('❌ Error combining audio segments:', error);
+      // Fallback: return first segment
+      return segments[0]?.audio || null;
+    }
+  };
+
+  // Helper function to create WAV file header
+  const createWavFile = (audioData: ArrayBuffer, sampleRate: number, numChannels: number) => {
+    const length = audioData.byteLength;
+    const buffer = new ArrayBuffer(44 + length);
+    const view = new DataView(buffer);
+
+    // WAV header
+    const writeString = (offset: number, string: string) => {
+      for (let i = 0; i < string.length; i++) {
+        view.setUint8(offset + i, string.charCodeAt(i));
+      }
+    };
+
+    writeString(0, 'RIFF');
+    view.setUint32(4, 36 + length, true);
+    writeString(8, 'WAVE');
+    writeString(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, numChannels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * numChannels * 2, true);
+    view.setUint16(32, numChannels * 2, true);
+    view.setUint16(34, 16, true);
+    writeString(36, 'data');
+    view.setUint32(40, length, true);
+
+    // Copy audio data
+    const audioArray = new Uint8Array(audioData);
+    const wavArray = new Uint8Array(buffer);
+    wavArray.set(audioArray, 44);
+
+    return buffer;
+  };
+
+  // Function to get duration of audio segments
+  const getSegmentDurations = async (segments: Array<{audio: string}>) => {
+    const durationsPromises = segments.map(segment => {
+      return new Promise<number>((resolve) => {
+        const audio = new Audio(segment.audio);
+        audio.onloadedmetadata = () => resolve(audio.duration);
+        audio.onerror = () => resolve(0); // Fallback
+      });
+    });
+    
+    return Promise.all(durationsPromises);
+  };
+
   const generateSpeech = async () => {
     if (!speechText.trim()) {
       alert('Please enter text for speech generation');
@@ -78,7 +204,7 @@ function DashboardContent() {
 
     setIsGeneratingSpeech(true);
     try {
-      console.log('🎤 Generating speech with Eleven Labs...');
+      console.log('🎤 Generating segmented speech with Eleven Labs...');
       
       const response = await fetch('/api/generate-speech', {
         method: 'POST',
@@ -88,13 +214,9 @@ function DashboardContent() {
         body: JSON.stringify({
           text: speechText,
           voiceId: selectedVoice,
+          useSegments: true, // ALWAYS use segmented generation for precise subtitles
         }),
       });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to generate speech');
-      }
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -106,14 +228,48 @@ function DashboardContent() {
       }
 
       const data = await response.json();
-      setGeneratedAudio(data.audio);
 
-      // Get audio duration by creating a temporary audio element
-      const audio = new Audio(data.audio);
-      audio.onloadedmetadata = () => {
-        setAudioDuration(audio.duration);
-        console.log('🎵 Audio generated successfully, duration:', audio.duration, 'seconds');
-      };
+      if (data.segments) {
+        // Handle segmented response
+        console.log(`✅ Generated ${data.segments.length} audio segments`);
+        setAudioSegments(data.segments);
+
+        // Get durations for all segments
+        const durations = await getSegmentDurations(data.segments);
+        const totalDuration = durations.reduce((sum, duration) => sum + duration, 0);
+        
+        // Update segments with durations
+        const segmentsWithDurations = data.segments.map((segment: {
+          text: string;
+          audio: string;
+          chunkIndex: number;
+          wordCount: number;
+        }, index: number) => ({
+          ...segment,
+          duration: durations[index]
+        }));
+        setAudioSegments(segmentsWithDurations);
+
+        // Create combined audio for playback (using first segment for now)
+        const combinedAudio = await combineAudioSegments(segmentsWithDurations);
+        setGeneratedAudio(combinedAudio);
+        setAudioDuration(totalDuration);
+        
+        console.log('🎵 Segmented audio generated successfully:', {
+          segments: data.segments.length,
+          totalDuration: totalDuration.toFixed(1) + 's',
+          chunks: data.segments.map((s: {text: string}) => s.text.slice(0, 30) + '...')
+        });
+      } else {
+        // Handle single audio response (fallback)
+        setGeneratedAudio(data.audio);
+        setAudioSegments(null);
+
+        const audio = new Audio(data.audio);
+        audio.onloadedmetadata = () => {
+          setAudioDuration(audio.duration);
+        };
+      }
 
       console.log('✅ Speech generated successfully');
     } catch (error) {
@@ -125,12 +281,25 @@ function DashboardContent() {
   };
 
   const clearGeneratedAudio = () => {
+    // Clean up blob URL if it exists
+    if (generatedAudio && generatedAudio.startsWith('blob:')) {
+      URL.revokeObjectURL(generatedAudio);
+    }
     setGeneratedAudio(null);
     setAudioDuration(null);
+    setAudioSegments(null);
   };
 
-  const renderWithRemotion = async (text: string, videoSource: File | string | null, audioSrc: string | null = null, audioDur: number | null = null, bgMusicSrc: string | null = null) => {
-    console.log('🎬 Starting server-side Remotion rendering...');
+  const renderWithRemotion = async (
+    text: string, 
+    videoSource: File | string | null, 
+    audioSrc: string | null = null, 
+    audioDur: number | null = null, 
+    bgMusicSrc: string | null = null,
+    segments: Array<{text: string; audio: string; chunkIndex: number; wordCount: number; duration?: number}> | null = null
+  ) => {
+    // TODO: Use segments for precise subtitle generation in future updates
+    console.log('🎬 Starting server-side Remotion rendering...', segments ? `with ${segments.length} audio segments` : 'with single audio');
     
     // For file uploads, we need to convert to a data URL or upload to a temporary location
     let backgroundVideoUrl = null;
@@ -152,6 +321,7 @@ function DashboardContent() {
         audioSrc,
         audioDuration: audioDur,
         bgMusic: bgMusicSrc,
+        audioSegments: segments,
       }),
     });
 
@@ -208,9 +378,16 @@ function DashboardContent() {
       
       // Choose rendering method
       if (renderMethod === 'remotion') {
-        await renderWithRemotion(speechText, videoSource, generatedAudio, audioDuration, bgMusicSource);
+        // Send segmented audio directly to Remotion API - it will handle the processing
+        console.log('🎬 Starting Remotion with segmented audio:', {
+          hasSegments: !!audioSegments,
+          segmentCount: audioSegments?.length || 0,
+          hasFallbackAudio: !!generatedAudio
+        });
+        
+        await renderWithRemotion(speechText, videoSource, generatedAudio, audioDuration, bgMusicSource, audioSegments);
       } else {
-        await createAndDownloadVideo(speechText, videoSource, generatedAudio, audioDuration, bgMusicSource);
+        await createAndDownloadVideo(speechText, videoSource, generatedAudio, audioDuration, bgMusicSource, audioSegments);
       }
       
     } catch (error) {
@@ -288,7 +465,17 @@ function DashboardContent() {
     }
   };
 
-  const createAndDownloadVideo = async (text: string, videoSource: File | string | null, audioSrc: string | null = null, audioDur: number | null = null, bgMusicSrc: string | null = null) => {
+  const createAndDownloadVideo = async (
+    text: string, 
+    videoSource: File | string | null, 
+    audioSrc: string | null = null, 
+    audioDur: number | null = null, 
+    bgMusicSrc: string | null = null,
+    segments: Array<{text: string; audio: string; chunkIndex: number; wordCount: number; duration?: number}> | null = null
+  ) => {
+    // TODO: Use segments for precise subtitle generation in future updates
+    console.log('🎬 Starting Canvas video creation...', segments ? `with ${segments.length} audio segments` : 'with single audio');
+    
     return new Promise<void>((resolve, reject) => {
       try {
         console.log('🎬 Starting YouTube Shorts video generation...');
@@ -336,8 +523,21 @@ function DashboardContent() {
           backgroundVideoElement.crossOrigin = 'anonymous';
           backgroundVideoElement.currentTime = 0;
           
-          // Optimize video playback for smooth rendering
-          backgroundVideoElement.playbackRate = 1.0;
+          // ULTRA SMOOTH video optimization settings
+          backgroundVideoElement.playbackRate = 1.0; // Exact 1.0 for perfect sync
+          backgroundVideoElement.playsInline = true; // Mobile compatibility
+          
+          // Additional video smoothness optimizations
+          backgroundVideoElement.style.imageRendering = 'optimizeQuality';
+          
+          // Wait for video to be ready and start playback
+          backgroundVideoElement.onloadeddata = () => {
+            console.log('🎬 Background video loaded and ready for smooth playback');
+          };
+          
+          backgroundVideoElement.oncanplaythrough = () => {
+            console.log('🎬 Background video can play through smoothly');
+          };
         }
 
         // Create audio context and destination for mixing audio
@@ -488,8 +688,6 @@ function DashboardContent() {
         
         console.log('🎬 Starting animation with', totalFrames, 'frames for', videoDuration, 'seconds at 60fps - MAXIMUM QUALITY');
         
-
-        
         const animate = () => {
           // Mark when audio actually starts
           if (audioElement && audioElement.currentTime > 0 && !audioStarted) {
@@ -524,7 +722,21 @@ function DashboardContent() {
 
           // Draw background
           if (backgroundVideoElement && backgroundVideoElement.readyState >= 2) {
-            // BACKGROUND VIDEO MODE: Use video as the only background
+            // ULTRA SMOOTH BACKGROUND VIDEO MODE
+            
+            // Sync video time to animation frame for perfect smoothness
+            const targetTime = frame / 60; // Target time based on frame rate
+            const videoDurationActual = backgroundVideoElement.duration;
+            
+            // Loop video seamlessly by calculating modulo
+            if (videoDurationActual && videoDurationActual > 0) {
+              const loopedTime = targetTime % videoDurationActual;
+              
+              // Only update video time if there's a significant difference (prevents micro-stutters)
+              if (Math.abs(backgroundVideoElement.currentTime - loopedTime) > 0.1) {
+                backgroundVideoElement.currentTime = loopedTime;
+              }
+            }
             
             // Scale and center the background video to fit the vertical canvas
             const videoAspect = backgroundVideoElement.videoWidth / backgroundVideoElement.videoHeight;
@@ -545,6 +757,10 @@ function DashboardContent() {
               drawX = 0;
               drawY = (canvas.height - drawHeight) / 2;
             }
+            
+            // Enable smoothing for ultra-clean video rendering
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
             
             // Draw the background video (fills entire canvas)
             ctx.drawImage(backgroundVideoElement, drawX, drawY, drawWidth, drawHeight);
@@ -881,6 +1097,8 @@ function DashboardContent() {
                   </Select>
                 </div>
 
+
+
                 <Button 
                   onClick={generateSpeech}
                   disabled={isGeneratingSpeech || !speechText.trim()}
@@ -908,9 +1126,33 @@ function DashboardContent() {
                       className="w-full"
                       preload="metadata"
                     />
+                    
+                    {audioSegments && (
+                      <div className="space-y-2">
+                        <Label className="text-xs font-medium text-muted-foreground">
+                          Audio Segments ({audioSegments.length} chunks for precise subtitles):
+                        </Label>
+                        <div className="grid gap-2 max-h-32 overflow-y-auto">
+                          {audioSegments.map((segment, index) => (
+                            <div key={index} className="flex items-center gap-2 text-xs bg-muted/50 p-2 rounded">
+                              <Badge variant="outline" className="text-xs">
+                                {index + 1}
+                              </Badge>
+                              <span className="flex-1 truncate">
+                                {segment.text}
+                              </span>
+                              <Badge variant="secondary" className="text-xs">
+                                {segment.duration ? `${segment.duration.toFixed(1)}s` : '...'}
+                              </Badge>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
                     <div className="flex items-center justify-between">
                       <Badge variant="outline" className="w-fit">
-                        ✅ Audio ready
+                        ✅ Audio ready {audioSegments ? `(${audioSegments.length} segments)` : ''}
                       </Badge>
                       {audioDuration && (
                         <Badge variant="secondary" className="w-fit">

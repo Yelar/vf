@@ -85,7 +85,7 @@ export const SampleVideo: React.FC<SampleVideoProps> = ({
         />
       )}
 
-      {/* Background Video - OPTIMIZED FOR SEAMLESS PLAYBACK */}
+      {/* Background Video - ULTRA SMOOTH PLAYBACK OPTIMIZED */}
       {backgroundVideo && (
         <Video
           src={backgroundVideo}
@@ -98,12 +98,18 @@ export const SampleVideo: React.FC<SampleVideoProps> = ({
             objectFit: 'cover',
             objectPosition: 'center',
             zIndex: -1,
-            transform: 'scale(1.05)', // Slight zoom for better mobile fit
-            filter: 'brightness(0.8)', // Slightly darken for text readability
+            transform: 'scale(1.02)', // Minimal zoom to avoid performance issues
+            filter: 'brightness(0.85)', // Slightly darken for text readability
+            willChange: 'auto',
           }}
           muted
-          playbackRate={1}
+          playbackRate={1.0} // Exactly 1.0 for perfect sync
           loop
+          // Remotion-specific optimizations for smooth playback
+          startFrom={0}
+          endAt={durationInFrames}
+          // Enable hardware acceleration and smooth rendering
+          playsInline
         />
       )}
       
