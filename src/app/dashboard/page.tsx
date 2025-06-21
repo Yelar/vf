@@ -576,7 +576,10 @@ function DashboardContent() {
 
         // Create background video element if provided
         let backgroundVideoElement: HTMLVideoElement | null = null;
+        let hasBackgroundVideo = false; // Track if we should use video background
+        
         if (videoSource) {
+          hasBackgroundVideo = true; // Set flag based on input
           backgroundVideoElement = document.createElement('video');
           
           if (typeof videoSource === 'string') {
@@ -792,8 +795,8 @@ function DashboardContent() {
             setRenderProgress(progress);
           }
 
-          // Draw background
-          if (backgroundVideoElement && backgroundVideoElement.readyState >= 2) {
+          // Draw background - MATCH REMOTION PREVIEW EXACTLY
+          if (hasBackgroundVideo && backgroundVideoElement && backgroundVideoElement.readyState >= 2) {
             // ULTRA SMOOTH BACKGROUND VIDEO MODE
             
             // Sync video time to animation frame for perfect smoothness
@@ -838,12 +841,16 @@ function DashboardContent() {
             ctx.drawImage(backgroundVideoElement, drawX, drawY, drawWidth, drawHeight);
             
             // Add subtle dark overlay for text readability over video (optimized)
-            ctx.fillStyle = 'rgba(0,0,0,0.2)';
+            ctx.fillStyle = 'rgba(0,0,0,0.15)'; // Match Remotion brightness(0.85)
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
           } else {
-            // CLEAN MODE: Simple solid dark background (no particles, no gradients)
-            ctx.fillStyle = '#1a1a1a'; // Clean dark gray background
+            // GRADIENT BACKGROUND - MATCH REMOTION EXACTLY
+            const gradientOpacity = 0.8; // Match Remotion backgroundOpacity
+            const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+            gradient.addColorStop(0, `rgba(59, 130, 246, ${gradientOpacity})`); // Blue
+            gradient.addColorStop(1, `rgba(147, 51, 234, ${gradientOpacity})`); // Purple
+            ctx.fillStyle = gradient;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
           }
 
@@ -917,28 +924,24 @@ function DashboardContent() {
             currentWordIndex = Math.min(currentWordIndex, words.length - 1);
           }
 
+          // TEXT STYLING - MATCH REMOTION EXACTLY
           ctx.shadowColor = 'rgba(0,0,0,0.8)';
-          ctx.shadowBlur = 8;
-          ctx.shadowOffsetX = 3;
-          ctx.shadowOffsetY = 3;
+          ctx.shadowBlur = 30; // Match Remotion shadow blur
+          ctx.shadowOffsetX = 4;
+          ctx.shadowOffsetY = 4;
           
-          ctx.fillStyle = 'white';
-          ctx.strokeStyle = 'rgba(0,0,0,0.5)';
-          ctx.lineWidth = 4;
-          ctx.font = 'bold 80px Arial, sans-serif';
+          ctx.fillStyle = '#FFD700'; // Gold color to match Remotion
+          ctx.strokeStyle = 'rgba(0,0,0,0.9)';
+          ctx.lineWidth = 6;
+          ctx.font = '900 68px Impact, "Arial Black", Helvetica, sans-serif'; // Match Remotion font
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           
-                    const y = -40;
+          const y = -40;
           
           // Show ONLY the current word - ONE WORD AT A TIME
           if (currentWordIndex >= 0 && currentWordIndex < words.length) {
             const currentWord = words[currentWordIndex];
-            
-            // Set style for the current word
-            ctx.fillStyle = '#FFD700'; // Gold color
-            ctx.strokeStyle = 'rgba(0,0,0,0.8)';
-            ctx.lineWidth = 6;
             
             // Draw the current word only
             ctx.strokeText(currentWord, 0, y);
@@ -947,21 +950,21 @@ function DashboardContent() {
 
           ctx.restore();
 
-          // Add floating particles ONLY when no background video is present
-          if (!backgroundVideoElement || backgroundVideoElement.readyState < 2) {
+          // Add floating particles ONLY when no background video - MATCH REMOTION EXACTLY
+          if (!hasBackgroundVideo) {
             for (let i = 0; i < 6; i++) {
               const particleFrame = (frame + i * 10) % 90;
               const particleOpacity = particleFrame <= 45 ? particleFrame / 45 : 
                                      particleFrame >= 45 ? (90 - particleFrame) / 45 : 0;
-              const particleY = canvas.height * 0.85 - (particleFrame / 90) * (canvas.height * 0.7);
+              const particleY = canvas.height * 0.5 - (particleFrame / 90) * (canvas.height * 0.8) + (canvas.height * 0.4);
               const particleX = canvas.width * (0.15 + i * 0.12);
               
               if (particleOpacity > 0) {
                 ctx.save();
-                ctx.globalAlpha = particleOpacity * 0.4;
-                ctx.fillStyle = 'rgba(255,255,255,0.8)';
+                ctx.globalAlpha = particleOpacity * 0.6; // Match Remotion particle opacity
+                ctx.fillStyle = 'white';
                 ctx.beginPath();
-                ctx.arc(particleX, particleY, 2, 0, Math.PI * 2);
+                ctx.arc(particleX, particleY, 3, 0, Math.PI * 2); // Match Remotion particle size
                 ctx.fill();
                 ctx.restore();
               }
@@ -1025,16 +1028,27 @@ function DashboardContent() {
         };
 
         // Start background video if available
-        if (backgroundVideoElement) {
-          backgroundVideoElement.onloadeddata = () => {
-            console.log('📹 Background video loaded, starting recording...');
-            // Start video from beginning and let it play naturally
-            backgroundVideoElement.currentTime = 0;
-            backgroundVideoElement.play();
-            
-            // Add small delay to ensure first frame is ready
-            setTimeout(startRecording, 50);
+        if (hasBackgroundVideo && backgroundVideoElement) {
+          // Wait for video to be fully ready before starting
+          const waitForVideoReady = () => {
+            if (backgroundVideoElement!.readyState >= 2) {
+              console.log('📹 Background video ready, starting recording...');
+              backgroundVideoElement!.currentTime = 0;
+              backgroundVideoElement!.play().then(() => {
+                // Add small delay to ensure first frame is ready
+                setTimeout(startRecording, 100);
+              }).catch(error => {
+                console.error('❌ Error starting video:', error);
+                // Fallback to start recording anyway
+                setTimeout(startRecording, 100);
+              });
+            } else {
+              // Check again in 100ms
+              setTimeout(waitForVideoReady, 100);
+            }
           };
+          
+          backgroundVideoElement.onloadeddata = waitForVideoReady;
           backgroundVideoElement.load();
         } else {
           console.log('🔴 Starting recording without background video...');
