@@ -229,12 +229,12 @@ export async function POST(req: NextRequest) {
 
       console.log('✅ Remotion render completed successfully with segmented audio');
 
-      return new NextResponse(fileBuffer, {
-        headers: {
-          'Content-Type': 'video/mp4',
+    return new NextResponse(fileBuffer, {
+      headers: {
+        'Content-Type': 'video/mp4',
           'Content-Disposition': 'attachment; filename="video.mp4"',
-        },
-      });
+      },
+    });
     } catch (renderError) {
       // Clean up temporary files in case of error
       await fs.unlink(outputPath).catch(() => {});

@@ -14,8 +14,26 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AI Motion - YouTube Shorts Generator",
-  description: "Create stunning YouTube Shorts videos with AI voice, custom backgrounds, and professional animations",
+  title: "VFS - AI Video Studio",
+  description: "Create viral YouTube Shorts, TikToks, and Instagram Reels with AI-powered content generation, premium voice synthesis, and professional video rendering.",
+  keywords: "AI video, YouTube Shorts, TikTok, Instagram Reels, video generator, AI content, voice synthesis",
+  authors: [{ name: "VFS Team" }],
+  creator: "VFS",
+  publisher: "VFS",
+  openGraph: {
+    title: "VFS - AI Video Studio",
+    description: "Create viral videos with AI-powered content generation",
+    type: "website",
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "VFS - AI Video Studio",
+    description: "Create viral videos with AI-powered content generation",
+  },
+  viewport: "width=device-width, initial-scale=1",
+  themeColor: "#8b5cf6",
+  colorScheme: "dark",
 };
 
 export default function RootLayout({
@@ -24,9 +42,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className="dark" style={{ colorScheme: 'dark' }}>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-black text-white`}
       >
         <SessionProvider>
           {children}

@@ -1050,53 +1050,68 @@ function DashboardContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-muted p-4 md:p-8">
-      <div className="mx-auto max-w-7xl space-y-8">
+    <div className="min-h-screen bg-black text-white">
+      {/* Animated Background */}
+      <div className="fixed inset-0 bg-gradient-to-br from-purple-900/10 via-black to-blue-900/10">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_40%,rgba(120,119,198,0.1),transparent_50%)]"></div>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,rgba(120,119,198,0.05),transparent_50%)]"></div>
+      </div>
+
+      <div className="relative z-10">
         {/* Header */}
-        <div className="text-center space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center justify-center gap-2 flex-1">
-              <Smartphone className="h-8 w-8 text-primary" />
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
-                YouTube Shorts Generator
-              </h1>
-              <Sparkles className="h-8 w-8 text-purple-600" />
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <User className="h-4 w-4" />
-                <span>{session?.user?.name || session?.user?.email}</span>
+        <header className="border-b border-white/10 backdrop-blur-xl bg-black/30">
+          <div className="container mx-auto px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-blue-500 rounded-xl flex items-center justify-center">
+                  <Video className="w-7 h-7 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
+                    VFS Studio
+                  </h1>
+                  <p className="text-sm text-gray-400">
+                    AI-Powered Video Generation
+                  </p>
+                </div>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => signOut()}
-                className="flex items-center gap-2"
-              >
-                <LogOut className="h-4 w-4" />
-                Sign Out
-              </Button>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3 px-4 py-2 bg-white/5 rounded-lg border border-white/10">
+                  <User className="h-4 w-4 text-purple-400" />
+                  <span className="text-sm text-gray-300">{session?.user?.name || session?.user?.email}</span>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => signOut()}
+                  className="border-red-500/30 text-red-400 hover:bg-red-500/10 hover:border-red-500/50"
+                >
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Sign Out
+                </Button>
+              </div>
             </div>
           </div>
-          <p className="text-muted-foreground text-lg">
-            Create stunning vertical videos perfect for YouTube Shorts, Instagram Reels, and TikTok
-          </p>
-        </div>
+        </header>
+
+        <div className="container mx-auto px-6 py-8 space-y-8">
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Video Preview */}
-          <Card>
+          <Card className="bg-white/5 border-white/10 backdrop-blur-sm">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Play className="h-5 w-5" />
+              <CardTitle className="flex items-center gap-2 text-white">
+                <div className="w-6 h-6 bg-gradient-to-r from-purple-500 to-blue-500 rounded flex items-center justify-center">
+                  <Play className="h-3 w-3 text-white" />
+                </div>
                 Preview
               </CardTitle>
-              <CardDescription>
-                Live preview of your YouTube Shorts video
+              <CardDescription className="text-gray-400">
+                Live preview of your AI-generated video
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="mx-auto bg-black rounded-lg overflow-hidden" style={{ aspectRatio: '9/16', maxHeight: '500px' }}>
+              <div className="mx-auto bg-black rounded-xl overflow-hidden border border-white/20" style={{ aspectRatio: '9/16', maxHeight: '500px' }}>
                 <Player
                   component={SampleVideo}
                   inputProps={{
@@ -1119,9 +1134,13 @@ function DashboardContent() {
                   loop
                 />
               </div>
-              <div className="flex items-center justify-center gap-2 mt-3">
-                <Badge variant="secondary">9:16 Vertical</Badge>
-                <Badge variant="secondary">Mobile Optimized</Badge>
+              <div className="flex items-center justify-center gap-3 mt-4">
+                <Badge className="bg-purple-500/20 text-purple-300 border-purple-500/30">
+                  📱 9:16 Vertical
+                </Badge>
+                <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30">
+                  🚀 AI Powered
+                </Badge>
               </div>
             </CardContent>
           </Card>
@@ -1130,14 +1149,16 @@ function DashboardContent() {
           <div className="space-y-6">
 
             {/* Educational Content Generation */}
-            <Card>
+            <Card className="bg-white/5 border-white/10 backdrop-blur-sm">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Brain className="h-5 w-5" />
-                  Educational Content Generator
+                <CardTitle className="flex items-center gap-2 text-white">
+                  <div className="w-6 h-6 bg-gradient-to-r from-purple-500 to-pink-500 rounded flex items-center justify-center">
+                    <Brain className="h-3 w-3 text-white" />
+                  </div>
+                  AI Content Generator
                 </CardTitle>
-                <CardDescription>
-                  Generate engaging educational content using GROQ AI for your YouTube Shorts
+                <CardDescription className="text-gray-400">
+                  Generate engaging educational content using GROQ AI
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -1185,7 +1206,7 @@ function DashboardContent() {
                 <Button 
                   onClick={generateEducationalContent}
                   disabled={isGeneratingContent || !educationalTopic.trim()}
-                  className="w-full"
+                  className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
                 >
                   {isGeneratingContent ? (
                     <>
@@ -1195,7 +1216,7 @@ function DashboardContent() {
                   ) : (
                     <>
                       <BookOpen className="mr-2 h-4 w-4" />
-                      Generate Educational Content
+                      Generate AI Content
                     </>
                   )}
                 </Button>
@@ -1226,14 +1247,16 @@ function DashboardContent() {
             </Card>
 
             {/* Text-to-Speech */}
-            <Card>
+            <Card className="bg-white/5 border-white/10 backdrop-blur-sm">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Mic className="h-5 w-5" />
-                  Text-to-Speech
+                <CardTitle className="flex items-center gap-2 text-white">
+                  <div className="w-6 h-6 bg-gradient-to-r from-blue-500 to-cyan-500 rounded flex items-center justify-center">
+                    <Mic className="h-3 w-3 text-white" />
+                  </div>
+                  AI Voice Synthesis
                 </CardTitle>
-                <CardDescription>
-                  Generate AI voice narration using Eleven Labs
+                <CardDescription className="text-gray-400">
+                  Generate premium AI voice with Eleven Labs
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -1342,14 +1365,16 @@ function DashboardContent() {
             </Card>
 
             {/* Background Video */}
-            <Card>
+            <Card className="bg-white/5 border-white/10 backdrop-blur-sm">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Video className="h-5 w-5" />
+                <CardTitle className="flex items-center gap-2 text-white">
+                  <div className="w-6 h-6 bg-gradient-to-r from-orange-500 to-red-500 rounded flex items-center justify-center">
+                    <Video className="h-3 w-3 text-white" />
+                  </div>
                   Background Video
                 </CardTitle>
-                <CardDescription>
-                  Choose a preset video or upload your own
+                <CardDescription className="text-gray-400">
+                  Choose preset video or upload custom
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -1453,14 +1478,16 @@ function DashboardContent() {
             </Card>
 
             {/* Background Music */}
-            <Card>
+            <Card className="bg-white/5 border-white/10 backdrop-blur-sm">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Music className="h-5 w-5" />
+                <CardTitle className="flex items-center gap-2 text-white">
+                  <div className="w-6 h-6 bg-gradient-to-r from-pink-500 to-rose-500 rounded flex items-center justify-center">
+                    <Music className="h-3 w-3 text-white" />
+                  </div>
                   Background Music
                 </CardTitle>
-                <CardDescription>
-                  Add background music to enhance your video
+                <CardDescription className="text-gray-400">
+                  Add ambient music to enhance your video
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -1511,14 +1538,16 @@ function DashboardContent() {
             </Card>
 
             {/* Generation */}
-            <Card>
+            <Card className="bg-white/5 border-white/10 backdrop-blur-sm">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Download className="h-5 w-5" />
+                <CardTitle className="flex items-center gap-2 text-white">
+                  <div className="w-6 h-6 bg-gradient-to-r from-green-500 to-emerald-500 rounded flex items-center justify-center">
+                    <Download className="h-3 w-3 text-white" />
+                  </div>
                   Generate Video
                 </CardTitle>
-                <CardDescription>
-                  Create and download your YouTube Shorts video
+                <CardDescription className="text-gray-400">
+                  Create and download your AI video
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -1548,7 +1577,7 @@ function DashboardContent() {
                 <Button 
                   onClick={handleRenderVideo}
                   disabled={isRendering}
-                  className="w-full h-12 text-lg font-semibold"
+                  className="w-full h-12 text-lg font-semibold bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg shadow-green-500/25"
                   size="lg"
                 >
                   {isRendering ? (
@@ -1559,7 +1588,7 @@ function DashboardContent() {
                   ) : (
                     <>
                       <Download className="mr-2 h-5 w-5" />
-                      Generate YouTube Shorts Video
+                      Generate AI Video
                     </>
                   )}
                 </Button>
@@ -1578,78 +1607,91 @@ function DashboardContent() {
         </div>
 
         {/* Video Specifications */}
-        <Card>
+        <Card className="bg-gradient-to-r from-purple-900/30 to-blue-900/30 border-purple-500/30 backdrop-blur-sm">
           <CardHeader>
-            <CardTitle>📱 Video Specifications</CardTitle>
-            <CardDescription>
-              Perfect format for all mobile platforms
+            <CardTitle className="text-white text-xl">🚀 Technical Specifications</CardTitle>
+            <CardDescription className="text-gray-300">
+              Professional-grade output for viral content
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-center">
-              <div className="space-y-2">
-                <div className="text-2xl font-bold text-primary">1080×1920</div>
-                <Badge variant="secondary">YouTube Shorts</Badge>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-6 text-center">
+              <div className="space-y-3">
+                <div className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">1080×1920</div>
+                <Badge className="bg-purple-500/20 text-purple-300 border-purple-500/30">
+                  Vertical HD
+                </Badge>
               </div>
-              <div className="space-y-2">
-                <div className="text-2xl font-bold text-green-600">30 FPS</div>
-                <Badge variant="secondary">Smooth</Badge>
+              <div className="space-y-3">
+                <div className="text-3xl font-bold bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">60 FPS</div>
+                <Badge className="bg-green-500/20 text-green-300 border-green-500/30">
+                  Ultra Smooth
+                </Badge>
               </div>
-              <div className="space-y-2">
-                <div className="text-2xl font-bold text-purple-600">
+              <div className="space-y-3">
+                <div className="text-3xl font-bold bg-gradient-to-r from-orange-400 to-red-400 bg-clip-text text-transparent">
                   {audioDuration ? `${audioDuration.toFixed(1)}s` : '5s'}
                 </div>
-                <Badge variant="secondary">
-                  {audioDuration ? 'Audio Length' : 'Duration'}
+                <Badge className="bg-orange-500/20 text-orange-300 border-orange-500/30">
+                  {audioDuration ? 'AI Audio' : 'Duration'}
                 </Badge>
               </div>
-              <div className="space-y-2">
-                <div className="text-2xl font-bold text-orange-600">
+              <div className="space-y-3">
+                <div className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
                   {renderMethod === 'remotion' ? 'MP4' : 'WebM'}
                 </div>
-                <Badge variant="secondary">
-                  {renderMethod === 'remotion' ? 'H.264' : 'VP9/VP8'}
+                <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30">
+                  {renderMethod === 'remotion' ? 'Universal' : 'Web Optimized'}
                 </Badge>
               </div>
-              <div className="space-y-2">
-                <div className="text-2xl font-bold text-blue-600">6 Mbps</div>
-                <Badge variant="secondary">High Quality</Badge>
+              <div className="space-y-3">
+                <div className="text-3xl font-bold bg-gradient-to-r from-pink-400 to-rose-400 bg-clip-text text-transparent">HQ</div>
+                <Badge className="bg-pink-500/20 text-pink-300 border-pink-500/30">
+                  Broadcast Quality
+                </Badge>
               </div>
             </div>
           </CardContent>
         </Card>
 
         {/* Features */}
-        <Card className="bg-gradient-to-r from-primary/10 to-purple-600/10 border-primary/20">
+        <Card className="bg-gradient-to-r from-blue-900/20 to-purple-900/20 border-blue-500/30 backdrop-blur-sm">
           <CardHeader>
-            <CardTitle className="text-center">🚀 Platform Features</CardTitle>
+            <CardTitle className="text-center text-white text-xl">⚡ AI-Powered Features</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="text-center space-y-2">
-                <Smartphone className="h-8 w-8 mx-auto text-primary" />
-                <h3 className="font-semibold">Perfect Format</h3>
-                <p className="text-sm text-muted-foreground">
-                  9:16 vertical aspect ratio optimized for mobile viewing
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div className="text-center space-y-3">
+                <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-blue-500 rounded-xl mx-auto flex items-center justify-center">
+                  <Smartphone className="h-6 w-6 text-white" />
+                </div>
+                <h3 className="font-semibold text-white">Mobile Optimized</h3>
+                <p className="text-sm text-gray-300">
+                  Perfect 9:16 vertical format for all social platforms
                 </p>
               </div>
-              <div className="text-center space-y-2">
-                <Video className="h-8 w-8 mx-auto text-purple-600" />
-                <h3 className="font-semibold">Custom Backgrounds</h3>
-                <p className="text-sm text-muted-foreground">
-                  Upload your own videos or choose from preset options
+              <div className="text-center space-y-3">
+                <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-red-500 rounded-xl mx-auto flex items-center justify-center">
+                  <Video className="h-6 w-6 text-white" />
+                </div>
+                <h3 className="font-semibold text-white">Dynamic Backgrounds</h3>
+                <p className="text-sm text-gray-300">
+                  AI-optimized video backgrounds that adapt to content
                 </p>
               </div>
-              <div className="text-center space-y-2">
-                <Sparkles className="h-8 w-8 mx-auto text-orange-600" />
-                <h3 className="font-semibold">Smart Text Wrapping</h3>
-                <p className="text-sm text-muted-foreground">
-                  Automatically optimizes text layout for vertical format
+              <div className="text-center space-y-3">
+                <div className="w-12 h-12 bg-gradient-to-r from-pink-500 to-rose-500 rounded-xl mx-auto flex items-center justify-center">
+                  <Sparkles className="h-6 w-6 text-white" />
+                </div>
+                <h3 className="font-semibold text-white">Smart Typography</h3>
+                <p className="text-sm text-gray-300">
+                  AI-driven text positioning with perfect readability
                 </p>
               </div>
             </div>
           </CardContent>
         </Card>
+        </div>
       </div>
     </div>
   );
