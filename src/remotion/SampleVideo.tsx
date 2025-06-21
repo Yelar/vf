@@ -23,6 +23,8 @@ interface SampleVideoProps {
   audioDuration?: number | null;
   bgMusic?: string | null;
   audioSegments?: AudioSegment[] | null;
+  fontStyle?: string;
+  textColor?: string;
 }
 
 export const SampleVideo: React.FC<SampleVideoProps> = ({
@@ -32,9 +34,51 @@ export const SampleVideo: React.FC<SampleVideoProps> = ({
   audioDuration,
   bgMusic,
   audioSegments,
+  fontStyle = 'impact',
+  textColor = 'gold',
 }) => {
   const frame = useCurrentFrame();
   const {durationInFrames, fps} = useVideoConfig();
+  
+  // Font options with system fonts for reliable server-side rendering
+  const fontOptions = [
+    { value: 'impact', font: 'Impact, "Arial Black", Helvetica, sans-serif', weight: '900' },
+    { value: 'arial-black', font: '"Arial Black", Arial, Helvetica, sans-serif', weight: '900' },
+    { value: 'anton', font: '"Helvetica Neue", "Arial Black", Impact, sans-serif', weight: '900' },
+    { value: 'oswald', font: '"Trebuchet MS", "Arial Black", Impact, sans-serif', weight: '700' },
+    { value: 'bangers', font: '"Courier New", "Arial Black", Impact, monospace', weight: '700' },
+    { value: 'fredoka', font: '"Georgia", "Times New Roman", serif', weight: '700' },
+    { value: 'montserrat', font: '"Verdana", "Helvetica", Arial, sans-serif', weight: '700' },
+  ];
+
+  // Color options (matching dashboard)
+  const colorOptions = [
+    { value: 'gold', color: '#FFD700', shadowColor: 'rgba(255, 215, 0, 0.6)' },
+    { value: 'white', color: '#FFFFFF', shadowColor: 'rgba(255, 255, 255, 0.6)' },
+    { value: 'red', color: '#FF4444', shadowColor: 'rgba(255, 68, 68, 0.6)' },
+    { value: 'blue', color: '#4A90E2', shadowColor: 'rgba(74, 144, 226, 0.6)' },
+    { value: 'green', color: '#4CAF50', shadowColor: 'rgba(76, 175, 80, 0.6)' },
+    { value: 'purple', color: '#9C27B0', shadowColor: 'rgba(156, 39, 176, 0.6)' },
+    { value: 'orange', color: '#FF9800', shadowColor: 'rgba(255, 152, 0, 0.6)' },
+    { value: 'cyan', color: '#00BCD4', shadowColor: 'rgba(0, 188, 212, 0.6)' },
+    { value: 'pink', color: '#E91E63', shadowColor: 'rgba(233, 30, 99, 0.6)' },
+    { value: 'yellow', color: '#FFEB3B', shadowColor: 'rgba(255, 235, 59, 0.6)' },
+  ];
+  
+  const selectedFontStyle = fontOptions.find(f => f.value === fontStyle) || fontOptions[0];
+  const selectedColorStyle = colorOptions.find(c => c.value === textColor) || colorOptions[0];
+  
+  // Debug logging for font/color selection (frame 0 only)
+  if (frame === 0) {
+    console.log('🎨 SampleVideo Font/Color Debug:', {
+      receivedFontStyle: fontStyle,
+      receivedTextColor: textColor,
+      selectedFont: selectedFontStyle,
+      selectedColor: selectedColorStyle,
+      availableFonts: fontOptions.map(f => f.value),
+      availableColors: colorOptions.map(c => c.value)
+    });
+  }
   
   // Simplified approach for smooth video playback
 
@@ -138,14 +182,14 @@ export const SampleVideo: React.FC<SampleVideoProps> = ({
         {/* Word-by-word text display - High Quality YouTube Shorts */}
         <div
           style={{
-            fontSize: 68, // Slightly larger for better quality
-            fontWeight: '900', // Maximum boldness
+            fontSize: 80, // Reduced from 120px for better readability
             margin: 0,
             lineHeight: 1.2,
             textShadow: '0 0 30px rgba(0,0,0,0.8), 4px 4px 12px rgba(0,0,0,0.9), -2px -2px 8px rgba(0,0,0,0.6)',
             wordWrap: 'break-word',
             hyphens: 'auto',
-            fontFamily: 'Impact, "Arial Black", Helvetica, sans-serif',
+            fontFamily: selectedFontStyle.font,
+            fontWeight: selectedFontStyle.weight,
             textRendering: 'optimizeLegibility',
             WebkitFontSmoothing: 'antialiased',
           }}
@@ -193,10 +237,10 @@ export const SampleVideo: React.FC<SampleVideoProps> = ({
                     return (
                       <span
                         style={{
-                          color: '#FFD700', // Gold color for the current word
+                          color: selectedColorStyle.color,
                           display: 'inline-block',
                           transform: 'scale(1.1)',
-                          textShadow: '0 0 15px rgba(255, 215, 0, 0.6), 3px 3px 6px rgba(0,0,0,0.8)',
+                          textShadow: `0 0 15px ${selectedColorStyle.shadowColor}, 3px 3px 6px rgba(0,0,0,0.8)`,
                           transition: 'all 0.1s ease-in-out', // Faster transition for precision
                         }}
                       >
@@ -225,10 +269,10 @@ export const SampleVideo: React.FC<SampleVideoProps> = ({
               return (
                 <span
                   style={{
-                    color: '#FFD700',
+                    color: selectedColorStyle.color,
                     display: 'inline-block',
                     transform: 'scale(1.1)',
-                    textShadow: '0 0 15px rgba(255, 215, 0, 0.6), 3px 3px 6px rgba(0,0,0,0.8)',
+                    textShadow: `0 0 15px ${selectedColorStyle.shadowColor}, 3px 3px 6px rgba(0,0,0,0.8)`,
                     transition: 'all 0.3s ease-in-out',
                   }}
                 >

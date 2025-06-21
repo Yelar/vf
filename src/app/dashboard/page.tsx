@@ -41,7 +41,7 @@ function DashboardContent() {
 
   
   // Render method selection
-  const [renderMethod, setRenderMethod] = useState<'canvas' | 'remotion'>('canvas');
+
   
   // Background music states
   const [selectedBgMusic, setSelectedBgMusic] = useState<string>('none');
@@ -52,6 +52,12 @@ function DashboardContent() {
   const [difficulty, setDifficulty] = useState<'beginner' | 'intermediate' | 'advanced'>('beginner');
   const [isGeneratingContent, setIsGeneratingContent] = useState(false);
   const [generatedContent, setGeneratedContent] = useState<string | null>(null);
+
+  // Font selection state
+  const [selectedFont, setSelectedFont] = useState<string>('impact');
+
+  // Text color selection state
+  const [selectedColor, setSelectedColor] = useState<string>('gold');
 
   // List of preset background videos (update this list when you add new videos)
   const presetVideos = [
@@ -83,6 +89,31 @@ function DashboardContent() {
     { value: 'VR6AewLTigWG4xSOukaG', label: '👨 Arnold - Deep Male' },
     { value: 'MF3mGyEYCl7XYWbV9V6O', label: '👩 Elli - Young Female' },
     { value: 'TxGEqnHWrfWFTfGW9XjX', label: '👨 Josh - Casual Male' },
+  ];
+
+  // Available font styles
+  const fontOptions = [
+    { value: 'impact', label: '💥 Impact - Bold & Strong', font: 'Impact, "Arial Black", Helvetica, sans-serif', weight: '900' },
+    { value: 'arial-black', label: '⚡ Arial Black - Modern & Clean', font: '"Arial Black", Arial, sans-serif', weight: '900' },
+    { value: 'anton', label: '🔥 Anton - Condensed Power', font: 'var(--font-anton), Anton, Impact, sans-serif', weight: '400' },
+    { value: 'oswald', label: '⭐ Oswald - Professional', font: 'var(--font-oswald), Oswald, Impact, sans-serif', weight: '700' },
+    { value: 'bangers', label: '💥 Bangers - Comic Style', font: 'var(--font-bangers), Bangers, Impact, sans-serif', weight: '400' },
+    { value: 'fredoka', label: '🌟 Fredoka - Friendly & Fun', font: 'var(--font-fredoka), Fredoka, Arial, sans-serif', weight: '700' },
+    { value: 'montserrat', label: '✨ Montserrat - Elegant', font: 'var(--font-montserrat), Montserrat, Arial, sans-serif', weight: '900' },
+  ];
+
+  // Available text colors
+  const colorOptions = [
+    { value: 'gold', label: '✨ Gold - Classic', color: '#FFD700', shadowColor: 'rgba(255, 215, 0, 0.6)' },
+    { value: 'white', label: '⚪ White - Clean', color: '#FFFFFF', shadowColor: 'rgba(255, 255, 255, 0.6)' },
+    { value: 'red', label: '🔴 Red - Bold', color: '#FF4444', shadowColor: 'rgba(255, 68, 68, 0.6)' },
+    { value: 'blue', label: '🔵 Blue - Cool', color: '#4A90E2', shadowColor: 'rgba(74, 144, 226, 0.6)' },
+    { value: 'green', label: '🟢 Green - Fresh', color: '#4CAF50', shadowColor: 'rgba(76, 175, 80, 0.6)' },
+    { value: 'purple', label: '🟣 Purple - Royal', color: '#9C27B0', shadowColor: 'rgba(156, 39, 176, 0.6)' },
+    { value: 'orange', label: '🟠 Orange - Energy', color: '#FF9800', shadowColor: 'rgba(255, 152, 0, 0.6)' },
+    { value: 'cyan', label: '🔷 Cyan - Modern', color: '#00BCD4', shadowColor: 'rgba(0, 188, 212, 0.6)' },
+    { value: 'pink', label: '💗 Pink - Vibrant', color: '#E91E63', shadowColor: 'rgba(233, 30, 99, 0.6)' },
+    { value: 'yellow', label: '🟡 Yellow - Bright', color: '#FFEB3B', shadowColor: 'rgba(255, 235, 59, 0.6)' },
   ];
 
   // Function to combine multiple audio segments into one using Web Audio API
@@ -368,7 +399,9 @@ function DashboardContent() {
     audioSrc: string | null = null, 
     audioDur: number | null = null, 
     bgMusicSrc: string | null = null,
-    segments: Array<{text: string; audio: string; chunkIndex: number; wordCount: number; duration?: number}> | null = null
+    segments: Array<{text: string; audio: string; chunkIndex: number; wordCount: number; duration?: number}> | null = null,
+    fontStyle: string = selectedFont,
+    textColor: string = selectedColor
   ) => {
     // TODO: Use segments for precise subtitle generation in future updates
     console.log('🎬 Starting server-side Remotion rendering...', segments ? `with ${segments.length} audio segments` : 'with single audio');
@@ -394,6 +427,8 @@ function DashboardContent() {
         audioDuration: audioDur,
         bgMusic: bgMusicSrc,
         audioSegments: segments,
+        fontStyle,
+        textColor,
       }),
     });
 
@@ -448,19 +483,14 @@ function DashboardContent() {
         bgMusicSource = musicOption?.path || null;
       }
       
-      // Choose rendering method
-      if (renderMethod === 'remotion') {
-        // Send segmented audio directly to Remotion API - it will handle the processing
-        console.log('🎬 Starting Remotion with segmented audio:', {
-          hasSegments: !!audioSegments,
-          segmentCount: audioSegments?.length || 0,
-          hasFallbackAudio: !!generatedAudio
-        });
-        
-        await renderWithRemotion(speechText, videoSource, generatedAudio, audioDuration, bgMusicSource, audioSegments);
-      } else {
-        await createAndDownloadVideo(speechText, videoSource, generatedAudio, audioDuration, bgMusicSource, audioSegments);
-      }
+      // Always use Remotion server-side rendering for high quality
+      console.log('🎬 Starting Remotion with segmented audio:', {
+        hasSegments: !!audioSegments,
+        segmentCount: audioSegments?.length || 0,
+        hasFallbackAudio: !!generatedAudio
+      });
+      
+      await renderWithRemotion(speechText, videoSource, generatedAudio, audioDuration, bgMusicSource, audioSegments, selectedFont, selectedColor);
       
     } catch (error) {
       console.error('❌ Error creating YouTube Shorts video:', error);
@@ -537,532 +567,6 @@ function DashboardContent() {
     }
   };
 
-  const createAndDownloadVideo = async (
-    text: string, 
-    videoSource: File | string | null, 
-    audioSrc: string | null = null, 
-    audioDur: number | null = null, 
-    bgMusicSrc: string | null = null,
-    segments: Array<{text: string; audio: string; chunkIndex: number; wordCount: number; duration?: number}> | null = null
-  ) => {
-    // TODO: Use segments for precise subtitle generation in future updates
-    console.log('🎬 Starting Canvas video creation...', segments ? `with ${segments.length} audio segments` : 'with single audio');
-    
-    return new Promise<void>((resolve, reject) => {
-      try {
-        console.log('🎬 Starting YouTube Shorts video generation...');
-        console.log('Creating vertical video with text:', text);
-        
-        // Create VERTICAL canvas for YouTube Shorts (9:16 aspect ratio) - MAXIMUM QUALITY
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d', { 
-          alpha: false, // No transparency for better performance
-          desynchronized: true, // Better performance for animations
-          colorSpace: 'srgb', // Standard color space for maximum compatibility
-          willReadFrequently: false // Optimized for video recording
-        })!;
-        canvas.width = 1080;  // YouTube Shorts width
-        canvas.height = 1920; // YouTube Shorts height (9:16 ratio)
-
-        console.log('✅ MAXIMUM QUALITY Vertical Canvas created:', canvas.width, 'x', canvas.height);
-
-        // Enable MAXIMUM quality rendering
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = 'high';
-        
-        // Optimize for maximum quality
-        canvas.style.willChange = 'auto';
-        canvas.style.imageRendering = 'high-quality';
-
-        // Create background video element if provided
-        let backgroundVideoElement: HTMLVideoElement | null = null;
-        let hasBackgroundVideo = false; // Track if we should use video background
-        
-        if (videoSource) {
-          hasBackgroundVideo = true; // Set flag based on input
-          backgroundVideoElement = document.createElement('video');
-          
-          if (typeof videoSource === 'string') {
-            // Preset video from public folder
-            backgroundVideoElement.src = videoSource;
-            console.log('📹 Using preset background video:', videoSource);
-          } else {
-            // Custom uploaded file
-            backgroundVideoElement.src = URL.createObjectURL(videoSource);
-            console.log('📹 Using custom uploaded video:', videoSource.name);
-          }
-          
-          backgroundVideoElement.muted = true;
-          backgroundVideoElement.loop = true;
-          backgroundVideoElement.preload = 'auto';
-          backgroundVideoElement.crossOrigin = 'anonymous';
-          backgroundVideoElement.currentTime = 0;
-          
-          // ULTRA SMOOTH video optimization settings
-          backgroundVideoElement.playbackRate = 1.0; // Exact 1.0 for perfect sync
-          backgroundVideoElement.playsInline = true; // Mobile compatibility
-          
-          // Additional video smoothness optimizations
-          backgroundVideoElement.style.imageRendering = 'optimizeQuality';
-          
-          // Wait for video to be ready and start playback
-          backgroundVideoElement.onloadeddata = () => {
-            console.log('🎬 Background video loaded and ready for smooth playback');
-          };
-          
-          backgroundVideoElement.oncanplaythrough = () => {
-            console.log('🎬 Background video can play through smoothly');
-          };
-        }
-
-        // Create audio context and destination for mixing audio
-        let audioContext: AudioContext | null = null;
-        let audioDestination: MediaStreamAudioDestinationNode | null = null;
-        let audioElement: HTMLAudioElement | null = null;
-        let bgMusicElement: HTMLAudioElement | null = null;
-
-        if (audioSrc || bgMusicSrc) {
-          audioContext = new AudioContext();
-          audioDestination = audioContext.createMediaStreamDestination();
-          
-          // Create speech audio element if available
-          if (audioSrc) {
-            audioElement = new Audio(audioSrc);
-            audioElement.crossOrigin = 'anonymous';
-            audioElement.preload = 'auto';
-            audioElement.volume = 1.0;
-            
-            // Connect speech audio element to the destination
-            const speechSource = audioContext.createMediaElementSource(audioElement);
-            speechSource.connect(audioDestination);
-            speechSource.connect(audioContext.destination); // Also play through speakers for monitoring
-          }
-          
-          // Create background music element if available
-          if (bgMusicSrc) {
-            bgMusicElement = new Audio(bgMusicSrc);
-            bgMusicElement.crossOrigin = 'anonymous';
-            bgMusicElement.preload = 'auto';
-            bgMusicElement.volume = 0.3; // Lower volume for background music
-            bgMusicElement.loop = true; // Loop the background music
-            
-            // Connect background music to the destination
-            const musicSource = audioContext.createMediaElementSource(bgMusicElement);
-            musicSource.connect(audioDestination);
-            musicSource.connect(audioContext.destination); // Also play through speakers for monitoring
-          }
-          
-          console.log('🎵 Audio context created:', {
-            hasSpeech: !!audioSrc,
-            hasBgMusic: !!bgMusicSrc
-          });
-        }
-
-        // Create stream matching YouTube Shorts specs - MAXIMUM QUALITY
-        const stream = canvas.captureStream(60); // 60 FPS for maximum smoothness
-        
-        // Add audio track to the stream if available
-        if (audioDestination && audioDestination.stream.getAudioTracks().length > 0) {
-          const audioTrack = audioDestination.stream.getAudioTracks()[0];
-          stream.addTrack(audioTrack);
-          console.log('🎵 Audio track added to video stream');
-        }
-        
-        console.log('🎥 Canvas stream created at 60 FPS for maximum quality');
-        
-        // Use MAXIMUM quality recording settings
-        const baseOptions = {
-          videoBitsPerSecond: 20000000, // 20 Mbps for maximum quality
-        };
-
-        let options: MediaRecorderOptions;
-        // Try MP4 first (best compatibility and quality)
-        if (MediaRecorder.isTypeSupported('video/mp4')) {
-          options = { ...baseOptions, mimeType: 'video/mp4' };
-          console.log('✅ Using MP4 format');
-        } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) {
-          options = { ...baseOptions, mimeType: 'video/webm;codecs=vp9' };
-          console.log('🔄 Falling back to WebM VP9');
-        } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8')) {
-          options = { ...baseOptions, mimeType: 'video/webm;codecs=vp8' };
-          console.log('🔄 Falling back to WebM VP8');
-        } else {
-          options = baseOptions;
-          console.log('⚠️ Using default codec');
-        }
-
-        const mediaRecorder = new MediaRecorder(stream, options);
-        const chunks: Blob[] = [];
-        let recordingStartTime: number;
-
-        mediaRecorder.onstart = () => {
-          recordingStartTime = Date.now();
-          console.log('🎬 MediaRecorder started at:', new Date().toISOString());
-        };
-
-        mediaRecorder.ondataavailable = (event) => {
-          console.log('📦 YouTube Shorts data chunk:', event.data.size, 'bytes');
-          if (event.data.size > 0) {
-            chunks.push(event.data);
-          }
-        };
-
-        mediaRecorder.onstop = () => {
-          const recordingDuration = (Date.now() - recordingStartTime) / 1000;
-          console.log('🛑 Recording stopped. Total chunks:', chunks.length);
-          console.log('⏱️ Actual recording duration:', recordingDuration.toFixed(2), 'seconds');
-          
-          // Determine the correct MIME type and file extension
-          const mimeType = options.mimeType || 'video/webm';
-          const fileExtension = mimeType.includes('mp4') ? 'mp4' : 'webm';
-          
-          const blob = new Blob(chunks, { type: mimeType });
-          console.log('📹 Final YouTube Shorts video blob:', blob.size, 'bytes');
-          
-          if (blob.size === 0) {
-            reject(new Error('Generated video is empty'));
-            return;
-          }
-          
-          // Success notification
-          const videoSize = (blob.size / (1024 * 1024)).toFixed(1);
-          const actualDuration = audioDur || 5;
-          const hasAudio = audioSrc ? '✅ With AI Speech Audio' : '⚪ No audio';
-          alert(`🎬 YouTube Shorts Video Created Successfully!\n\n✅ Size: ${videoSize}MB\n✅ Format: 1080×1920 (9:16)\n✅ Duration: ${actualDuration.toFixed(1)}s\n${hasAudio}\n✅ Word-by-word text\n✅ Type: ${fileExtension.toUpperCase()}\n✅ Perfect for mobile!`);
-          
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `${text.slice(0, 30).replace(/[^a-z0-9]/gi, '-').toLowerCase()}-youtube-shorts.${fileExtension}`;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-          
-          // Clean up background video URL (only for custom uploads)
-          if (backgroundVideoElement && typeof videoSource !== 'string') {
-            URL.revokeObjectURL(backgroundVideoElement.src);
-          }
-          
-          console.log('✅ YouTube Shorts Video download triggered');
-          resolve();
-        };
-
-        mediaRecorder.onerror = (event) => {
-          console.error('❌ MediaRecorder error:', event);
-          reject(new Error('MediaRecorder error: ' + JSON.stringify(event)));
-        };
-
-        // Animation variables for YouTube Shorts - MAXIMUM SMOOTHNESS
-        let frame = 0;
-        let audioStarted = false;
-        
-        // Adjust video duration based on audio duration (minimum 5 seconds)
-        const videoDuration = audioDur ? Math.max(audioDur, 5) : 5;
-        const totalFrames = Math.floor(videoDuration * 60); // 60fps for maximum smoothness
-        
-        console.log('🎬 Starting animation with', totalFrames, 'frames for', videoDuration, 'seconds at 60fps - MAXIMUM QUALITY');
-        
-        const animate = () => {
-          // Mark when audio actually starts
-          if (audioElement && audioElement.currentTime > 0 && !audioStarted) {
-            audioStarted = true;
-            console.log('🎵 Audio playback detected, syncing animation');
-          }
-
-          if (frame >= totalFrames) {
-            console.log('🎬 Animation complete, stopping recorder... Frame:', frame, '/', totalFrames);
-            console.log('🎬 Total animation time should be:', (totalFrames / 60).toFixed(1), 'seconds');
-            
-            // Force final frame capture and stop recording
-            setTimeout(() => {
-              if (mediaRecorder.state === 'recording') {
-                console.log('🛑 Stopping MediaRecorder after', totalFrames, 'frames');
-                mediaRecorder.requestData(); // Force final data collection
-                setTimeout(() => {
-                  if (mediaRecorder.state === 'recording') {
-                    mediaRecorder.stop();
-                  }
-                }, 100);
-              }
-            }, 200);
-            return;
-          }
-
-          // Update progress (less frequently to reduce lag)
-          if (frame % 5 === 0) {
-            const progress = Math.round((frame / totalFrames) * 100);
-            setRenderProgress(progress);
-          }
-
-          // Draw background - MATCH REMOTION PREVIEW EXACTLY
-          if (hasBackgroundVideo && backgroundVideoElement && backgroundVideoElement.readyState >= 2) {
-            // ULTRA SMOOTH BACKGROUND VIDEO MODE
-            
-            // Sync video time to animation frame for perfect smoothness
-            const targetTime = frame / 60; // Target time based on frame rate
-            const videoDurationActual = backgroundVideoElement.duration;
-            
-            // Loop video seamlessly by calculating modulo
-            if (videoDurationActual && videoDurationActual > 0) {
-              const loopedTime = targetTime % videoDurationActual;
-              
-              // Only update video time if there's a significant difference (prevents micro-stutters)
-              if (Math.abs(backgroundVideoElement.currentTime - loopedTime) > 0.1) {
-                backgroundVideoElement.currentTime = loopedTime;
-              }
-            }
-            
-            // Scale and center the background video to fit the vertical canvas
-            const videoAspect = backgroundVideoElement.videoWidth / backgroundVideoElement.videoHeight;
-            const canvasAspect = canvas.width / canvas.height;
-            
-            let drawWidth, drawHeight, drawX, drawY;
-            
-            if (videoAspect > canvasAspect) {
-              // Video is wider - fit to height and crop sides
-              drawHeight = canvas.height;
-              drawWidth = drawHeight * videoAspect;
-              drawX = (canvas.width - drawWidth) / 2;
-              drawY = 0;
-            } else {
-              // Video is taller - fit to width and crop top/bottom
-              drawWidth = canvas.width;
-              drawHeight = drawWidth / videoAspect;
-              drawX = 0;
-              drawY = (canvas.height - drawHeight) / 2;
-            }
-            
-            // Enable smoothing for ultra-clean video rendering
-            ctx.imageSmoothingEnabled = true;
-            ctx.imageSmoothingQuality = 'high';
-            
-            // Draw the background video (fills entire canvas)
-            ctx.drawImage(backgroundVideoElement, drawX, drawY, drawWidth, drawHeight);
-            
-            // Add subtle dark overlay for text readability over video (optimized)
-            ctx.fillStyle = 'rgba(0,0,0,0.15)'; // Match Remotion brightness(0.85)
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
-          } else {
-            // GRADIENT BACKGROUND - MATCH REMOTION EXACTLY
-            const gradientOpacity = 0.8; // Match Remotion backgroundOpacity
-            const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-            gradient.addColorStop(0, `rgba(59, 130, 246, ${gradientOpacity})`); // Blue
-            gradient.addColorStop(1, `rgba(147, 51, 234, ${gradientOpacity})`); // Purple
-            ctx.fillStyle = gradient;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-          }
-
-          // Text animations optimized for 60fps - MAXIMUM SMOOTHNESS
-          const fadeInDuration = 60; // 1 second fade-in at 60fps for smooth animation
-          const fadeOutStart = totalFrames - 60; // 1 second fade-out
-          
-          let opacity = 1;
-          let translateY = 0;
-          let scale = 1;
-          
-          if (frame <= fadeInDuration) {
-            opacity = frame / fadeInDuration;
-            translateY = 20 - (frame / fadeInDuration) * 20;
-            scale = 0.9 + (frame / fadeInDuration) * 0.1;
-          } else if (frame >= fadeOutStart) {
-            const fadeOutProgress = (frame - fadeOutStart) / 60;
-            opacity = 1 - fadeOutProgress;
-            scale = 1 + fadeOutProgress * 0.05;
-          }
-          
-          ctx.save();
-          ctx.globalAlpha = opacity;
-          ctx.translate(canvas.width / 2, canvas.height / 2 + translateY);
-          ctx.scale(scale, scale);
-          
-          // Word-by-word text display synchronized with audio
-          let currentTime = frame / 60;
-          
-          // Use actual audio time if audio is playing for better sync
-          if (audioElement && !audioElement.paused && !audioElement.ended) {
-            currentTime = audioElement.currentTime;
-          }
-          
-          const words = text.split(' ');
-          
-          // Improved timing calculation for natural speech
-          let currentWordIndex = 0;
-          
-          if (words.length > 0 && currentTime > 0) {
-            // Use actual speech duration with slight delay for natural start
-            const speechStartDelay = 0.3; // 300ms delay before first word
-            const effectiveTime = Math.max(0, currentTime - speechStartDelay);
-            const speechDuration = Math.max(videoDuration - speechStartDelay - 0.5, 2); // Leave 500ms at end
-            
-            // Adjust timing based on word length (longer words get more time)
-            let totalTimeUnits = 0;
-            const wordTimeUnits = words.map(word => {
-              const baseTime = 1;
-              const lengthMultiplier = Math.max(0.7, Math.min(1.5, word.length / 6)); // Longer words get more time
-              const timeUnit = baseTime * lengthMultiplier;
-              totalTimeUnits += timeUnit;
-              return timeUnit;
-            });
-            
-            // Find current word based on accumulated time
-            let accumulatedTime = 0;
-            const timePerUnit = speechDuration / totalTimeUnits;
-            
-            for (let i = 0; i < words.length; i++) {
-              const wordDuration = wordTimeUnits[i] * timePerUnit;
-              if (effectiveTime <= accumulatedTime + wordDuration) {
-                currentWordIndex = i;
-                break;
-              }
-              accumulatedTime += wordDuration;
-              currentWordIndex = i + 1;
-            }
-            
-            // Ensure we don't go beyond the last word
-            currentWordIndex = Math.min(currentWordIndex, words.length - 1);
-          }
-
-          // TEXT STYLING - MATCH REMOTION EXACTLY
-          ctx.shadowColor = 'rgba(0,0,0,0.8)';
-          ctx.shadowBlur = 30; // Match Remotion shadow blur
-          ctx.shadowOffsetX = 4;
-          ctx.shadowOffsetY = 4;
-          
-          ctx.fillStyle = '#FFD700'; // Gold color to match Remotion
-          ctx.strokeStyle = 'rgba(0,0,0,0.9)';
-          ctx.lineWidth = 6;
-          ctx.font = '900 68px Impact, "Arial Black", Helvetica, sans-serif'; // Match Remotion font
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          
-          const y = -40;
-          
-          // Show ONLY the current word - ONE WORD AT A TIME
-          if (currentWordIndex >= 0 && currentWordIndex < words.length) {
-            const currentWord = words[currentWordIndex];
-            
-            // Draw the current word only
-            ctx.strokeText(currentWord, 0, y);
-            ctx.fillText(currentWord, 0, y);
-          }
-
-          ctx.restore();
-
-          // Add floating particles ONLY when no background video - MATCH REMOTION EXACTLY
-          if (!hasBackgroundVideo) {
-            for (let i = 0; i < 6; i++) {
-              const particleFrame = (frame + i * 10) % 90;
-              const particleOpacity = particleFrame <= 45 ? particleFrame / 45 : 
-                                     particleFrame >= 45 ? (90 - particleFrame) / 45 : 0;
-              const particleY = canvas.height * 0.5 - (particleFrame / 90) * (canvas.height * 0.8) + (canvas.height * 0.4);
-              const particleX = canvas.width * (0.15 + i * 0.12);
-              
-              if (particleOpacity > 0) {
-                ctx.save();
-                ctx.globalAlpha = particleOpacity * 0.6; // Match Remotion particle opacity
-                ctx.fillStyle = 'white';
-                ctx.beginPath();
-                ctx.arc(particleX, particleY, 3, 0, Math.PI * 2); // Match Remotion particle size
-                ctx.fill();
-                ctx.restore();
-              }
-            }
-          }
-
-          frame++;
-          
-          // Progress logging for 60fps
-          if (frame % 60 === 0) {
-            const progressPercent = Math.round((frame / totalFrames) * 100);
-            const timeElapsed = (frame / 60).toFixed(1);
-            console.log(`🎬 Progress: ${progressPercent}% (Frame ${frame}/${totalFrames}, Time: ${timeElapsed}s)`);
-          }
-          
-          // Use requestAnimationFrame for smooth animation, but control timing
-          requestAnimationFrame(animate);
-        };
-
-        // Start recording with audio sync
-        const startRecording = async () => {
-          console.log('🎬 Starting MediaRecorder for MAXIMUM QUALITY video...');
-          
-          // Start MediaRecorder first
-          mediaRecorder.start(50); // Collect data every 50ms for maximum quality
-          
-          // Small delay to ensure recording has started
-          await new Promise(resolve => setTimeout(resolve, 100));
-          
-          // Start audio playback if available
-          if (audioContext) {
-            try {
-              // Resume audio context if suspended
-              if (audioContext.state === 'suspended') {
-                await audioContext.resume();
-              }
-              
-              // Start speech audio
-              if (audioElement) {
-                audioElement.currentTime = 0;
-                await audioElement.play();
-                console.log('🎵 Speech audio playback started');
-              }
-              
-              // Start background music
-              if (bgMusicElement) {
-                bgMusicElement.currentTime = 0;
-                await bgMusicElement.play();
-                console.log('🎵 Background music playback started');
-              }
-              
-              // Small delay to ensure all audio has started
-              await new Promise(resolve => setTimeout(resolve, 50));
-            } catch (error) {
-              console.error('❌ Error starting audio:', error);
-            }
-          }
-          
-          // Start animation after audio
-          animate();
-        };
-
-        // Start background video if available
-        if (hasBackgroundVideo && backgroundVideoElement) {
-          // Wait for video to be fully ready before starting
-          const waitForVideoReady = () => {
-            if (backgroundVideoElement!.readyState >= 2) {
-              console.log('📹 Background video ready, starting recording...');
-              backgroundVideoElement!.currentTime = 0;
-              backgroundVideoElement!.play().then(() => {
-                // Add small delay to ensure first frame is ready
-                setTimeout(startRecording, 100);
-              }).catch(error => {
-                console.error('❌ Error starting video:', error);
-                // Fallback to start recording anyway
-                setTimeout(startRecording, 100);
-              });
-            } else {
-              // Check again in 100ms
-              setTimeout(waitForVideoReady, 100);
-            }
-          };
-          
-          backgroundVideoElement.onloadeddata = waitForVideoReady;
-          backgroundVideoElement.load();
-        } else {
-          console.log('🔴 Starting recording without background video...');
-          // Add small delay to ensure first frame is ready
-          setTimeout(startRecording, 50);
-        }
-
-      } catch (error) {
-        console.error('❌ YouTube Shorts video creation error:', error);
-        reject(error);
-      }
-    });
-  };
-
   return (
     <div className="min-h-screen bg-black text-white">
       {/* Animated Background */}
@@ -1135,6 +639,8 @@ function DashboardContent() {
                     audioDuration,
                     bgMusic: selectedBgMusic !== 'none' ? bgMusicOptions.find(m => m.value === selectedBgMusic)?.path : null,
                     audioSegments,
+                    fontStyle: selectedFont,
+                    textColor: selectedColor,
                   }}
                   durationInFrames={audioDuration ? Math.floor(Math.max(audioDuration, 5) * 60) : 300}
                   fps={60}
@@ -1302,7 +808,51 @@ function DashboardContent() {
                   </Select>
                 </div>
 
+                <div className="space-y-2">
+                  <Label>Font Style</Label>
+                  <Select value={selectedFont} onValueChange={setSelectedFont}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose a font style" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {fontOptions.map((font) => (
+                        <SelectItem key={font.value} value={font.value}>
+                          <span style={{ fontFamily: font.font, fontWeight: font.weight }}>
+                            {font.label}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    ✨ Choose font style for your video text
+                  </p>
+                </div>
 
+                <div className="space-y-2">
+                  <Label>Text Color</Label>
+                  <Select value={selectedColor} onValueChange={setSelectedColor}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose text color" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {colorOptions.map((colorOption) => (
+                        <SelectItem key={colorOption.value} value={colorOption.value}>
+                          <div className="flex items-center gap-2">
+                            <div 
+                              className="w-4 h-4 rounded-full border border-white/20" 
+                              style={{ backgroundColor: colorOption.color }}
+                            />
+                            <span>{colorOption.label}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    🎨 Choose color for your video text
+                  </p>
+                </div>
 
                 <Button 
                   onClick={generateSpeech}
@@ -1565,29 +1115,6 @@ function DashboardContent() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Render Method</Label>
-                  <Select value={renderMethod} onValueChange={(value: 'canvas' | 'remotion') => setRenderMethod(value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Choose render method" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="canvas">
-                        🎨 Canvas Rendering (Client-side, faster)
-                      </SelectItem>
-                      <SelectItem value="remotion">
-                        🎬 Remotion Rendering (Server-side, higher quality)
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">
-                    {renderMethod === 'canvas' 
-                      ? '⚡ Fast browser-based rendering with MediaRecorder API'
-                      : '🔥 Professional server-side rendering with Remotion (better quality, MP4 output)'
-                    }
-                  </p>
-                </div>
-
                 <Button 
                   onClick={handleRenderVideo}
                   disabled={isRendering}
@@ -1611,7 +1138,7 @@ function DashboardContent() {
                   <div className="space-y-2">
                     <Progress value={renderProgress} className="w-full" />
                     <p className="text-sm text-muted-foreground text-center">
-                      Creating your vertical video...
+                      Creating your ultra-high quality video with Remotion...
                     </p>
                   </div>
                 )}

@@ -40,7 +40,7 @@ async function combineAudioSegments(segments: Array<{audio: string}>): Promise<s
 
 export async function POST(req: NextRequest) {
   try {
-    const { speechText, backgroundVideo, audioSrc, audioDuration, bgMusic, audioSegments } = await req.json();
+    const { speechText, backgroundVideo, audioSrc, audioDuration, bgMusic, audioSegments, fontStyle, textColor } = await req.json();
 
     // Get user info from middleware headers
     const userEmail = req.headers.get('x-user-email') || 'unknown';
@@ -140,6 +140,8 @@ export async function POST(req: NextRequest) {
       audioDuration,
       bgMusic: resolvedBgMusic,
       audioSegments,
+      fontStyle,
+      textColor,
     };
 
     const comps = await getCompositions(bundleLocation, {
@@ -152,9 +154,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'SampleVideo composition not found' }, { status: 404 });
     }
 
-    // Calculate duration based on audio or use default
+    // Calculate duration based on audio or use default - MATCH PREVIEW EXACTLY
     const videoDuration = audioDuration ? Math.max(audioDuration, 5) : 5; // minimum 5 seconds
-    const durationInFrames = Math.floor(videoDuration * 30); // 30 fps
+    const durationInFrames = audioDuration ? Math.floor(Math.max(audioDuration, 5) * 60) : 300; // 60fps to match preview
 
     // Override composition duration if we have audio
     if (audioDuration) {
@@ -179,19 +181,21 @@ export async function POST(req: NextRequest) {
       hasBackground: !!resolvedBackgroundVideo,
       backgroundVideoUrl: resolvedBackgroundVideo,
       hasBgMusic: !!resolvedBgMusic,
-      bgMusicUrl: resolvedBgMusic
+      bgMusicUrl: resolvedBgMusic,
+      fontStyle: fontStyle || 'default',
+      textColor: textColor || 'default'
     });
 
     try {
-      // Render the video with high quality settings
+      // Render the video with ULTRA HIGH quality settings - MATCH PREVIEW QUALITY
       await renderMedia({
         serveUrl: bundleLocation,
         composition: comp,
         codec: 'h264',
         outputLocation: outputPath,
         inputProps,
-        // Ultra high quality settings for smooth playback
-        crf: 14, // Even higher quality (lower = better, 14 is premium quality)
+        // ULTRA HIGH QUALITY SETTINGS
+        crf: 10, // Maximum quality (lower = better, 10 is ultra premium)
         pixelFormat: 'yuv420p',
         audioBitrate: '320k', // High quality audio
         // Additional optimization settings for smooth video
@@ -205,11 +209,12 @@ export async function POST(req: NextRequest) {
           disableWebSecurity: false,
           gl: 'swiftshader',
         },
-        // Frame rate consistency
+        // Frame rate consistency - 60fps for ultra smoothness
         everyNthFrame: 1, // Render every frame for smoothness
         concurrency: 1, // Single thread for consistency
         // Quality settings
-        jpegQuality: 95, // High JPEG quality for frames
+        jpegQuality: 100, // Maximum JPEG quality for frames
+        scale: 1, // No scaling for maximum quality
       });
 
       // Read the file and return as buffer

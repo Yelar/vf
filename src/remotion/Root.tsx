@@ -33,9 +33,9 @@ export const RemotionRoot: React.FC = () => {
     <>
       <Composition
         id="SampleVideo"
-        component={SampleVideo as React.ComponentType<any>}
-        durationInFrames={150}
-        fps={30}
+        component={SampleVideo as unknown as React.ComponentType<Record<string, unknown>>}
+        durationInFrames={300}
+        fps={60}
         width={1080}
         height={1920}
         defaultProps={{
