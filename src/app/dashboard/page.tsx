@@ -14,7 +14,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
-import { Upload, Play, Download, Trash2, Smartphone, Video, Sparkles, Mic, Volume2, Music, LogOut, User, BookOpen, Brain, Zap } from "lucide-react";
+import { Upload, Play, Download, Trash2, Video, Mic, Volume2, Music, LogOut, User, BookOpen, Brain, Zap } from "lucide-react";
 
 function DashboardContent() {
   const { data: session } = useSession();
@@ -1606,91 +1606,7 @@ function DashboardContent() {
           </div>
         </div>
 
-        {/* Video Specifications */}
-        <Card className="bg-gradient-to-r from-purple-900/30 to-blue-900/30 border-purple-500/30 backdrop-blur-sm">
-          <CardHeader>
-            <CardTitle className="text-white text-xl">🚀 Technical Specifications</CardTitle>
-            <CardDescription className="text-gray-300">
-              Professional-grade output for viral content
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-6 text-center">
-              <div className="space-y-3">
-                <div className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">1080×1920</div>
-                <Badge className="bg-purple-500/20 text-purple-300 border-purple-500/30">
-                  Vertical HD
-                </Badge>
-              </div>
-              <div className="space-y-3">
-                <div className="text-3xl font-bold bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">60 FPS</div>
-                <Badge className="bg-green-500/20 text-green-300 border-green-500/30">
-                  Ultra Smooth
-                </Badge>
-              </div>
-              <div className="space-y-3">
-                <div className="text-3xl font-bold bg-gradient-to-r from-orange-400 to-red-400 bg-clip-text text-transparent">
-                  {audioDuration ? `${audioDuration.toFixed(1)}s` : '5s'}
-                </div>
-                <Badge className="bg-orange-500/20 text-orange-300 border-orange-500/30">
-                  {audioDuration ? 'AI Audio' : 'Duration'}
-                </Badge>
-              </div>
-              <div className="space-y-3">
-                <div className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
-                  {renderMethod === 'remotion' ? 'MP4' : 'WebM'}
-                </div>
-                <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30">
-                  {renderMethod === 'remotion' ? 'Universal' : 'Web Optimized'}
-                </Badge>
-              </div>
-              <div className="space-y-3">
-                <div className="text-3xl font-bold bg-gradient-to-r from-pink-400 to-rose-400 bg-clip-text text-transparent">HQ</div>
-                <Badge className="bg-pink-500/20 text-pink-300 border-pink-500/30">
-                  Broadcast Quality
-                </Badge>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
 
-        {/* Features */}
-        <Card className="bg-gradient-to-r from-blue-900/20 to-purple-900/20 border-blue-500/30 backdrop-blur-sm">
-          <CardHeader>
-            <CardTitle className="text-center text-white text-xl">⚡ AI-Powered Features</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              <div className="text-center space-y-3">
-                <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-blue-500 rounded-xl mx-auto flex items-center justify-center">
-                  <Smartphone className="h-6 w-6 text-white" />
-                </div>
-                <h3 className="font-semibold text-white">Mobile Optimized</h3>
-                <p className="text-sm text-gray-300">
-                  Perfect 9:16 vertical format for all social platforms
-                </p>
-              </div>
-              <div className="text-center space-y-3">
-                <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-red-500 rounded-xl mx-auto flex items-center justify-center">
-                  <Video className="h-6 w-6 text-white" />
-                </div>
-                <h3 className="font-semibold text-white">Dynamic Backgrounds</h3>
-                <p className="text-sm text-gray-300">
-                  AI-optimized video backgrounds that adapt to content
-                </p>
-              </div>
-              <div className="text-center space-y-3">
-                <div className="w-12 h-12 bg-gradient-to-r from-pink-500 to-rose-500 rounded-xl mx-auto flex items-center justify-center">
-                  <Sparkles className="h-6 w-6 text-white" />
-                </div>
-                <h3 className="font-semibold text-white">Smart Typography</h3>
-                <p className="text-sm text-gray-300">
-                  AI-driven text positioning with perfect readability
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
         </div>
       </div>
     </div>
