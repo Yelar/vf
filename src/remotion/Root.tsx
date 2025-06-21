@@ -66,7 +66,7 @@ export const RemotionRoot: React.FC = () => {
       />
     </>
   );
-};
+}; 
 
 // Register the root component
 registerRoot(RemotionRoot); 

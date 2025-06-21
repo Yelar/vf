@@ -14,7 +14,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
-import { Upload, Play, Download, Trash2, Smartphone, Video, Sparkles, Mic, Volume2, Music, LogOut, User } from "lucide-react";
+import { Upload, Play, Download, Trash2, Smartphone, Video, Sparkles, Mic, Volume2, Music, LogOut, User, BookOpen, Brain, Zap } from "lucide-react";
 
 function DashboardContent() {
   const { data: session } = useSession();
@@ -45,6 +45,13 @@ function DashboardContent() {
   
   // Background music states
   const [selectedBgMusic, setSelectedBgMusic] = useState<string>('none');
+
+  // Educational content generation states
+  const [educationalTopic, setEducationalTopic] = useState('');
+  const [videoLength, setVideoLength] = useState<'short' | 'medium' | 'long'>('short');
+  const [difficulty, setDifficulty] = useState<'beginner' | 'intermediate' | 'advanced'>('beginner');
+  const [isGeneratingContent, setIsGeneratingContent] = useState(false);
+  const [generatedContent, setGeneratedContent] = useState<string | null>(null);
 
   // List of preset background videos (update this list when you add new videos)
   const presetVideos = [
@@ -288,6 +295,71 @@ function DashboardContent() {
     setGeneratedAudio(null);
     setAudioDuration(null);
     setAudioSegments(null);
+  };
+
+  // Generate educational content using AI
+  const generateEducationalContent = async () => {
+    if (!educationalTopic.trim()) {
+      alert('Please enter a topic for educational content generation');
+      return;
+    }
+
+    setIsGeneratingContent(true);
+    try {
+      console.log(`🎓 Generating educational content for topic: "${educationalTopic}"`);
+      
+      const response = await fetch('/api/generate-educational-content', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          topic: educationalTopic,
+          videoLength,
+          difficulty,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        if (response.status === 401) {
+          alert('Your session has expired. Please sign in again.');
+          return;
+        }
+        throw new Error(errorData.details || errorData.error || 'Failed to generate educational content');
+      }
+
+      const data = await response.json();
+      
+      if (data.success && data.content) {
+        setGeneratedContent(data.content);
+        setSpeechText(data.content); // Automatically fill the speech text
+        
+        console.log('✅ Educational content generated successfully:', {
+          topic: data.topic,
+          wordCount: data.settings.wordCount,
+          estimatedDuration: data.settings.estimatedDuration,
+          content: data.content.slice(0, 100) + '...'
+        });
+        
+        // Clear any previous audio
+        clearGeneratedAudio();
+      } else {
+        throw new Error('No content received from AI');
+      }
+    } catch (error) {
+      console.error('❌ Educational content generation error:', error);
+      alert(`Failed to generate educational content: ${error}`);
+    } finally {
+      setIsGeneratingContent(false);
+    }
+  };
+
+  const clearEducationalContent = () => {
+    setGeneratedContent(null);
+    setEducationalTopic('');
+    setSpeechText('');
+    clearGeneratedAudio();
   };
 
   const renderWithRemotion = async (
@@ -1033,6 +1105,7 @@ function DashboardContent() {
                     audioSrc: generatedAudio,
                     audioDuration,
                     bgMusic: selectedBgMusic !== 'none' ? bgMusicOptions.find(m => m.value === selectedBgMusic)?.path : null,
+                    audioSegments,
                   }}
                   durationInFrames={audioDuration ? Math.floor(Math.max(audioDuration, 5) * 60) : 300}
                   fps={60}
@@ -1056,6 +1129,101 @@ function DashboardContent() {
           {/* Controls */}
           <div className="space-y-6">
 
+            {/* Educational Content Generation */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Brain className="h-5 w-5" />
+                  Educational Content Generator
+                </CardTitle>
+                <CardDescription>
+                  Generate engaging educational content using GROQ AI for your YouTube Shorts
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="educational-topic">Topic to Study</Label>
+                  <Input
+                    id="educational-topic"
+                    value={educationalTopic}
+                    onChange={(e) => setEducationalTopic(e.target.value)}
+                    placeholder="e.g., Quantum Physics, Machine Learning, Ancient Rome..."
+                    className="w-full"
+                  />
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Video Length</Label>
+                    <Select value={videoLength} onValueChange={(value: 'short' | 'medium' | 'long') => setVideoLength(value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Choose length" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="short">📱 Short (5-8s)</SelectItem>
+                        <SelectItem value="medium">⏱️ Medium (10-15s)</SelectItem>
+                        <SelectItem value="long">🎬 Long (20-30s)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label>Difficulty Level</Label>
+                    <Select value={difficulty} onValueChange={(value: 'beginner' | 'intermediate' | 'advanced') => setDifficulty(value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Choose difficulty" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="beginner">🌱 Beginner</SelectItem>
+                        <SelectItem value="intermediate">🔥 Intermediate</SelectItem>
+                        <SelectItem value="advanced">🚀 Advanced</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <Button 
+                  onClick={generateEducationalContent}
+                  disabled={isGeneratingContent || !educationalTopic.trim()}
+                  className="w-full"
+                >
+                  {isGeneratingContent ? (
+                    <>
+                      <Zap className="mr-2 h-4 w-4 animate-spin" />
+                      Generating Content...
+                    </>
+                  ) : (
+                    <>
+                      <BookOpen className="mr-2 h-4 w-4" />
+                      Generate Educational Content
+                    </>
+                  )}
+                </Button>
+
+                {generatedContent && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm font-medium">Generated Content:</Label>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={clearEducationalContent}
+                        className="text-xs"
+                      >
+                        <Trash2 className="mr-1 h-3 w-3" />
+                        Clear
+                      </Button>
+                    </div>
+                    <div className="p-3 bg-muted rounded-lg text-sm">
+                      {generatedContent}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      ✅ Content generated! It has been automatically filled in the speech text below.
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
             {/* Text-to-Speech */}
             <Card>

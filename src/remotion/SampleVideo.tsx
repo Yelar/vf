@@ -8,12 +8,21 @@ import {
   Video,
 } from 'remotion';
 
+interface AudioSegment {
+  text: string;
+  audio: string;
+  chunkIndex: number;
+  wordCount: number;
+  duration?: number;
+}
+
 interface SampleVideoProps {
   speechText: string;
   backgroundVideo?: string | null;
   audioSrc?: string | null;
   audioDuration?: number | null;
   bgMusic?: string | null;
+  audioSegments?: AudioSegment[] | null;
 }
 
 export const SampleVideo: React.FC<SampleVideoProps> = ({
@@ -22,6 +31,7 @@ export const SampleVideo: React.FC<SampleVideoProps> = ({
   audioSrc,
   audioDuration,
   bgMusic,
+  audioSegments,
 }) => {
   const frame = useCurrentFrame();
   const {durationInFrames, fps} = useVideoConfig();
@@ -143,33 +153,87 @@ export const SampleVideo: React.FC<SampleVideoProps> = ({
           {(() => {
             if (!speechText) return '';
             
-            const words = speechText.split(' ');
             const currentTime = frame / fps;
-            const totalDuration = audioDuration || (durationInFrames / fps);
             
-            // Calculate words per second with natural speech pacing
-            const adjustedDuration = Math.max(totalDuration * 0.95, 3); // Use 95% for natural pacing
+            // PRECISE WORD TIMING BASED ON SEGMENTS
+            if (audioSegments && audioSegments.length > 0) {
+              // Debug: Log segment information
+              if (frame === 0) {
+                console.log('🎯 PRECISE TIMING: Using audio segments for word timing:', {
+                  segmentCount: audioSegments.length,
+                  segments: audioSegments.map(s => ({
+                    text: s.text.slice(0, 30) + '...',
+                    duration: s.duration,
+                    wordCount: s.wordCount
+                  }))
+                });
+              }
+              
+              // Calculate precise timing for each segment independently
+              let accumulatedTime = 0;
+              
+              for (const segment of audioSegments) {
+                const segmentDuration = segment.duration || 2; // Fallback duration
+                const segmentWords = segment.text.split(' ').filter(word => word.trim());
+                const timePerWord = segmentDuration / segmentWords.length;
+                
+                // Check if current time falls within this segment
+                if (currentTime >= accumulatedTime && currentTime < accumulatedTime + segmentDuration) {
+                  const timeIntoSegment = currentTime - accumulatedTime;
+                  const wordIndexInSegment = Math.floor(timeIntoSegment / timePerWord);
+                  
+                  if (wordIndexInSegment >= 0 && wordIndexInSegment < segmentWords.length) {
+                    const currentWord = segmentWords[wordIndexInSegment];
+                    
+                    // Debug: Log word timing (only occasionally to avoid spam)
+                    if (frame % 30 === 0) {
+                      console.log(`🎯 WORD TIMING: Segment ${segment.chunkIndex}, Word ${wordIndexInSegment}/${segmentWords.length}: "${currentWord}" at ${currentTime.toFixed(2)}s (${timePerWord.toFixed(2)}s per word)`);
+                    }
+                    
+                    return (
+                      <span
+                        style={{
+                          color: '#FFD700', // Gold color for the current word
+                          display: 'inline-block',
+                          transform: 'scale(1.1)',
+                          textShadow: '0 0 15px rgba(255, 215, 0, 0.6), 3px 3px 6px rgba(0,0,0,0.8)',
+                          transition: 'all 0.1s ease-in-out', // Faster transition for precision
+                        }}
+                      >
+                        {currentWord}
+                      </span>
+                    );
+                  }
+                }
+                
+                accumulatedTime += segmentDuration;
+              }
+              
+              return ''; // No word to show if we're past all segments
+            }
+            
+            // FALLBACK: Original timing method if no segments available
+            const words = speechText.split(' ');
+            const totalDuration = audioDuration || (durationInFrames / fps);
+            const adjustedDuration = Math.max(totalDuration * 0.95, 3);
             const wordsPerSecond = words.length / adjustedDuration;
             const currentWordIndex = Math.floor(currentTime * wordsPerSecond);
             
-            // Show ONLY the current word - ONE WORD AT A TIME
             if (currentWordIndex >= 0 && currentWordIndex < words.length) {
               const currentWord = words[currentWordIndex];
               
               return (
-                <>
-                  <span
-                    style={{
-                      color: '#FFD700', // Gold color for the current word
-                      display: 'inline-block',
-                      transform: 'scale(1.1)',
-                      textShadow: '0 0 15px rgba(255, 215, 0, 0.6), 3px 3px 6px rgba(0,0,0,0.8)',
-                      transition: 'all 0.3s ease-in-out',
-                    }}
-                  >
-                    {currentWord}
-                  </span>
-                </>
+                <span
+                  style={{
+                    color: '#FFD700',
+                    display: 'inline-block',
+                    transform: 'scale(1.1)',
+                    textShadow: '0 0 15px rgba(255, 215, 0, 0.6), 3px 3px 6px rgba(0,0,0,0.8)',
+                    transition: 'all 0.3s ease-in-out',
+                  }}
+                >
+                  {currentWord}
+                </span>
               );
             }
             

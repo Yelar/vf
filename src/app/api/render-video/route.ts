@@ -74,12 +74,39 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Check for blob URLs which Remotion can't handle
-    if (finalAudioSrc && finalAudioSrc.startsWith('blob:')) {
-      console.error('❌ Blob URL detected in audioSrc - Remotion cannot handle blob URLs');
-      return NextResponse.json({ 
-        error: 'Blob URLs are not supported for server-side rendering. Audio segments should provide base64 data.' 
-      }, { status: 400 });
+    // Handle audio for Remotion - convert data URLs to temporary files
+    let audioFilePath: string | null = null;
+    if (finalAudioSrc) {
+      if (finalAudioSrc.startsWith('blob:')) {
+        console.error('❌ Blob URL detected in audioSrc - Remotion cannot handle blob URLs');
+        return NextResponse.json({ 
+          error: 'Blob URLs are not supported for server-side rendering. Audio segments should provide base64 data.' 
+        }, { status: 400 });
+      }
+      
+      if (finalAudioSrc.startsWith('data:audio/')) {
+        // Convert base64 data URL to temporary file for Remotion
+        try {
+          const base64Data = finalAudioSrc.split(',')[1];
+          const audioBuffer = Buffer.from(base64Data, 'base64');
+          const tempFileName = `audio-${uuid()}.mp3`;
+          const tempFilePath = path.join('/tmp', tempFileName);
+          await fs.writeFile(tempFilePath, audioBuffer);
+          
+          // Create HTTP URL for Remotion to access the file
+          audioFilePath = `http://localhost:3000/api/temp-audio/${tempFileName}`;
+          console.log(`🎵 Audio saved to temporary file: ${tempFilePath}`);
+          console.log(`🌐 Audio accessible at: ${audioFilePath}`);
+        } catch (error) {
+          console.error('❌ Error saving audio to temporary file:', error);
+          return NextResponse.json({ 
+            error: 'Failed to process audio data' 
+          }, { status: 500 });
+        }
+      } else {
+        // Use the audio source directly if it's already a file path/URL
+        audioFilePath = finalAudioSrc;
+      }
     }
 
     const entry = path.join(process.cwd(), 'src', 'remotion', 'Root.tsx');
@@ -109,9 +136,10 @@ export async function POST(req: NextRequest) {
     const inputProps = {
       speechText,
       backgroundVideo: resolvedBackgroundVideo,
-      audioSrc: finalAudioSrc,
+      audioSrc: audioFilePath, // Use the file path instead of data URL
       audioDuration,
       bgMusic: resolvedBgMusic,
+      audioSegments,
     };
 
     const comps = await getCompositions(bundleLocation, {
@@ -144,7 +172,8 @@ export async function POST(req: NextRequest) {
       duration: videoDuration,
       frames: durationInFrames,
       speechText: speechText?.slice(0, 50) + '...',
-      hasAudio: !!finalAudioSrc,
+      hasAudio: !!audioFilePath,
+      audioPath: audioFilePath,
       hasSegments: !!(audioSegments && audioSegments.length > 0),
       segmentCount: audioSegments ? audioSegments.length : 0,
       hasBackground: !!resolvedBackgroundVideo,
@@ -153,49 +182,73 @@ export async function POST(req: NextRequest) {
       bgMusicUrl: resolvedBgMusic
     });
 
-    // Render the video with high quality settings
-    await renderMedia({
-      serveUrl: bundleLocation,
-      composition: comp,
-      codec: 'h264',
-      outputLocation: outputPath,
-      inputProps,
-      // Ultra high quality settings for smooth playback
-      crf: 14, // Even higher quality (lower = better, 14 is premium quality)
-      pixelFormat: 'yuv420p',
-      audioBitrate: '320k', // High quality audio
-      // Additional optimization settings for smooth video
-      enforceAudioTrack: false, // Don't enforce if no audio
-      muted: false,
-      overwrite: true,
-      // Performance optimizations
-      chromiumOptions: {
-        // Disable GPU sandbox for better performance
-        ignoreCertificateErrors: false,
-        disableWebSecurity: false,
-        gl: 'swiftshader',
-      },
-      // Frame rate consistency
-      everyNthFrame: 1, // Render every frame for smoothness
-      concurrency: 1, // Single thread for consistency
-      // Quality settings
-      jpegQuality: 95, // High JPEG quality for frames
-    });
+    try {
+      // Render the video with high quality settings
+      await renderMedia({
+        serveUrl: bundleLocation,
+        composition: comp,
+        codec: 'h264',
+        outputLocation: outputPath,
+        inputProps,
+        // Ultra high quality settings for smooth playback
+        crf: 14, // Even higher quality (lower = better, 14 is premium quality)
+        pixelFormat: 'yuv420p',
+        audioBitrate: '320k', // High quality audio
+        // Additional optimization settings for smooth video
+        enforceAudioTrack: false, // Don't enforce if no audio
+        muted: false,
+        overwrite: true,
+        // Performance optimizations
+        chromiumOptions: {
+          // Disable GPU sandbox for better performance
+          ignoreCertificateErrors: false,
+          disableWebSecurity: false,
+          gl: 'swiftshader',
+        },
+        // Frame rate consistency
+        everyNthFrame: 1, // Render every frame for smoothness
+        concurrency: 1, // Single thread for consistency
+        // Quality settings
+        jpegQuality: 95, // High JPEG quality for frames
+      });
 
-    // Read the file and return as buffer
-    const fileBuffer = await fs.readFile(outputPath);
-    
-    // Clean up temporary file
-    await fs.unlink(outputPath).catch(() => {});
+      // Read the file and return as buffer
+      const fileBuffer = await fs.readFile(outputPath);
+      
+      // Clean up temporary files
+      await fs.unlink(outputPath).catch(() => {});
+      if (audioFilePath && audioFilePath.startsWith('http://localhost:3000/api/temp-audio/')) {
+        // Extract filename from URL and delete the actual file
+        const tempFileName = audioFilePath.split('/').pop();
+        if (tempFileName) {
+          const tempFilePath = path.join('/tmp', tempFileName);
+          await fs.unlink(tempFilePath).catch(() => {});
+          console.log(`🧹 Cleaned up temporary audio file: ${tempFilePath}`);
+        }
+      }
 
-    console.log('✅ Remotion render completed successfully with segmented audio');
+      console.log('✅ Remotion render completed successfully with segmented audio');
 
-    return new NextResponse(fileBuffer, {
-      headers: {
-        'Content-Type': 'video/mp4',
-        'Content-Disposition': 'attachment; filename="video.mp4"',
-      },
-    });
+      return new NextResponse(fileBuffer, {
+        headers: {
+          'Content-Type': 'video/mp4',
+          'Content-Disposition': 'attachment; filename="video.mp4"',
+        },
+      });
+    } catch (renderError) {
+      // Clean up temporary files in case of error
+      await fs.unlink(outputPath).catch(() => {});
+      if (audioFilePath && audioFilePath.startsWith('http://localhost:3000/api/temp-audio/')) {
+        // Extract filename from URL and delete the actual file
+        const tempFileName = audioFilePath.split('/').pop();
+        if (tempFileName) {
+          const tempFilePath = path.join('/tmp', tempFileName);
+          await fs.unlink(tempFilePath).catch(() => {});
+          console.log(`🧹 Cleaned up temporary audio file after error: ${tempFilePath}`);
+        }
+      }
+      throw renderError;
+    }
   } catch (error) {
     console.error('❌ Error rendering video:', error);
     return NextResponse.json({ error: String(error) }, { status: 500 });
