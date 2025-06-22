@@ -2,14 +2,19 @@
 
 import { useEffect } from 'react';
 import { signOut } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+
+interface ApiError {
+  status?: number;
+  code?: string;
+  message?: string;
+}
 
 interface ApiErrorHandlerProps {
-  error: any;
+  error: ApiError;
   onRetry?: () => void;
 }
 
-export function handleApiError(error: any, router?: any) {
+export function handleApiError(error: ApiError, router?: { push: (url: string) => void }) {
   if (error?.status === 401 || error?.code === 'AUTHENTICATION_REQUIRED') {
     // User is not authenticated, redirect to signin
     if (router) {
@@ -23,8 +28,6 @@ export function handleApiError(error: any, router?: any) {
 }
 
 export function ApiErrorHandler({ error, onRetry }: ApiErrorHandlerProps) {
-  const router = useRouter();
-
   useEffect(() => {
     if (error?.status === 401 || error?.code === 'AUTHENTICATION_REQUIRED') {
       // Auto-redirect to signin on auth errors

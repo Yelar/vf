@@ -8,13 +8,7 @@ import {
   Video,
 } from 'remotion';
 
-interface AudioSegment {
-  text: string;
-  audio: string;
-  chunkIndex: number;
-  wordCount: number;
-  duration?: number;
-}
+
 
 interface SampleVideoProps {
   speechText: string;
@@ -22,9 +16,12 @@ interface SampleVideoProps {
   audioSrc?: string | null;
   audioDuration?: number | null;
   bgMusic?: string | null;
-  audioSegments?: AudioSegment[] | null;
   fontStyle?: string;
   textColor?: string;
+  fontSize?: number;
+  textAlignment?: 'left' | 'center' | 'right';
+  backgroundBlur?: boolean;
+  textAnimation?: 'none' | 'typewriter' | 'fade-in';
 }
 
 export const SampleVideo: React.FC<SampleVideoProps> = ({
@@ -33,9 +30,12 @@ export const SampleVideo: React.FC<SampleVideoProps> = ({
   audioSrc,
   audioDuration,
   bgMusic,
-  audioSegments,
   fontStyle = 'impact',
   textColor = 'gold',
+  fontSize = 80,
+  textAlignment = 'center',
+  backgroundBlur = false,
+  textAnimation = 'fade-in',
 }) => {
   const frame = useCurrentFrame();
   const {durationInFrames, fps} = useVideoConfig();
@@ -76,9 +76,56 @@ export const SampleVideo: React.FC<SampleVideoProps> = ({
       selectedFont: selectedFontStyle,
       selectedColor: selectedColorStyle,
       availableFonts: fontOptions.map(f => f.value),
-      availableColors: colorOptions.map(c => c.value)
+      availableColors: colorOptions.map(c => c.value),
+      fontSize,
+      textAlignment,
+      backgroundBlur,
+      textAnimation
     });
   }
+
+  // Helper function to get animation styles for single word display
+  const getWordAnimationStyle = () => {
+    const baseStyle = {
+      color: selectedColorStyle.color,
+      display: 'inline-block' as const,
+      textShadow: `0 0 15px ${selectedColorStyle.shadowColor}, 3px 3px 6px rgba(0,0,0,0.8)`,
+    };
+
+    if (textAnimation === 'none') {
+      return {
+        ...baseStyle,
+        transform: 'scale(1.1)',
+        opacity: 1,
+      };
+    }
+
+    if (textAnimation === 'fade-in') {
+      // Fade in animation for single word
+      const fadeProgress = interpolate(frame % 30, [0, 15, 30], [0.3, 1, 0.8], {
+        extrapolateLeft: 'clamp',
+        extrapolateRight: 'clamp',
+      });
+      
+      return {
+        ...baseStyle,
+        opacity: fadeProgress,
+        transform: `scale(${1 + fadeProgress * 0.2})`,
+        filter: 'brightness(1.2)',
+      };
+    }
+
+    if (textAnimation === 'typewriter') {
+      return {
+        ...baseStyle,
+        transform: 'scale(1.1)',
+        opacity: 1,
+        filter: 'brightness(1.2)',
+      };
+    }
+
+    return baseStyle;
+  };
   
   // Simplified approach for smooth video playback
 
@@ -171,7 +218,7 @@ export const SampleVideo: React.FC<SampleVideoProps> = ({
         style={{
           opacity,
           transform: `translateY(${translateY}px) scale(${scale})`,
-          textAlign: 'center',
+          textAlign: textAlignment, // Use the dynamic text alignment
           color: 'white',
           padding: '60px 40px',
           maxWidth: '95%',
@@ -179,104 +226,61 @@ export const SampleVideo: React.FC<SampleVideoProps> = ({
           position: 'relative',
         }}
       >
-        {/* Word-by-word text display - High Quality YouTube Shorts */}
+        {/* Word-by-word text display with styling and animations */}
         <div
           style={{
-            fontSize: 80, // Reduced from 120px for better readability
+            fontSize,
             margin: 0,
-            lineHeight: 1.2,
-            textShadow: '0 0 30px rgba(0,0,0,0.8), 4px 4px 12px rgba(0,0,0,0.9), -2px -2px 8px rgba(0,0,0,0.6)',
+            lineHeight: 1.4,
+            textShadow: backgroundBlur 
+              ? '0 0 50px rgba(0,0,0,0.9), 6px 6px 20px rgba(0,0,0,0.9), -3px -3px 15px rgba(0,0,0,0.8)'
+              : '0 0 30px rgba(0,0,0,0.8), 4px 4px 12px rgba(0,0,0,0.9), -2px -2px 8px rgba(0,0,0,0.6)',
             wordWrap: 'break-word',
             hyphens: 'auto',
             fontFamily: selectedFontStyle.font,
             fontWeight: selectedFontStyle.weight,
             textRendering: 'optimizeLegibility',
             WebkitFontSmoothing: 'antialiased',
+            position: 'relative',
+            ...(backgroundBlur && {
+              backgroundColor: 'rgba(0, 0, 0, 0.8)',
+              borderRadius: '15px',
+              padding: '20px 30px',
+              border: '2px solid rgba(255, 255, 255, 0.2)',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.6)',
+            })
           }}
         >
           {(() => {
             if (!speechText) return '';
             
             const currentTime = frame / fps;
+            const words = speechText.split(' ').filter(word => word.trim());
             
-            // PRECISE WORD TIMING BASED ON SEGMENTS
-            if (audioSegments && audioSegments.length > 0) {
-              // Debug: Log segment information
-              if (frame === 0) {
-                console.log('🎯 PRECISE TIMING: Using audio segments for word timing:', {
-                  segmentCount: audioSegments.length,
-                  segments: audioSegments.map(s => ({
-                    text: s.text.slice(0, 30) + '...',
-                    duration: s.duration,
-                    wordCount: s.wordCount
-                  }))
-                });
-              }
-              
-              // Calculate precise timing for each segment independently
-              let accumulatedTime = 0;
-              
-              for (const segment of audioSegments) {
-                const segmentDuration = segment.duration || 2; // Fallback duration
-                const segmentWords = segment.text.split(' ').filter(word => word.trim());
-                const timePerWord = segmentDuration / segmentWords.length;
-                
-                // Check if current time falls within this segment
-                if (currentTime >= accumulatedTime && currentTime < accumulatedTime + segmentDuration) {
-                  const timeIntoSegment = currentTime - accumulatedTime;
-                  const wordIndexInSegment = Math.floor(timeIntoSegment / timePerWord);
-                  
-                  if (wordIndexInSegment >= 0 && wordIndexInSegment < segmentWords.length) {
-                    const currentWord = segmentWords[wordIndexInSegment];
-                    
-                    // Debug: Log word timing (only occasionally to avoid spam)
-                    if (frame % 30 === 0) {
-                      console.log(`🎯 WORD TIMING: Segment ${segment.chunkIndex}, Word ${wordIndexInSegment}/${segmentWords.length}: "${currentWord}" at ${currentTime.toFixed(2)}s (${timePerWord.toFixed(2)}s per word)`);
-                    }
-                    
-                    return (
-                      <span
-                        style={{
-                          color: selectedColorStyle.color,
-                          display: 'inline-block',
-                          transform: 'scale(1.1)',
-                          textShadow: `0 0 15px ${selectedColorStyle.shadowColor}, 3px 3px 6px rgba(0,0,0,0.8)`,
-                          transition: 'all 0.1s ease-in-out', // Faster transition for precision
-                        }}
-                      >
-                        {currentWord}
-                      </span>
-                    );
-                  }
-                }
-                
-                accumulatedTime += segmentDuration;
-              }
-              
-              return ''; // No word to show if we're past all segments
-            }
-            
-            // FALLBACK: Original timing method if no segments available
-            const words = speechText.split(' ');
+            // Calculate current word index based on precise timing (duration / word count)
             const totalDuration = audioDuration || (durationInFrames / fps);
             const adjustedDuration = Math.max(totalDuration * 0.95, 3);
-            const wordsPerSecond = words.length / adjustedDuration;
-            const currentWordIndex = Math.floor(currentTime * wordsPerSecond);
+            const timePerWord = adjustedDuration / words.length;
+            const currentWordIndex = Math.floor(currentTime / timePerWord);
             
+                        // Show only current word (1 word per frame max)
             if (currentWordIndex >= 0 && currentWordIndex < words.length) {
               const currentWord = words[currentWordIndex];
+              let displayWord = currentWord;
+              let showCursor = false;
+              
+              // Handle typewriter animation
+              if (textAnimation === 'typewriter') {
+                const progress = Math.min(1, Math.max(0, (frame % 60) / 30)); // 0.5 second per word
+                const visibleChars = Math.floor(progress * currentWord.length);
+                displayWord = currentWord.slice(0, Math.max(1, visibleChars));
+                showCursor = displayWord.length < currentWord.length;
+              }
               
               return (
-                <span
-                  style={{
-                    color: selectedColorStyle.color,
-                    display: 'inline-block',
-                    transform: 'scale(1.1)',
-                    textShadow: `0 0 15px ${selectedColorStyle.shadowColor}, 3px 3px 6px rgba(0,0,0,0.8)`,
-                    transition: 'all 0.3s ease-in-out',
-                  }}
-                >
-                  {currentWord}
+                <span style={getWordAnimationStyle()}>
+                  {displayWord}
+                  {showCursor && <span style={{ opacity: 0.7 }}>|</span>}
                 </span>
               );
             }

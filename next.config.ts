@@ -49,16 +49,14 @@ const nextConfig: NextConfig = {
 
     return config;
   },
-  experimental: {
-    // Enable server components and external packages
-    serverComponentsExternalPackages: [
-      '@remotion/bundler', 
-      '@remotion/renderer',
-      'esbuild',
-      'sharp',
-      'canvas'
-    ],
-  },
+  // Server external packages (moved from experimental)
+  serverExternalPackages: [
+    '@remotion/bundler', 
+    '@remotion/renderer',
+    'esbuild',
+    'sharp',
+    'canvas'
+  ],
 };
 
 export default nextConfig;

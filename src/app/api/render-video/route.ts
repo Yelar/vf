@@ -5,74 +5,23 @@ import path from 'path';
 import { v4 as uuid } from 'uuid';
 import fs from 'fs/promises';
 
-// Function to combine audio segments on the server
-async function combineAudioSegments(segments: Array<{audio: string}>): Promise<string> {
-  if (segments.length === 0) throw new Error('No audio segments provided');
-  if (segments.length === 1) return segments[0].audio;
 
-  console.log(`🔗 Combining ${segments.length} audio segments for Remotion`);
-  
-  try {
-    // For server-side combination, we'll create a simple concatenation
-    // by converting each base64 audio to buffer and combining them
-    const audioBuffers: Buffer[] = [];
-    
-    for (const segment of segments) {
-      // Extract base64 data from data URL
-      const base64Data = segment.audio.split(',')[1];
-      const buffer = Buffer.from(base64Data, 'base64');
-      audioBuffers.push(buffer);
-    }
-    
-    // Simple concatenation - this works for MP3 files
-    const combinedBuffer = Buffer.concat(audioBuffers);
-    const combinedBase64 = combinedBuffer.toString('base64');
-    
-    console.log(`✅ Successfully combined ${segments.length} audio segments`);
-    return `data:audio/mpeg;base64,${combinedBase64}`;
-    
-  } catch (error) {
-    console.error('❌ Error combining audio segments:', error);
-    console.log('🔄 Falling back to first segment');
-    return segments[0].audio;
-  }
-}
 
 export async function POST(req: NextRequest) {
   try {
-    const { speechText, backgroundVideo, audioSrc, audioDuration, bgMusic, audioSegments, fontStyle, textColor } = await req.json();
+    const { speechText, backgroundVideo, audioSrc, audioDuration, bgMusic, fontStyle, textColor, fontSize, textAlignment, backgroundBlur, textAnimation } = await req.json();
 
     // Get user info from middleware headers
     const userEmail = req.headers.get('x-user-email') || 'unknown';
     
-    // Log segments info for debugging (audioSegments will be used for future subtitle generation)
-    if (audioSegments) {
-      console.log(`📝 Received ${audioSegments.length} audio segments for future subtitle precision`);
-    }
     console.log(`🎬 User ${userEmail} starting Remotion video render`);
 
     if (!speechText) {
       return NextResponse.json({ error: 'Speech text is required' }, { status: 400 });
     }
 
-    // Handle audio - prefer segments, fallback to single audio
-    let finalAudioSrc = audioSrc;
-    
-    if (audioSegments && audioSegments.length > 0) {
-      console.log(`🎵 Processing ${audioSegments.length} audio segments for Remotion`);
-      try {
-        finalAudioSrc = await combineAudioSegments(audioSegments);
-        console.log('✅ Audio segments processed for Remotion');
-      } catch (error) {
-        console.error('❌ Error processing audio segments:', error);
-        if (!audioSrc) {
-          return NextResponse.json({ 
-            error: 'Failed to process audio segments and no fallback audio provided' 
-          }, { status: 400 });
-        }
-        console.log('🔄 Falling back to single audio source');
-      }
-    }
+    // Use single audio source
+    const finalAudioSrc = audioSrc;
 
     // Handle audio for Remotion - convert data URLs to temporary files
     let audioFilePath: string | null = null;
@@ -139,9 +88,12 @@ export async function POST(req: NextRequest) {
       audioSrc: audioFilePath, // Use the file path instead of data URL
       audioDuration,
       bgMusic: resolvedBgMusic,
-      audioSegments,
       fontStyle,
       textColor,
+      fontSize,
+      textAlignment,
+      backgroundBlur,
+      textAnimation,
     };
 
     const comps = await getCompositions(bundleLocation, {
@@ -176,14 +128,18 @@ export async function POST(req: NextRequest) {
       speechText: speechText?.slice(0, 50) + '...',
       hasAudio: !!audioFilePath,
       audioPath: audioFilePath,
-      hasSegments: !!(audioSegments && audioSegments.length > 0),
-      segmentCount: audioSegments ? audioSegments.length : 0,
+      hasSegments: false,
+      segmentCount: 0,
       hasBackground: !!resolvedBackgroundVideo,
       backgroundVideoUrl: resolvedBackgroundVideo,
       hasBgMusic: !!resolvedBgMusic,
       bgMusicUrl: resolvedBgMusic,
       fontStyle: fontStyle || 'default',
-      textColor: textColor || 'default'
+      textColor: textColor || 'default',
+      fontSize: fontSize || 80,
+      textAlignment: textAlignment || 'center',
+      backgroundBlur: backgroundBlur || false,
+      textAnimation: textAnimation || 'fade-in'
     });
 
     try {
@@ -258,4 +214,4 @@ export async function POST(req: NextRequest) {
     console.error('❌ Error rendering video:', error);
     return NextResponse.json({ error: String(error) }, { status: 500 });
   }
-} 
+}

@@ -59,6 +59,12 @@ function DashboardContent() {
   // Text color selection state
   const [selectedColor, setSelectedColor] = useState<string>('gold');
 
+  // New text styling states
+  const [fontSize, setFontSize] = useState<number>(80);
+  const [textAlignment, setTextAlignment] = useState<'left' | 'center' | 'right'>('center');
+  const [backgroundBlur, setBackgroundBlur] = useState<boolean>(false);
+  const [textAnimation, setTextAnimation] = useState<'none' | 'typewriter' | 'fade-in'>('fade-in');
+
   // List of preset background videos (update this list when you add new videos)
   const presetVideos = [
     { value: 'none', label: 'No preset video', path: '' },
@@ -116,123 +122,9 @@ function DashboardContent() {
     { value: 'yellow', label: '🟡 Yellow - Bright', color: '#FFEB3B', shadowColor: 'rgba(255, 235, 59, 0.6)' },
   ];
 
-  // Function to combine multiple audio segments into one using Web Audio API
-  const combineAudioSegments = async (segments: Array<{audio: string, duration?: number}>) => {
-    if (segments.length === 0) return null;
-    if (segments.length === 1) return segments[0].audio;
 
-    try {
-      // Create audio context
-      const AudioContextClass = window.AudioContext || (window as typeof window & {webkitAudioContext: typeof AudioContext}).webkitAudioContext;
-      const audioContext = new AudioContextClass();
-      
-      // Convert base64 audio to audio buffers
-      const audioBuffers: AudioBuffer[] = [];
-      let totalDuration = 0;
 
-      for (const segment of segments) {
-        // Convert data URL to array buffer
-        const base64Data = segment.audio.split(',')[1];
-        const arrayBuffer = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0)).buffer;
-        
-        // Decode audio data
-        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-        audioBuffers.push(audioBuffer);
-        totalDuration += audioBuffer.duration;
-      }
 
-      // Create a new buffer to hold the combined audio
-      const combinedBuffer = audioContext.createBuffer(
-        audioBuffers[0].numberOfChannels,
-        Math.ceil(totalDuration * audioBuffers[0].sampleRate),
-        audioBuffers[0].sampleRate
-      );
-
-      // Copy each segment into the combined buffer
-      let offset = 0;
-      for (let i = 0; i < audioBuffers.length; i++) {
-        const buffer = audioBuffers[i];
-        for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
-          const channelData = buffer.getChannelData(channel);
-          combinedBuffer.getChannelData(channel).set(channelData, offset);
-        }
-        offset += buffer.length;
-      }
-
-      // Convert combined buffer back to base64 audio
-      const length = combinedBuffer.length * combinedBuffer.numberOfChannels * 2;
-      const arrayBuffer = new ArrayBuffer(length);
-      const view = new DataView(arrayBuffer);
-      
-      let pos = 0;
-      for (let i = 0; i < combinedBuffer.length; i++) {
-        for (let channel = 0; channel < combinedBuffer.numberOfChannels; channel++) {
-          const sample = Math.max(-1, Math.min(1, combinedBuffer.getChannelData(channel)[i]));
-          view.setInt16(pos, sample * 0x7FFF, true);
-          pos += 2;
-        }
-      }
-
-      // Create WAV file
-      const wavBuffer = createWavFile(arrayBuffer, combinedBuffer.sampleRate, combinedBuffer.numberOfChannels);
-      const blob = new Blob([wavBuffer], { type: 'audio/wav' });
-      const url = URL.createObjectURL(blob);
-      
-      return url;
-    } catch (error) {
-      console.error('❌ Error combining audio segments:', error);
-      // Fallback: return first segment
-      return segments[0]?.audio || null;
-    }
-  };
-
-  // Helper function to create WAV file header
-  const createWavFile = (audioData: ArrayBuffer, sampleRate: number, numChannels: number) => {
-    const length = audioData.byteLength;
-    const buffer = new ArrayBuffer(44 + length);
-    const view = new DataView(buffer);
-
-    // WAV header
-    const writeString = (offset: number, string: string) => {
-      for (let i = 0; i < string.length; i++) {
-        view.setUint8(offset + i, string.charCodeAt(i));
-      }
-    };
-
-    writeString(0, 'RIFF');
-    view.setUint32(4, 36 + length, true);
-    writeString(8, 'WAVE');
-    writeString(12, 'fmt ');
-    view.setUint32(16, 16, true);
-    view.setUint16(20, 1, true);
-    view.setUint16(22, numChannels, true);
-    view.setUint32(24, sampleRate, true);
-    view.setUint32(28, sampleRate * numChannels * 2, true);
-    view.setUint16(32, numChannels * 2, true);
-    view.setUint16(34, 16, true);
-    writeString(36, 'data');
-    view.setUint32(40, length, true);
-
-    // Copy audio data
-    const audioArray = new Uint8Array(audioData);
-    const wavArray = new Uint8Array(buffer);
-    wavArray.set(audioArray, 44);
-
-    return buffer;
-  };
-
-  // Function to get duration of audio segments
-  const getSegmentDurations = async (segments: Array<{audio: string}>) => {
-    const durationsPromises = segments.map(segment => {
-      return new Promise<number>((resolve) => {
-        const audio = new Audio(segment.audio);
-        audio.onloadedmetadata = () => resolve(audio.duration);
-        audio.onerror = () => resolve(0); // Fallback
-      });
-    });
-    
-    return Promise.all(durationsPromises);
-  };
 
   const generateSpeech = async () => {
     if (!speechText.trim()) {
@@ -242,7 +134,7 @@ function DashboardContent() {
 
     setIsGeneratingSpeech(true);
     try {
-      console.log('🎤 Generating segmented speech with Eleven Labs...');
+      console.log('🎤 Generating whole audio with Eleven Labs...');
       
       const response = await fetch('/api/generate-speech', {
         method: 'POST',
@@ -252,7 +144,7 @@ function DashboardContent() {
         body: JSON.stringify({
           text: speechText,
           voiceId: selectedVoice,
-          useSegments: true, // ALWAYS use segmented generation for precise subtitles
+          useSegments: false, // Generate whole audio instead of segments
         }),
       });
 
@@ -267,47 +159,24 @@ function DashboardContent() {
 
       const data = await response.json();
 
-      if (data.segments) {
-        // Handle segmented response
-        console.log(`✅ Generated ${data.segments.length} audio segments`);
-        setAudioSegments(data.segments);
+      // Handle single audio response
+      setGeneratedAudio(data.audio);
+      setAudioSegments(null); // Clear any previous segments
 
-        // Get durations for all segments
-        const durations = await getSegmentDurations(data.segments);
-        const totalDuration = durations.reduce((sum, duration) => sum + duration, 0);
+      // Get audio duration for precise word timing
+      const audio = new Audio(data.audio);
+      audio.onloadedmetadata = () => {
+        setAudioDuration(audio.duration);
+        const words = speechText.split(' ').filter(word => word.trim());
+        const timePerWord = audio.duration / words.length;
         
-        // Update segments with durations
-        const segmentsWithDurations = data.segments.map((segment: {
-          text: string;
-          audio: string;
-          chunkIndex: number;
-          wordCount: number;
-        }, index: number) => ({
-          ...segment,
-          duration: durations[index]
-        }));
-        setAudioSegments(segmentsWithDurations);
-
-        // Create combined audio for playback (using first segment for now)
-        const combinedAudio = await combineAudioSegments(segmentsWithDurations);
-        setGeneratedAudio(combinedAudio);
-        setAudioDuration(totalDuration);
-        
-        console.log('🎵 Segmented audio generated successfully:', {
-          segments: data.segments.length,
-          totalDuration: totalDuration.toFixed(1) + 's',
-          chunks: data.segments.map((s: {text: string}) => s.text.slice(0, 30) + '...')
+        console.log('🎵 Whole audio generated successfully:', {
+          duration: audio.duration.toFixed(1) + 's',
+          wordCount: words.length,
+          timePerWord: timePerWord.toFixed(3) + 's per word',
+          timingMethod: 'Precise: total duration ÷ word count'
         });
-      } else {
-        // Handle single audio response (fallback)
-        setGeneratedAudio(data.audio);
-        setAudioSegments(null);
-
-        const audio = new Audio(data.audio);
-        audio.onloadedmetadata = () => {
-          setAudioDuration(audio.duration);
-        };
-      }
+      };
 
       console.log('✅ Speech generated successfully');
     } catch (error) {
@@ -401,7 +270,11 @@ function DashboardContent() {
     bgMusicSrc: string | null = null,
     segments: Array<{text: string; audio: string; chunkIndex: number; wordCount: number; duration?: number}> | null = null,
     fontStyle: string = selectedFont,
-    textColor: string = selectedColor
+    textColor: string = selectedColor,
+    textSize: number = fontSize,
+    textAlign: 'left' | 'center' | 'right' = textAlignment,
+    bgBlur: boolean = backgroundBlur,
+    animation: 'none' | 'typewriter' | 'fade-in' = textAnimation
   ) => {
     // TODO: Use segments for precise subtitle generation in future updates
     console.log('🎬 Starting server-side Remotion rendering...', segments ? `with ${segments.length} audio segments` : 'with single audio');
@@ -429,6 +302,10 @@ function DashboardContent() {
         audioSegments: segments,
         fontStyle,
         textColor,
+        fontSize: textSize,
+        textAlignment: textAlign,
+        backgroundBlur: bgBlur,
+        textAnimation: animation,
       }),
     });
 
@@ -490,7 +367,7 @@ function DashboardContent() {
         hasFallbackAudio: !!generatedAudio
       });
       
-      await renderWithRemotion(speechText, videoSource, generatedAudio, audioDuration, bgMusicSource, audioSegments, selectedFont, selectedColor);
+      await renderWithRemotion(speechText, videoSource, generatedAudio, audioDuration, bgMusicSource, null, selectedFont, selectedColor, fontSize, textAlignment, backgroundBlur, textAnimation);
       
     } catch (error) {
       console.error('❌ Error creating YouTube Shorts video:', error);
@@ -638,9 +515,13 @@ function DashboardContent() {
                     audioSrc: generatedAudio,
                     audioDuration,
                     bgMusic: selectedBgMusic !== 'none' ? bgMusicOptions.find(m => m.value === selectedBgMusic)?.path : null,
-                    audioSegments,
+                    audioSegments: null,
                     fontStyle: selectedFont,
                     textColor: selectedColor,
+                    fontSize,
+                    textAlignment,
+                    backgroundBlur,
+                    textAnimation,
                   }}
                   durationInFrames={audioDuration ? Math.floor(Math.max(audioDuration, 5) * 60) : 300}
                   fps={60}
@@ -854,6 +735,82 @@ function DashboardContent() {
                   </p>
                 </div>
 
+                {/* Text Styling & Effects */}
+                <div className="space-y-4 p-4 bg-white/5 border border-white/10 rounded-lg">
+                  <Label className="text-sm font-medium text-white flex items-center gap-2">
+                    <div className="w-4 h-4 bg-gradient-to-r from-purple-500 to-pink-500 rounded">
+                      <Zap className="h-3 w-3 text-white p-0.5" />
+                    </div>
+                    Text Styling & Effects
+                  </Label>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* Font Size */}
+                    <div className="space-y-2">
+                      <Label className="text-xs">Font Size</Label>
+                      <Select value={fontSize.toString()} onValueChange={(value) => setFontSize(Number(value))}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="60">📱 Small (60px)</SelectItem>
+                          <SelectItem value="80">📺 Medium (80px)</SelectItem>
+                          <SelectItem value="100">🎬 Large (100px)</SelectItem>
+                          <SelectItem value="120">🎪 Extra Large (120px)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Text Alignment */}
+                    <div className="space-y-2">
+                      <Label className="text-xs">Text Alignment</Label>
+                      <Select value={textAlignment} onValueChange={(value: 'left' | 'center' | 'right') => setTextAlignment(value)}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="left">⬅️ Left</SelectItem>
+                          <SelectItem value="center">🎯 Center</SelectItem>
+                          <SelectItem value="right">➡️ Right</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Background Blur */}
+                    <div className="space-y-2">
+                      <Label className="text-xs">Background Blur</Label>
+                      <Select value={backgroundBlur.toString()} onValueChange={(value) => setBackgroundBlur(value === 'true')}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="false">🚫 No Blur</SelectItem>
+                          <SelectItem value="true">🌫️ With Blur</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Text Animation */}
+                    <div className="space-y-2">
+                      <Label className="text-xs">Text Animation</Label>
+                      <Select value={textAnimation} onValueChange={(value: 'none' | 'typewriter' | 'fade-in') => setTextAnimation(value)}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">🚫 None</SelectItem>
+                          <SelectItem value="fade-in">✨ Fade In</SelectItem>
+                          <SelectItem value="typewriter">⌨️ Typewriter</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  
+                  <p className="text-xs text-muted-foreground">
+                    🎨 Customize text appearance and animations
+                  </p>
+                </div>
+
                 <Button 
                   onClick={generateSpeech}
                   disabled={isGeneratingSpeech || !speechText.trim()}
@@ -882,32 +839,9 @@ function DashboardContent() {
                       preload="metadata"
                     />
                     
-                    {audioSegments && (
-                      <div className="space-y-2">
-                        <Label className="text-xs font-medium text-muted-foreground">
-                          Audio Segments ({audioSegments.length} chunks for precise subtitles):
-                        </Label>
-                        <div className="grid gap-2 max-h-32 overflow-y-auto">
-                          {audioSegments.map((segment, index) => (
-                            <div key={index} className="flex items-center gap-2 text-xs bg-muted/50 p-2 rounded">
-                              <Badge variant="outline" className="text-xs">
-                                {index + 1}
-                              </Badge>
-                              <span className="flex-1 truncate">
-                                {segment.text}
-                              </span>
-                              <Badge variant="secondary" className="text-xs">
-                                {segment.duration ? `${segment.duration.toFixed(1)}s` : '...'}
-                              </Badge>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    
                     <div className="flex items-center justify-between">
                       <Badge variant="outline" className="w-fit">
-                        ✅ Audio ready {audioSegments ? `(${audioSegments.length} segments)` : ''}
+                        ✅ Audio ready
                       </Badge>
                       {audioDuration && (
                         <Badge variant="secondary" className="w-fit">
