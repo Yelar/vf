@@ -27,6 +27,7 @@ export interface UserVideo {
   duration?: number;
   thumbnail_url?: string;
   metadata: string; // JSON string containing video generation parameters
+  is_shared: number; // 0 = private, 1 = shared
   created_at: string;
 }
 
@@ -56,10 +57,18 @@ export function initializeDb() {
       duration REAL,
       thumbnail_url TEXT,
       metadata TEXT NOT NULL,
+      is_shared INTEGER DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
     )
   `);
+
+  // Add is_shared column if it doesn't exist (for existing databases)
+  try {
+    db.exec(`ALTER TABLE videos ADD COLUMN is_shared INTEGER DEFAULT 0`);
+  } catch {
+    // Column already exists, ignore
+  }
 }
 
 // Create a new user
@@ -205,5 +214,53 @@ export function updateVideoTitle(id: number, userId: number, title: string): boo
   }
 }
 
+// Toggle video sharing status
+export function toggleVideoSharing(id: number, userId: number): boolean {
+  try {
+    const stmt = db.prepare('UPDATE videos SET is_shared = NOT is_shared WHERE id = ? AND user_id = ?');
+    const result = stmt.run(id, userId);
+    return result.changes > 0;
+  } catch (error) {
+    console.error('Error toggling video sharing:', error);
+    return false;
+  }
+}
+
+// Get all shared videos (public)
+export function getSharedVideos(): UserVideo[] {
+  try {
+    const stmt = db.prepare(`
+      SELECT v.*, u.name as creator_name 
+      FROM videos v 
+      JOIN users u ON v.user_id = u.id 
+      WHERE v.is_shared = 1 
+      ORDER BY v.created_at DESC
+    `);
+    const videos = stmt.all() as (UserVideo & { creator_name: string })[];
+    return videos;
+  } catch (error) {
+    console.error('Error getting shared videos:', error);
+    return [];
+  }
+}
+
+// Get shared video by ID (public access)
+export function getSharedVideoById(id: number): (UserVideo & { creator_name: string }) | null {
+  try {
+    const stmt = db.prepare(`
+      SELECT v.*, u.name as creator_name 
+      FROM videos v 
+      JOIN users u ON v.user_id = u.id 
+      WHERE v.id = ? AND v.is_shared = 1
+    `);
+    const video = stmt.get(id) as (UserVideo & { creator_name: string }) | undefined;
+    return video || null;
+  } catch (error) {
+    console.error('Error getting shared video by ID:', error);
+    return null;
+  }
+}
+
+//
 // Initialize database on import
 initializeDb(); 

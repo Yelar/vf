@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { deleteVideo, updateVideoTitle, getVideoById } from '@/lib/auth-db';
+import { deleteVideo, updateVideoTitle, getVideoById, toggleVideoSharing } from '@/lib/auth-db';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -82,13 +82,20 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'Invalid video ID' }, { status: 400 });
     }
 
-    const { title } = await req.json();
+    const body = await req.json();
+    const { title, toggleSharing } = body;
     
-    if (!title || typeof title !== 'string') {
-      return NextResponse.json({ error: 'Valid title is required' }, { status: 400 });
+    let success = false;
+    
+    if (toggleSharing) {
+      // Toggle sharing status
+      success = toggleVideoSharing(videoId, parseInt(session.user.id));
+    } else if (title && typeof title === 'string') {
+      // Update title
+      success = updateVideoTitle(videoId, parseInt(session.user.id), title);
+    } else {
+      return NextResponse.json({ error: 'Valid title or toggleSharing flag is required' }, { status: 400 });
     }
-
-    const success = updateVideoTitle(videoId, parseInt(session.user.id), title);
     
     if (!success) {
       return NextResponse.json({ error: 'Video not found or unauthorized' }, { status: 404 });

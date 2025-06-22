@@ -759,7 +759,13 @@ function DashboardContent() {
                 <Link href="/library">
                   <Button variant="ghost" className="text-gray-300 hover:text-white">
                     <Film className="h-4 w-4 mr-2" />
-                    Library
+                    My Library
+                  </Button>
+                </Link>
+                <Link href="/shared">
+                  <Button variant="ghost" className="text-green-300 hover:text-green-200">
+                    <Video className="h-4 w-4 mr-2" />
+                    Shared Library
                   </Button>
                 </Link>
                 <div className="flex items-center gap-3 px-4 py-2 bg-white/5 rounded-lg border border-white/10">
