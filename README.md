@@ -16,6 +16,8 @@ A Next.js application that generates vertical videos perfect for YouTube Shorts,
 - 💾 **Cloud Storage**: Videos stored securely with UploadThing integration
 - 🔍 **Search & Filter**: Find your videos quickly by title or description
 - 🎤 **Voice Input**: Speak your topic ideas with Groq Whisper AI transcription
+- 📧 **Async Processing**: Videos processed in background with email notifications
+- ⚡ **Non-blocking**: Continue working while videos render (2-5 minutes)
 
 ## 🚀 Setup
 
@@ -33,10 +35,12 @@ A Next.js application that generates vertical videos perfect for YouTube Shorts,
 3. **Set up API Keys**
    - Get an API key from [Eleven Labs](https://elevenlabs.io/docs/api-reference/authentication)
    - Get an UploadThing token from [UploadThing](https://uploadthing.com)
+   - Get a Resend API key from [Resend](https://resend.com) for email notifications
    - Create a `.env.local` file in the root directory:
    ```env
    ELEVEN_LABS_API_KEY=your_eleven_labs_api_key_here
    UPLOADTHING_TOKEN=your_uploadthing_token_here
+   RESEND_API_KEY=your_resend_api_key_here
    NEXTAUTH_SECRET=your_secret_key_here
    GROQ_API_KEY=your_groq_api_key_here
    ```
@@ -68,8 +72,10 @@ A Next.js application that generates vertical videos perfect for YouTube Shorts,
    - Enable AI-powered image overlay from Unsplash
    - Add background music
 9. **Generate Video**: 
-   - Click "Generate & Save to Library" to create and store your video
-   - Videos automatically download after creation
+   - Click "Generate & Save to Library" to start async video processing
+   - Videos are processed in the background (2-5 minutes)
+   - You'll receive an email notification with a link to your library when ready
+   - No need to wait - you can close the browser and continue with other tasks
 
 ### Managing Your Library
 1. **View Library**: Click "Library" in the header to see all your saved videos
@@ -107,6 +113,7 @@ A Next.js application that generates vertical videos perfect for YouTube Shorts,
 - **Authentication**: NextAuth.js for secure user management
 - **Database**: SQLite with Better-SQLite3 for video metadata
 - **Storage**: UploadThing for cloud video storage
+- **Email**: Resend for beautiful async video completion notifications
 - **AI**: Groq API for content generation and speech transcription (Whisper)
 
 ## 📁 Project Structure
@@ -159,6 +166,14 @@ src/
 - Perfect synchronization between audio and text
 - Optimal pacing for viewer engagement
 
+### Async Video Processing
+- **Background Processing**: Videos render in the background, no need to wait
+- **Email Notifications**: Receive beautiful HTML emails when videos are ready
+- **Processing Time**: Typical processing time is 2-5 minutes depending on video length
+- **Non-blocking**: Continue creating more content while previous videos process
+- **Library Integration**: Videos automatically appear in your library when complete
+- **Direct Links**: Email includes direct links to view and download your videos
+
 ## 🔧 Development
 
 ```bash
@@ -193,6 +208,9 @@ NEXTAUTH_URL=http://localhost:3000
 
 # Required: File Storage
 UPLOADTHING_TOKEN=your_uploadthing_token_here
+
+# Required: Email Notifications
+RESEND_API_KEY=your_resend_api_key_here
 
 # Optional: For production
 NEXT_PUBLIC_APP_URL=http://localhost:3000

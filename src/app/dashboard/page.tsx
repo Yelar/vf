@@ -612,42 +612,7 @@ function DashboardContent() {
     }
   };
 
-  // Function to download video from video ID
-  const downloadVideoById = async (videoId: number) => {
-    try {
-      // Get video details first
-      const videoResponse = await fetch(`/api/videos/${videoId}`);
-      if (!videoResponse.ok) {
-        throw new Error('Failed to get video details');
-      }
-      
-      const video = await videoResponse.json();
-      if (!video.uploadthing_url) {
-        throw new Error('Video URL not found');
-      }
-      
-      const safeTitle = video.title.replace(/[^a-zA-Z0-9\s-_]/g, '').replace(/\s+/g, '-');
-      
-      // Fast download - instant response
-      const link = document.createElement('a');
-      link.href = video.uploadthing_url;
-      link.download = `${safeTitle}.mp4`;
-      
-      // Add download parameters to URL
-      const url = new URL(video.uploadthing_url);
-      url.searchParams.set('response-content-disposition', `attachment; filename="${safeTitle}.mp4"`);
-      link.href = url.toString();
-      
-      // Click to start download
-      link.click();
-      
-      console.log('Auto-download initiated for:', video.title);
-      
-    } catch (error) {
-      console.error('Auto-download failed:', error);
-      console.log('Auto-download failed, but video is saved to library');
-    }
-  };
+
 
   // Function to generate and save video to library
   const handleSaveToLibrary = async () => {
@@ -707,24 +672,17 @@ function DashboardContent() {
       }
 
       const result = await response.json();
-      alert(`✅ Video generated and saved to your library successfully!`);
       
-      // Auto-download the video after saving
-      if (result.video && result.video.id) {
-        try {
-          console.log('🔄 Auto-downloading video...');
-          await downloadVideoById(result.video.id);
-          console.log('✅ Auto-download completed');
-        } catch (downloadError) {
-          console.error('❌ Auto-download failed:', downloadError);
-          // Don't show error to user as the video is still saved successfully
-        }
+      if (result.success) {
+        alert(`🎬 Video "${videoTitle}" is being processed!\n\n${result.message}\n\nEstimated time: ${result.estimatedTime}\n\nYou'll receive an email notification when it's ready.`);
+        
+        // Clear the save dialog
+        setShowSaveDialog(false);
+        setVideoTitle('');
+        setVideoDescription('');
+      } else {
+        throw new Error(result.error || 'Failed to start video processing');
       }
-      
-      // Clear the save dialog
-      setShowSaveDialog(false);
-      setVideoTitle('');
-      setVideoDescription('');
       
     } catch (error) {
       console.error('❌ Error generating/saving video:', error);
@@ -1162,7 +1120,7 @@ function DashboardContent() {
                           <span className="text-sm font-medium text-blue-300">🚀 New: Voice Input</span>
                         </div>
                         <p className="text-xs text-blue-200">
-                          Now you can speak your topic ideas! Just click the microphone button in the topic section to record your voice and let AI transcribe it instantly using Groq's Whisper.
+                          Now you can speak your topic ideas! Just click the microphone button in the topic section to record your voice and let AI transcribe it instantly using Groq&apos;s Whisper.
                         </p>
                       </div>
                     </div>
@@ -1794,12 +1752,12 @@ function DashboardContent() {
                   size="lg"
                 >
                   <Film className="mr-3 h-6 w-6" />
-                  {isSaving ? 'Generating Video...' : 'Generate & Save to Library'}
+                  {isSaving ? 'Starting Video Processing...' : 'Generate & Save to Library'}
                   <Sparkles className="ml-3 h-5 w-5" />
                 </Button>
                 
                 <p className="text-xs text-center text-gray-400">
-                  💾 Video will be automatically saved to your library and downloaded
+                  📧 Video will be processed in background. You'll receive an email when ready!
                 </p>
               </CardContent>
             </Card>

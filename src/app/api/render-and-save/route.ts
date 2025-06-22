@@ -3,6 +3,7 @@ import { bundle } from '@remotion/bundler';
 import { getCompositions, renderMedia } from '@remotion/renderer';
 import { auth } from '@/lib/auth';
 import { createVideo } from '@/lib/auth-db';
+import { sendVideoCompletionEmail } from '@/lib/email';
 import path from 'path';
 import { v4 as uuid } from 'uuid';
 import fs from 'fs/promises';
@@ -101,6 +102,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Server configuration error - missing upload token' }, { status: 500 });
     }
 
+    if (!process.env.RESEND_API_KEY) {
+      console.error('Missing RESEND_API_KEY environment variable');
+      return NextResponse.json({ error: 'Server configuration error - missing email service' }, { status: 500 });
+    }
+
     const session = await auth();
     
     if (!session?.user?.id) {
@@ -126,7 +132,8 @@ export async function POST(req: NextRequest) {
     } = await req.json();
 
     const userEmail = session.user.email || 'unknown';
-    console.log(`🎬 User ${userEmail} starting video render and save to UploadThing`);
+    const userName = session.user.name || 'User';
+    console.log(`🎬 User ${userEmail} starting async video render and save to UploadThing`);
 
     if (!speechText) {
       return NextResponse.json({ error: 'Speech text is required' }, { status: 400 });
@@ -135,6 +142,94 @@ export async function POST(req: NextRequest) {
     if (!videoTitle) {
       return NextResponse.json({ error: 'Video title is required' }, { status: 400 });
     }
+
+    // Return immediately with processing status
+    const processingId = uuid();
+    
+    // Start async video processing
+    processVideoAsync({
+      processingId,
+      userId: parseInt(session.user.id),
+      userEmail: session.user.email!,
+      userName,
+      speechText,
+      backgroundVideo,
+      audioSrc,
+      audioDuration,
+      bgMusic,
+      fontStyle,
+      textColor,
+      fontSize,
+      textAlignment,
+      backgroundBlur,
+      textAnimation,
+      audioSegments,
+      segmentImages,
+      videoTitle,
+      videoDescription
+    }).catch(error => {
+      console.error(`❌ Async video processing failed for ${processingId}:`, error);
+    });
+
+    console.log(`✅ Video processing started with ID: ${processingId}`);
+
+    return NextResponse.json({ 
+      success: true,
+      processingId,
+      message: 'Video is being processed. You will receive an email notification when it\'s ready!',
+      estimatedTime: '2-5 minutes'
+    });
+
+  } catch (error) {
+    console.error('❌ Error starting video processing:', error);
+    return NextResponse.json({ error: String(error) }, { status: 500 });
+  }
+}
+
+// Async function to process video in the background
+async function processVideoAsync({
+  processingId,
+  userId,
+  userEmail,
+  userName,
+  speechText,
+  backgroundVideo,
+  audioSrc,
+  audioDuration,
+  bgMusic,
+  fontStyle,
+  textColor,
+  fontSize,
+  textAlignment,
+  backgroundBlur,
+  textAnimation,
+  audioSegments,
+  segmentImages,
+  videoTitle,
+  videoDescription
+}: {
+  processingId: string;
+  userId: number;
+  userEmail: string;
+  userName: string;
+  speechText: string;
+  backgroundVideo?: string;
+  audioSrc?: string;
+  audioDuration?: number;
+  bgMusic?: string;
+  fontStyle?: string;
+  textColor?: string;
+  fontSize?: number;
+  textAlignment?: string;
+  backgroundBlur?: number;
+  textAnimation?: string;
+  audioSegments?: Array<{text: string; audio: string; chunkIndex: number; wordCount: number; duration?: number}>;
+  segmentImages?: Array<{url: string; text: string}> | null;
+  videoTitle: string;
+  videoDescription?: string;
+}) {
+  try {
+    console.log(`🎬 Starting async video processing for ${processingId}`);
 
     // Handle audio - prioritize segments over single audio source
     let audioFilePath: string | null = null;
@@ -150,18 +245,14 @@ export async function POST(req: NextRequest) {
         console.log(`✅ Audio segments combined successfully: ${audioFilePath}`);
       } catch (error) {
         console.error('❌ Failed to combine audio segments:', error);
-        return NextResponse.json({ 
-          error: 'Failed to process audio segments' 
-        }, { status: 500 });
+        throw new Error('Failed to process audio segments');
       }
     } else if (audioSrc) {
       // Use single audio source (fallback)
       const finalAudioSrc = audioSrc;
       if (finalAudioSrc.startsWith('blob:')) {
         console.error('❌ Blob URL detected in audioSrc - Remotion cannot handle blob URLs');
-        return NextResponse.json({ 
-          error: 'Blob URLs are not supported for server-side rendering. Audio segments should provide base64 data.' 
-        }, { status: 400 });
+        throw new Error('Blob URLs are not supported for server-side rendering. Audio segments should provide base64 data.');
       }
       
       if (finalAudioSrc.startsWith('data:audio/')) {
@@ -179,9 +270,7 @@ export async function POST(req: NextRequest) {
           console.log(`🌐 Audio accessible at: ${audioFilePath}`);
         } catch (error) {
           console.error('❌ Error saving audio to temporary file:', error);
-          return NextResponse.json({ 
-            error: 'Failed to process audio data' 
-          }, { status: 500 });
+          throw new Error('Failed to process audio data');
         }
       } else {
         // Use the audio source directly if it's already a file path/URL
@@ -195,7 +284,7 @@ export async function POST(req: NextRequest) {
     const bundleLocation = await bundle({
       entryPoint: entry,
       outDir: path.join(process.cwd(), 'out'),
-      onProgress: (p) => console.log(`Bundling: ${p}%`),
+      onProgress: (p) => console.log(`Bundling ${processingId}: ${p}%`),
       webpackOverride: (config) => config,
     });
 
@@ -234,7 +323,7 @@ export async function POST(req: NextRequest) {
     // Find the SampleVideo composition
     let comp = comps.find((c) => c.id === 'SampleVideo');
     if (!comp) {
-      return NextResponse.json({ error: 'SampleVideo composition not found' }, { status: 404 });
+      throw new Error('SampleVideo composition not found');
     }
 
     // Calculate duration based on audio or use default
@@ -250,9 +339,9 @@ export async function POST(req: NextRequest) {
     }
 
     // Create temporary output file
-    const outputPath = path.join('/tmp', `remotion-out-${uuid()}.mp4`);
+    const outputPath = path.join('/tmp', `remotion-out-${processingId}.mp4`);
 
-    console.log('🎬 Starting Remotion render for UploadThing save:', {
+    console.log(`🎬 Starting Remotion render for ${processingId}:`, {
       composition: comp.id,
       duration: videoDuration,
       frames: durationInFrames,
@@ -288,16 +377,16 @@ export async function POST(req: NextRequest) {
       const fileBuffer = await fs.readFile(outputPath);
       const fileSize = fileBuffer.length;
       
-      console.log(`✅ Video rendered successfully, size: ${(fileSize / 1024 / 1024).toFixed(2)} MB`);
+      console.log(`✅ Video ${processingId} rendered successfully, size: ${(fileSize / 1024 / 1024).toFixed(2)} MB`);
 
       // Upload to UploadThing
       const uploadResult = await uploadToUploadThing(fileBuffer, `${videoTitle.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.mp4`);
       
       if (!uploadResult) {
-        return NextResponse.json({ error: 'Failed to upload video to UploadThing' }, { status: 500 });
+        throw new Error('Failed to upload video to UploadThing');
       }
 
-      console.log(`✅ Video uploaded to UploadThing: ${uploadResult.url}`);
+      console.log(`✅ Video ${processingId} uploaded to UploadThing: ${uploadResult.url}`);
 
       // Save video metadata to database
       const videoMetadata = {
@@ -316,7 +405,7 @@ export async function POST(req: NextRequest) {
       };
 
       const savedVideo = await createVideo(
-        parseInt(session.user.id),
+        userId,
         videoTitle,
         uploadResult.url,
         uploadResult.key,
@@ -327,7 +416,25 @@ export async function POST(req: NextRequest) {
       );
 
       if (!savedVideo) {
-        return NextResponse.json({ error: 'Failed to save video metadata' }, { status: 500 });
+        throw new Error('Failed to save video metadata');
+      }
+
+      // Send completion email
+      const libraryUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/library`;
+      
+      try {
+        await sendVideoCompletionEmail({
+          to: userEmail,
+          name: userName,
+          videoTitle,
+          videoDuration,
+          libraryUrl,
+          videoUrl: uploadResult.url
+        });
+        console.log(`📧 Video completion email sent for ${processingId}`);
+      } catch (emailError) {
+        console.error(`❌ Failed to send completion email for ${processingId}:`, emailError);
+        // Don't throw here - video is still successfully created
       }
 
       // Clean up temporary files
@@ -341,13 +448,7 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      console.log('✅ Video successfully rendered, uploaded, and saved to library');
-
-      return NextResponse.json({ 
-        success: true,
-        video: savedVideo,
-        message: 'Video saved to your library!'
-      });
+      console.log(`✅ Video ${processingId} successfully rendered, uploaded, and saved to library`);
 
     } catch (renderError) {
       // Clean up temporary files in case of error
@@ -363,7 +464,19 @@ export async function POST(req: NextRequest) {
       throw renderError;
     }
   } catch (error) {
-    console.error('❌ Error rendering and saving video:', error);
-    return NextResponse.json({ error: String(error) }, { status: 500 });
+    console.error(`❌ Error processing video ${processingId}:`, error);
+    
+    // Send error notification email (optional)
+    try {
+      await sendVideoCompletionEmail({
+        to: userEmail,
+        name: userName,
+        videoTitle: `${videoTitle} (Failed)`,
+        videoDuration: 0,
+        libraryUrl: `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/library`,
+      });
+    } catch (emailError) {
+      console.error(`❌ Failed to send error notification email for ${processingId}:`, emailError);
+    }
   }
 } 

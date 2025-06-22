@@ -234,4 +234,133 @@ The VFS Studio Team
     console.error('❌ Welcome email error:', error);
     throw error;
   }
+}
+
+export interface VideoCompletionData {
+  to: string;
+  name: string;
+  videoTitle: string;
+  videoDuration: number;
+  libraryUrl: string;
+  videoUrl?: string;
+}
+
+export async function sendVideoCompletionEmail({ to, name, videoTitle, videoDuration, libraryUrl, videoUrl }: VideoCompletionData) {
+  try {
+    console.log(`🎬 Sending video completion email to: ${to} for video: ${videoTitle}`);
+    
+    const { data, error } = await resend.emails.send({
+      from: 'VFS Studio <notifications@hintcode.top>',
+      to,
+      subject: `🎉 Your video "${videoTitle}" is ready!`,
+      html: getVideoCompletionEmailHTML(name, videoTitle, videoDuration, libraryUrl, videoUrl),
+      text: getVideoCompletionEmailText(name, videoTitle, videoDuration, libraryUrl, videoUrl),
+    });
+
+    if (error) {
+      console.error('❌ Video completion email error:', error);
+      throw new Error(`Failed to send video completion email: ${error.message}`);
+    }
+
+    console.log('✅ Video completion email sent successfully:', data?.id);
+    return { success: true, messageId: data?.id };
+  } catch (error) {
+    console.error('❌ Video completion email error:', error);
+    throw error;
+  }
+}
+
+function getVideoCompletionEmailHTML(name: string, videoTitle: string, videoDuration: number, libraryUrl: string, videoUrl?: string): string {
+  const minutes = Math.floor(videoDuration / 60);
+  const seconds = Math.floor(videoDuration % 60);
+  const durationText = minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Your Video is Ready - VFS Studio</title>
+    </head>
+    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f8fafc; margin: 0; padding: 20px;">
+      <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+        <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 30px; text-align: center;">
+          <h1 style="margin: 0; font-size: 28px; font-weight: 700;">🎬 VFS Studio</h1>
+          <p style="margin: 10px 0 0 0; opacity: 0.9; font-size: 16px;">Your Video is Ready!</p>
+        </div>
+        
+        <div style="padding: 40px 30px;">
+          <h2 style="color: #1a202c; font-size: 24px; margin-bottom: 20px;">Hi ${name}! 🎉</h2>
+          
+          <p style="color: #4a5568; font-size: 16px; margin-bottom: 20px;">Great news! Your AI-generated video is now ready for download and sharing.</p>
+          
+          <div style="background-color: #f0fdf4; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10b981;">
+            <h3 style="margin-top: 0; color: #065f46; font-size: 18px;">📹 "${videoTitle}"</h3>
+            <p style="margin: 5px 0; color: #047857;"><strong>Duration:</strong> ${durationText}</p>
+            <p style="margin: 5px 0; color: #047857;"><strong>Status:</strong> ✅ Ready for download</p>
+          </div>
+          
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${libraryUrl}" style="display: inline-block; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; text-decoration: none; padding: 16px 32px; border-radius: 8px; font-weight: 600; font-size: 16px; margin: 10px;">
+              📚 View in Library
+            </a>
+            ${videoUrl ? `<br><a href="${videoUrl}" style="display: inline-block; background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); color: white; text-decoration: none; padding: 16px 32px; border-radius: 8px; font-weight: 600; font-size: 16px; margin: 10px;">📥 Download Video</a>` : ''}
+          </div>
+          
+          <div style="background-color: #f7fafc; padding: 20px; border-radius: 8px; margin: 30px 0;">
+            <h3 style="margin-top: 0; color: #1a202c;">What's next?</h3>
+            <p style="margin: 5px 0; color: #4a5568;">📱 Share on social media platforms</p>
+            <p style="margin: 5px 0; color: #4a5568;">📹 Create more videos with different styles</p>
+            <p style="margin: 5px 0; color: #4a5568;">🎨 Experiment with new templates and voices</p>
+            <p style="margin: 5px 0; color: #4a5568;">📊 Track your video library growth</p>
+          </div>
+          
+          <p style="color: #4a5568; font-size: 16px;">Ready to create your next masterpiece?</p>
+          
+          <div style="text-align: center;">
+            <a href="${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/dashboard" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 500; font-size: 14px;">
+              🚀 Create Another Video
+            </a>
+          </div>
+        </div>
+        
+        <div style="background-color: #1a202c; color: #a0aec0; padding: 30px; text-align: center; font-size: 14px;">
+          <p>This video was generated using VFS Studio's AI-powered video creation platform.</p>
+          <p style="margin-top: 20px;"><strong>VFS Studio</strong><br>Making AI video creation accessible to everyone</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+}
+
+function getVideoCompletionEmailText(name: string, videoTitle: string, videoDuration: number, libraryUrl: string, videoUrl?: string): string {
+  const minutes = Math.floor(videoDuration / 60);
+  const seconds = Math.floor(videoDuration % 60);
+  const durationText = minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+
+  return `
+Hi ${name}!
+
+Great news! Your AI-generated video is now ready.
+
+Video Details:
+• Title: "${videoTitle}"
+• Duration: ${durationText}
+• Status: Ready for download
+
+View your video: ${libraryUrl}
+${videoUrl ? `Download directly: ${videoUrl}` : ''}
+
+What's next?
+• Share on social media platforms
+• Create more videos with different styles
+• Experiment with new templates and voices
+
+Create another video: ${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/dashboard
+
+Best regards,
+The VFS Studio Team
+  `;
 } 
