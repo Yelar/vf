@@ -7,9 +7,66 @@ import fs from 'fs/promises';
 
 
 
+// Function to combine audio segments into a single audio file
+async function combineAudioSegments(segments: Array<{text: string; audio: string; chunkIndex: number; wordCount: number; duration?: number}>): Promise<{audioPath: string; totalDuration: number}> {
+  if (!segments || segments.length === 0) {
+    throw new Error('No audio segments provided');
+  }
+
+  if (segments.length === 1) {
+    // Single segment - just convert to file
+    const segment = segments[0];
+    if (segment.audio.startsWith('data:audio/')) {
+      const base64Data = segment.audio.split(',')[1];
+      const audioBuffer = Buffer.from(base64Data, 'base64');
+      const tempFileName = `audio-${uuid()}.mp3`;
+      const tempFilePath = path.join('/tmp', tempFileName);
+      await fs.writeFile(tempFilePath, audioBuffer);
+      
+      // Calculate duration (rough estimate: ~150 words per minute)
+      const estimatedDuration = segment.duration || (segment.wordCount * 0.4); // 0.4 seconds per word
+      
+      return {
+        audioPath: `http://localhost:3000/api/temp-audio/${tempFileName}`,
+        totalDuration: estimatedDuration
+      };
+    }
+  }
+
+  // Multiple segments - combine them
+  const audioBuffers: Buffer[] = [];
+  let totalDuration = 0;
+
+  for (const segment of segments) {
+    if (segment.audio.startsWith('data:audio/')) {
+      const base64Data = segment.audio.split(',')[1];
+      const audioBuffer = Buffer.from(base64Data, 'base64');
+      audioBuffers.push(audioBuffer);
+      
+      // Add estimated duration for this segment
+      const segmentDuration = segment.duration || (segment.wordCount * 0.4); // 0.4 seconds per word
+      totalDuration += segmentDuration;
+    }
+  }
+
+  // Combine all audio buffers
+  const combinedBuffer = Buffer.concat(audioBuffers);
+  const tempFileName = `combined-audio-${uuid()}.mp3`;
+  const tempFilePath = path.join('/tmp', tempFileName);
+  await fs.writeFile(tempFilePath, combinedBuffer);
+
+  console.log(`🎵 Combined ${segments.length} audio segments into single file: ${tempFilePath}`);
+  console.log(`⏱️ Total estimated duration: ${totalDuration.toFixed(2)} seconds`);
+
+  return {
+    audioPath: `http://localhost:3000/api/temp-audio/${tempFileName}`,
+    totalDuration
+  };
+}
+
 export async function POST(req: NextRequest) {
   try {
-    const { speechText, backgroundVideo, audioSrc, audioDuration, bgMusic, fontStyle, textColor, fontSize, textAlignment, backgroundBlur, textAnimation } = await req.json();
+    const { speechText, backgroundVideo, audioSrc, audioDuration, bgMusic, fontStyle, textColor, fontSize, textAlignment, backgroundBlur, textAnimation, audioSegments } = await req.json();
 
     // Get user info from middleware headers
     const userEmail = req.headers.get('x-user-email') || 'unknown';
@@ -20,12 +77,27 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Speech text is required' }, { status: 400 });
     }
 
-    // Use single audio source
-    const finalAudioSrc = audioSrc;
-
-    // Handle audio for Remotion - convert data URLs to temporary files
+    // Handle audio - prioritize segments over single audio source
     let audioFilePath: string | null = null;
-    if (finalAudioSrc) {
+    let finalAudioDuration = audioDuration;
+
+    if (audioSegments && audioSegments.length > 0) {
+      // Use segmented audio - combine segments
+      console.log(`🎵 Processing ${audioSegments.length} audio segments for rendering...`);
+      try {
+        const combinedAudio = await combineAudioSegments(audioSegments);
+        audioFilePath = combinedAudio.audioPath;
+        finalAudioDuration = combinedAudio.totalDuration;
+        console.log(`✅ Audio segments combined successfully: ${audioFilePath}`);
+      } catch (error) {
+        console.error('❌ Failed to combine audio segments:', error);
+        return NextResponse.json({ 
+          error: 'Failed to process audio segments' 
+        }, { status: 500 });
+      }
+    } else if (audioSrc) {
+      // Use single audio source (fallback)
+      const finalAudioSrc = audioSrc;
       if (finalAudioSrc.startsWith('blob:')) {
         console.error('❌ Blob URL detected in audioSrc - Remotion cannot handle blob URLs');
         return NextResponse.json({ 
@@ -86,8 +158,9 @@ export async function POST(req: NextRequest) {
       speechText,
       backgroundVideo: resolvedBackgroundVideo,
       audioSrc: audioFilePath, // Use the file path instead of data URL
-      audioDuration,
+      audioDuration: finalAudioDuration,
       bgMusic: resolvedBgMusic,
+      audioSegments: audioSegments, // Pass segments for subtitle timing
       fontStyle,
       textColor,
       fontSize,
@@ -107,11 +180,11 @@ export async function POST(req: NextRequest) {
     }
 
     // Calculate duration based on audio or use default - MATCH PREVIEW EXACTLY
-    const videoDuration = audioDuration ? Math.max(audioDuration, 5) : 5; // minimum 5 seconds
-    const durationInFrames = audioDuration ? Math.floor(Math.max(audioDuration, 5) * 60) : 300; // 60fps to match preview
+    const videoDuration = finalAudioDuration ? Math.max(finalAudioDuration, 5) : 5; // minimum 5 seconds
+    const durationInFrames = finalAudioDuration ? Math.floor(Math.max(finalAudioDuration, 5) * 60) : 300; // 60fps to match preview
 
     // Override composition duration if we have audio
-    if (audioDuration) {
+    if (finalAudioDuration) {
       comp = {
         ...comp,
         durationInFrames,
@@ -128,8 +201,8 @@ export async function POST(req: NextRequest) {
       speechText: speechText?.slice(0, 50) + '...',
       hasAudio: !!audioFilePath,
       audioPath: audioFilePath,
-      hasSegments: false,
-      segmentCount: 0,
+      hasSegments: !!(audioSegments && audioSegments.length > 0),
+      segmentCount: audioSegments ? audioSegments.length : 0,
       hasBackground: !!resolvedBackgroundVideo,
       backgroundVideoUrl: resolvedBackgroundVideo,
       hasBgMusic: !!resolvedBgMusic,

@@ -14,7 +14,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
-import { Upload, Play, Download, Trash2, Video, Mic, Volume2, Music, LogOut, User, BookOpen, Brain, Zap } from "lucide-react";
+import { Upload, Play, Download, Trash2, Video, Mic, Volume2, Music, LogOut, User, Zap, Wand2, Sparkles } from "lucide-react";
 
 function DashboardContent() {
   const { data: session } = useSession();
@@ -46,10 +46,7 @@ function DashboardContent() {
   // Background music states
   const [selectedBgMusic, setSelectedBgMusic] = useState<string>('none');
 
-  // Educational content generation states
-  const [educationalTopic, setEducationalTopic] = useState('');
-  const [videoLength, setVideoLength] = useState<'short' | 'medium' | 'long'>('short');
-  const [difficulty, setDifficulty] = useState<'beginner' | 'intermediate' | 'advanced'>('beginner');
+  // Content generation states
   const [isGeneratingContent, setIsGeneratingContent] = useState(false);
   const [generatedContent, setGeneratedContent] = useState<string | null>(null);
 
@@ -64,6 +61,12 @@ function DashboardContent() {
   const [textAlignment, setTextAlignment] = useState<'left' | 'center' | 'right'>('center');
   const [backgroundBlur, setBackgroundBlur] = useState<boolean>(false);
   const [textAnimation, setTextAnimation] = useState<'none' | 'typewriter' | 'fade-in'>('fade-in');
+
+  // Template/Preset state
+  const [selectedTemplate, setSelectedTemplate] = useState<string>('none');
+  const [templateVideoLength, setTemplateVideoLength] = useState<'short' | 'medium' | 'long' | 'extended'>('long');
+  const [templateContentStyle, setTemplateContentStyle] = useState<'simple' | 'intermediate' | 'advanced'>('intermediate');
+  const [templateContentTone, setTemplateContentTone] = useState<'default' | 'casual' | 'professional' | 'energetic' | 'dramatic' | 'humorous' | 'mysterious'>('default');
 
   // List of preset background videos (update this list when you add new videos)
   const presetVideos = [
@@ -122,6 +125,136 @@ function DashboardContent() {
     { value: 'yellow', label: '🟡 Yellow - Bright', color: '#FFEB3B', shadowColor: 'rgba(255, 235, 59, 0.6)' },
   ];
 
+  // Video Templates/Presets with predefined styling combinations
+  const videoTemplates = [
+    {
+      value: 'none',
+      label: '🎬 No Template - Custom',
+      description: 'Use your own custom settings',
+      prompt: null,
+      settings: null
+    },
+    {
+      value: 'educational-content',
+      label: '🎓 Educational Content',
+      description: 'Engaging educational content on any topic',
+      prompt: 'Create engaging educational content that teaches complex topics in simple, digestible ways. Focus on the most interesting and important aspects that would captivate viewers immediately. Use conversational tone, include fascinating facts or insights, and end with a compelling statement that encourages engagement. Make it 25-35 seconds of educational content that is both informative and entertaining.',
+      settings: {
+        font: 'montserrat',
+        color: 'blue',
+        fontSize: 85,
+        alignment: 'center',
+        blur: false,
+        animation: 'fade-in',
+        voice: 'EXAVITQu4vr4xnSDxMaL', // Bella - Friendly Female
+        bgVideo: 'none',
+        bgMusic: 'none'
+      }
+    },
+    {
+      value: 'drama-dialog',
+      label: '🎭 Drama Dialog',
+      description: 'Intense emotional storytelling',
+      prompt: 'Create an intense, emotional dramatic dialog or monologue that would captivate viewers in 25-35 seconds. Focus on deep human emotions, conflict, or revelation. Use powerful, evocative language that builds tension and creates emotional impact. Make it feel like a scene from a compelling drama series.',
+      settings: {
+        font: 'oswald',
+        color: 'red',
+        fontSize: 100,
+        alignment: 'center',
+        blur: true,
+        animation: 'fade-in',
+        voice: 'VR6AewLTigWG4xSOukaG', // Arnold - Deep Male
+        bgVideo: 'none',
+        bgMusic: 'none'
+      }
+    },
+    {
+      value: 'pop-song',
+      label: '🎵 Pop Song Lyrics',
+      description: 'Catchy, rhythmic pop music vibes',
+      prompt: 'Write catchy, rhythmic pop song lyrics or a verse that would be perfect for a viral music video. Focus on relatable themes like love, youth, dreams, or overcoming challenges. Use modern, trendy language with good rhythm and flow. Make it 25-35 seconds of engaging, singable content.',
+      settings: {
+        font: 'bangers',
+        color: 'pink',
+        fontSize: 120,
+        alignment: 'center',
+        blur: false,
+        animation: 'typewriter',
+        voice: 'MF3mGyEYCl7XYWbV9V6O', // Elli - Young Female
+        bgVideo: 'none',
+        bgMusic: 'mii'
+      }
+    },
+    {
+      value: 'motivational-quote',
+      label: '💪 Motivational Quote',
+      description: 'Inspiring and empowering content',
+      prompt: 'Create a powerful, inspiring motivational message that will energize and empower viewers. Focus on themes like perseverance, success, self-improvement, or overcoming obstacles. Use strong, action-oriented language that motivates people to take action. Make it 25-35 seconds of pure inspiration.',
+      settings: {
+        font: 'impact',
+        color: 'gold',
+        fontSize: 100,
+        alignment: 'center',
+        blur: false,
+        animation: 'fade-in',
+        voice: 'pNInz6obpgDQGcFmaJgB', // Adam - Professional Male
+        bgVideo: 'none',
+        bgMusic: 'none'
+      }
+    },
+    {
+      value: 'horror-story',
+      label: '👻 Horror Story',
+      description: 'Spine-chilling scary narrative',
+      prompt: 'Write a spine-chilling, atmospheric horror story or creepy narrative that will give viewers goosebumps. Focus on building suspense, using vivid imagery, and creating an eerie atmosphere. Include elements of mystery, fear, or the supernatural. Make it 25-35 seconds of pure terror.',
+      settings: {
+        font: 'fredoka',
+        color: 'white',
+        fontSize: 80,
+        alignment: 'center',
+        blur: true,
+        animation: 'typewriter',
+        voice: 'VR6AewLTigWG4xSOukaG', // Arnold - Deep Male
+        bgVideo: 'none',
+        bgMusic: 'none'
+      }
+    },
+    {
+      value: 'comedy-skit',
+      label: '😂 Comedy Skit',
+      description: 'Funny and entertaining humor',
+      prompt: 'Create a hilarious, witty comedy skit or funny story that will make viewers laugh out loud. Use clever wordplay, unexpected twists, relatable humor, or absurd situations. Focus on timing and punchlines that work well in short-form content. Make it 25-35 seconds of pure entertainment.',
+      settings: {
+        font: 'bangers',
+        color: 'yellow',
+        fontSize: 90,
+        alignment: 'center',
+        blur: false,
+        animation: 'fade-in',
+        voice: 'TxGEqnHWrfWFTfGW9XjX', // Josh - Casual Male
+        bgVideo: 'none',
+        bgMusic: 'mii'
+      }
+    },
+    {
+      value: 'life-hack',
+      label: '💡 Life Hack',
+      description: 'Useful tips and tricks',
+      prompt: 'Share a valuable, practical life hack or useful tip that will genuinely help viewers improve their daily lives. Focus on actionable advice, productivity tips, or clever solutions to common problems. Make it clear, concise, and immediately applicable. Provide 25-35 seconds of valuable content.',
+      settings: {
+        font: 'montserrat',
+        color: 'blue',
+        fontSize: 85,
+        alignment: 'center',
+        blur: false,
+        animation: 'none',
+        voice: 'EXAVITQu4vr4xnSDxMaL', // Bella - Friendly Female
+        bgVideo: 'none',
+        bgMusic: 'none'
+      }
+    }
+  ];
+
 
 
 
@@ -134,7 +267,7 @@ function DashboardContent() {
 
     setIsGeneratingSpeech(true);
     try {
-      console.log('🎤 Generating whole audio with Eleven Labs...');
+      console.log('🎤 Generating segmented audio with intelligent LLM-based segmentation...');
       
       const response = await fetch('/api/generate-speech', {
         method: 'POST',
@@ -144,7 +277,7 @@ function DashboardContent() {
         body: JSON.stringify({
           text: speechText,
           voiceId: selectedVoice,
-          useSegments: false, // Generate whole audio instead of segments
+          useSegments: true, // Use intelligent segmentation
         }),
       });
 
@@ -159,24 +292,34 @@ function DashboardContent() {
 
       const data = await response.json();
 
-      // Handle single audio response
-      setGeneratedAudio(data.audio);
-      setAudioSegments(null); // Clear any previous segments
-
-      // Get audio duration for precise word timing
-      const audio = new Audio(data.audio);
-      audio.onloadedmetadata = () => {
-        setAudioDuration(audio.duration);
-        const words = speechText.split(' ').filter(word => word.trim());
-        const timePerWord = audio.duration / words.length;
+      if (data.segments) {
+        // Handle segmented audio response
+        setAudioSegments(data.segments);
+        setGeneratedAudio(null); // Don't use combined audio - use segments individually
+        setAudioDuration(data.totalDuration);
         
-        console.log('🎵 Whole audio generated successfully:', {
-          duration: audio.duration.toFixed(1) + 's',
-          wordCount: words.length,
-          timePerWord: timePerWord.toFixed(3) + 's per word',
-          timingMethod: 'Precise: total duration ÷ word count'
+        console.log('🎵 Segmented audio generated successfully:', {
+          segments: data.segments.length,
+          totalDuration: data.totalDuration.toFixed(1) + 's',
+          averageSegmentDuration: (data.totalDuration / data.segments.length).toFixed(1) + 's',
+          timingMethod: 'Individual audio segments with precise per-segment timing'
         });
-      };
+
+        // Log segment details
+        data.segments.forEach((segment: {text: string; duration: number; wordCount: number}, index: number) => {
+          console.log(`📝 Segment ${index + 1}: "${segment.text}" (${segment.duration.toFixed(1)}s, ${segment.wordCount} words)`);
+        });
+      } else if (data.audio) {
+        // Fallback to single audio response
+      setGeneratedAudio(data.audio);
+        setAudioSegments(null);
+        setAudioDuration(data.audioDuration || null);
+        
+        console.log('🎵 Single audio generated (fallback):', {
+          duration: data.audioDuration?.toFixed(1) + 's' || 'unknown',
+          timingMethod: 'Single audio fallback'
+        });
+      }
 
       console.log('✅ Speech generated successfully');
     } catch (error) {
@@ -197,16 +340,149 @@ function DashboardContent() {
     setAudioSegments(null);
   };
 
-  // Generate educational content using AI
-  const generateEducationalContent = async () => {
-    if (!educationalTopic.trim()) {
-      alert('Please enter a topic for educational content generation');
-      return;
+  const clearGeneratedContent = () => {
+    setGeneratedContent(null);
+    setSpeechText('');
+    clearGeneratedAudio();
+  };
+
+
+
+  // Apply template settings
+  const applyTemplate = (templateValue: string) => {
+    const template = videoTemplates.find(t => t.value === templateValue);
+    if (!template || !template.settings) return;
+
+    const settings = template.settings;
+    setSelectedFont(settings.font);
+    setSelectedColor(settings.color);
+    setFontSize(settings.fontSize);
+    setTextAlignment(settings.alignment as 'left' | 'center' | 'right');
+    setBackgroundBlur(settings.blur);
+    setTextAnimation(settings.animation as 'none' | 'typewriter' | 'fade-in');
+    setSelectedVoice(settings.voice);
+    
+    // Apply background settings
+    if (settings.bgVideo !== 'none') {
+      setSelectedPresetVideo(settings.bgVideo);
+      const preset = presetVideos.find(v => v.value === settings.bgVideo);
+      if (preset?.path) {
+        setBackgroundVideo(preset.path);
+      }
+    } else {
+      setSelectedPresetVideo('none');
+      setBackgroundVideo(null);
+    }
+    
+    if (settings.bgMusic !== 'none') {
+      setSelectedBgMusic(settings.bgMusic);
+    } else {
+      setSelectedBgMusic('none');
+    }
+
+    console.log(`🎬 Applied template: ${template.label}`, settings);
+  };
+
+  // Handle template selection
+  const handleTemplateChange = (templateValue: string) => {
+    setSelectedTemplate(templateValue);
+    if (templateValue !== 'none') {
+      applyTemplate(templateValue);
+    }
+  };
+
+  // Generate content with template prompt
+  const generateTemplateContent = async (
+    templateValue: string, 
+    customTopic?: string, 
+    parameters?: {
+      videoLength?: 'short' | 'medium' | 'long' | 'extended';
+      contentStyle?: 'simple' | 'intermediate' | 'advanced';
+      contentTone?: 'default' | 'casual' | 'professional' | 'energetic' | 'dramatic' | 'humorous' | 'mysterious';
+    }
+  ) => {
+    const template = videoTemplates.find(t => t.value === templateValue);
+    if (!template || !template.prompt) return;
+
+    // Extract parameters with defaults
+    const videoLength = parameters?.videoLength || 'long';
+    const contentStyle = parameters?.contentStyle || 'intermediate';
+    const contentTone = parameters?.contentTone || 'default';
+
+    // Define length settings
+    const lengthSettings = {
+      short: { wordCount: '40-60', duration: '5-8 seconds' },
+      medium: { wordCount: '60-90', duration: '10-15 seconds' },
+      long: { wordCount: '100-150', duration: '20-30 seconds' },
+      extended: { wordCount: '150-200', duration: '35-45 seconds' }
+    };
+
+    // Define style settings
+    const styleSettings = {
+      simple: 'simple language, basic concepts, easy to understand',
+      intermediate: 'moderate complexity, balanced approach',
+      advanced: 'detailed explanations, complex concepts, comprehensive coverage'
+    };
+
+    // Define tone settings
+    const toneSettings = {
+      default: '',
+      casual: 'Use casual, friendly language like talking to a friend.',
+      professional: 'Use professional, polished language suitable for business.',
+      energetic: 'Use high-energy, exciting language that pumps up the audience.',
+      dramatic: 'Use dramatic, intense language with emotional impact.',
+      humorous: 'Use funny, witty language that makes people laugh.',
+      mysterious: 'Use mysterious, intriguing language that creates suspense.'
+    };
+
+    const lengthSetting = lengthSettings[videoLength];
+    const styleSetting = styleSettings[contentStyle];
+    const toneSetting = toneSettings[contentTone];
+
+    // Modify the prompt to include custom topic if provided for any template
+    let finalPrompt = template.prompt;
+    let finalTopic = template.label;
+    
+    if (customTopic && customTopic.trim()) {
+      finalTopic = customTopic.trim();
+      
+      // Customize prompts based on template type with custom topic and parameters
+      const baseInstructions = `Create content that is ${lengthSetting.wordCount} words for ${lengthSetting.duration}. Use ${styleSetting}. ${toneSetting}`;
+      
+      switch (templateValue) {
+        case 'educational-content':
+          finalPrompt = `Create engaging educational content about "${customTopic.trim()}" that teaches this topic in digestible ways. Focus on the most interesting aspects that would captivate viewers. Include fascinating facts or insights, and end with a compelling statement. ${baseInstructions} Make it educational but entertaining.`;
+          break;
+        case 'drama-dialog':
+          finalPrompt = `Create an intense, emotional dramatic dialog or monologue about "${customTopic.trim()}" that would captivate viewers. Focus on deep human emotions, conflict, or revelation related to this topic. Use powerful, evocative language that builds tension and creates emotional impact. ${baseInstructions}`;
+          break;
+        case 'pop-song':
+          finalPrompt = `Write catchy, rhythmic pop song lyrics about "${customTopic.trim()}" that would be perfect for a viral music video. Focus on relatable themes and emotions connected to this topic. Use modern, trendy language with good rhythm and flow. ${baseInstructions}`;
+          break;
+        case 'motivational-quote':
+          finalPrompt = `Create a powerful, inspiring motivational message about "${customTopic.trim()}" that will energize and empower viewers. Focus on themes of perseverance, success, and overcoming obstacles related to this topic. Use strong, action-oriented language that motivates people to take action. ${baseInstructions}`;
+          break;
+        case 'horror-story':
+          finalPrompt = `Write a spine-chilling, atmospheric horror story about "${customTopic.trim()}" that will give viewers goosebumps. Focus on building suspense, using vivid imagery, and creating an eerie atmosphere around this topic. Include elements of mystery, fear, or the supernatural. ${baseInstructions}`;
+          break;
+        case 'comedy-skit':
+          finalPrompt = `Create a hilarious, witty comedy skit about "${customTopic.trim()}" that will make viewers laugh out loud. Use clever wordplay, unexpected twists, and relatable humor related to this topic. Focus on timing and punchlines that work well in short-form content. ${baseInstructions}`;
+          break;
+        case 'life-hack':
+          finalPrompt = `Share valuable, practical life hacks or tips about "${customTopic.trim()}" that will genuinely help viewers improve their daily lives. Focus on actionable advice and clever solutions related to this topic. Make it clear, concise, and immediately applicable. ${baseInstructions}`;
+          break;
+        default:
+          finalPrompt = `${template.prompt} Focus specifically on the topic: "${customTopic.trim()}". ${baseInstructions}`;
+      }
+    } else if (videoLength !== 'long' || contentStyle !== 'intermediate' || contentTone !== 'default') {
+      // Apply parameters even without custom topic
+      const baseInstructions = `Create content that is ${lengthSetting.wordCount} words for ${lengthSetting.duration}. Use ${styleSetting}. ${toneSetting}`;
+      finalPrompt = `${template.prompt} ${baseInstructions}`;
     }
 
     setIsGeneratingContent(true);
     try {
-      console.log(`🎓 Generating educational content for topic: "${educationalTopic}"`);
+      console.log(`🎭 Generating ${template.label} content${customTopic && customTopic.trim() ? ` for topic: "${customTopic.trim()}"` : ''}...`);
       
       const response = await fetch('/api/generate-educational-content', {
         method: 'POST',
@@ -214,52 +490,39 @@ function DashboardContent() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          topic: educationalTopic,
-          videoLength,
-          difficulty,
+          topic: finalTopic,
+          videoLength: videoLength,
+          difficulty: contentStyle === 'simple' ? 'beginner' : contentStyle === 'advanced' ? 'advanced' : 'intermediate',
+          templatePrompt: finalPrompt, // Send the template-specific prompt
         }),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        if (response.status === 401) {
-          alert('Your session has expired. Please sign in again.');
-          return;
-        }
-        throw new Error(errorData.details || errorData.error || 'Failed to generate educational content');
+        throw new Error(errorData.details || errorData.error || 'Failed to generate template content');
       }
 
       const data = await response.json();
       
       if (data.success && data.content) {
         setGeneratedContent(data.content);
-        setSpeechText(data.content); // Automatically fill the speech text
+        setSpeechText(data.content);
+        clearGeneratedAudio();
         
-        console.log('✅ Educational content generated successfully:', {
-          topic: data.topic,
-          wordCount: data.settings.wordCount,
-          estimatedDuration: data.settings.estimatedDuration,
+        console.log(`✅ ${template.label} content generated:`, {
+          topic: finalTopic,
+          wordCount: data.content.split(' ').length,
           content: data.content.slice(0, 100) + '...'
         });
-        
-        // Clear any previous audio
-        clearGeneratedAudio();
-      } else {
+        } else {
         throw new Error('No content received from AI');
       }
     } catch (error) {
-      console.error('❌ Educational content generation error:', error);
-      alert(`Failed to generate educational content: ${error}`);
+      console.error(`❌ ${template.label} content generation error:`, error);
+      alert(`Failed to generate ${template.label} content: ${error}`);
     } finally {
       setIsGeneratingContent(false);
     }
-  };
-
-  const clearEducationalContent = () => {
-    setGeneratedContent(null);
-    setEducationalTopic('');
-    setSpeechText('');
-    clearGeneratedAudio();
   };
 
   const renderWithRemotion = async (
@@ -313,22 +576,22 @@ function DashboardContent() {
       const error = await response.json();
       if (response.status === 401) {
         alert('Your session has expired. Please sign in again.');
-        return;
+            return;
       }
       throw new Error(error.error || 'Server rendering failed');
     }
 
     // Download the rendered video
     const blob = await response.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
     a.download = `${text.slice(0, 30).replace(/[^a-z0-9]/gi, '-').toLowerCase()}-remotion-video.mp4`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          
     // Clean up background video URL if it was created
     if (backgroundVideoUrl && typeof videoSource !== 'string') {
       URL.revokeObjectURL(backgroundVideoUrl);
@@ -367,7 +630,7 @@ function DashboardContent() {
         hasFallbackAudio: !!generatedAudio
       });
       
-      await renderWithRemotion(speechText, videoSource, generatedAudio, audioDuration, bgMusicSource, null, selectedFont, selectedColor, fontSize, textAlignment, backgroundBlur, textAnimation);
+      await renderWithRemotion(speechText, videoSource, generatedAudio, audioDuration, bgMusicSource, audioSegments, selectedFont, selectedColor, fontSize, textAlignment, backgroundBlur, textAnimation);
       
     } catch (error) {
       console.error('❌ Error creating YouTube Shorts video:', error);
@@ -428,7 +691,7 @@ function DashboardContent() {
         const url = URL.createObjectURL(file);
         setBackgroundVideo(url);
         console.log('✅ Background video uploaded successfully:', file.name);
-      } catch (error) {
+            } catch (error) {
         console.error('❌ Error processing video file:', error);
         alert('Error processing video file. Please try a different file.');
       }
@@ -460,15 +723,15 @@ function DashboardContent() {
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-blue-500 rounded-xl flex items-center justify-center">
                   <Video className="w-7 h-7 text-white" />
-                </div>
+          </div>
                 <div>
                   <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
                     VFS Studio
                   </h1>
                   <p className="text-sm text-gray-400">
                     AI-Powered Video Generation
-                  </p>
-                </div>
+          </p>
+        </div>
               </div>
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-3 px-4 py-2 bg-white/5 rounded-lg border border-white/10">
@@ -515,7 +778,7 @@ function DashboardContent() {
                     audioSrc: generatedAudio,
                     audioDuration,
                     bgMusic: selectedBgMusic !== 'none' ? bgMusicOptions.find(m => m.value === selectedBgMusic)?.path : null,
-                    audioSegments: null,
+                    audioSegments: audioSegments,
                     fontStyle: selectedFont,
                     textColor: selectedColor,
                     fontSize,
@@ -523,7 +786,13 @@ function DashboardContent() {
                     backgroundBlur,
                     textAnimation,
                   }}
-                  durationInFrames={audioDuration ? Math.floor(Math.max(audioDuration, 5) * 60) : 300}
+                  durationInFrames={
+                    audioSegments && audioSegments.length > 0 
+                      ? Math.floor(audioSegments.reduce((acc, seg) => acc + (seg.duration || 2), 0) * 60)
+                      : audioDuration 
+                        ? Math.floor(Math.max(audioDuration, 5) * 60) 
+                        : 300
+                  }
                   fps={60}
                   compositionWidth={1080}
                   compositionHeight={1920}
@@ -549,103 +818,183 @@ function DashboardContent() {
           {/* Controls */}
           <div className="space-y-6">
 
-            {/* Educational Content Generation */}
+            {/* Templates/Presets */}
             <Card className="bg-white/5 border-white/10 backdrop-blur-sm">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-white">
                   <div className="w-6 h-6 bg-gradient-to-r from-purple-500 to-pink-500 rounded flex items-center justify-center">
-                    <Brain className="h-3 w-3 text-white" />
+                    <Wand2 className="h-3 w-3 text-white" />
                   </div>
-                  AI Content Generator
+                  🪄 Templates & Presets
                 </CardTitle>
                 <CardDescription className="text-gray-400">
-                  Generate engaging educational content using GROQ AI
+                  Quick-start with predefined themes and styling combinations
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="educational-topic">Topic to Study</Label>
-                  <Input
-                    id="educational-topic"
-                    value={educationalTopic}
-                    onChange={(e) => setEducationalTopic(e.target.value)}
-                    placeholder="e.g., Quantum Physics, Machine Learning, Ancient Rome..."
-                    className="w-full"
-                  />
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Video Length</Label>
-                    <Select value={videoLength} onValueChange={(value: 'short' | 'medium' | 'long') => setVideoLength(value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Choose length" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="short">📱 Short (5-8s)</SelectItem>
-                        <SelectItem value="medium">⏱️ Medium (10-15s)</SelectItem>
-                        <SelectItem value="long">🎬 Long (20-30s)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label>Difficulty Level</Label>
-                    <Select value={difficulty} onValueChange={(value: 'beginner' | 'intermediate' | 'advanced') => setDifficulty(value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Choose difficulty" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="beginner">🌱 Beginner</SelectItem>
-                        <SelectItem value="intermediate">🔥 Intermediate</SelectItem>
-                        <SelectItem value="advanced">🚀 Advanced</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <Label>Choose Template</Label>
+                  <Select value={selectedTemplate} onValueChange={handleTemplateChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a template..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {videoTemplates.map((template) => (
+                        <SelectItem key={template.value} value={template.value}>
+                          {template.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
-                <Button 
-                  onClick={generateEducationalContent}
-                  disabled={isGeneratingContent || !educationalTopic.trim()}
-                  className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
-                >
-                  {isGeneratingContent ? (
-                    <>
-                      <Zap className="mr-2 h-4 w-4 animate-spin" />
-                      Generating Content...
-                    </>
-                  ) : (
-                    <>
-                      <BookOpen className="mr-2 h-4 w-4" />
-                      Generate AI Content
-                    </>
-                  )}
-                </Button>
+                {selectedTemplate !== 'none' && (
+                  <div className="space-y-3">
+                    <div className="p-3 bg-white/5 rounded-lg border border-white/10">
+                      <p className="text-sm text-gray-300">
+                        {videoTemplates.find(t => t.value === selectedTemplate)?.description}
+                      </p>
+                    </div>
 
-                {generatedContent && (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-sm font-medium">Generated Content:</Label>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={clearEducationalContent}
-                        className="text-xs"
-                      >
-                        <Trash2 className="mr-1 h-3 w-3" />
-                        Clear
-                      </Button>
+                    <div className="space-y-4">
+                      {/* Topic Input */}
+                      <div className="space-y-2">
+                        <Label htmlFor="template-topic">Topic (optional)</Label>
+                        <Input
+                          id="template-topic"
+                          placeholder={
+                            selectedTemplate === 'educational-content' 
+                              ? "e.g., Quantum Physics, Machine Learning, Ancient Rome..."
+                              : selectedTemplate === 'drama-dialog'
+                              ? "e.g., Betrayal, Lost Love, Family Secrets..."
+                              : selectedTemplate === 'pop-song'
+                              ? "e.g., Summer Romance, Chasing Dreams, Friendship..."
+                              : selectedTemplate === 'motivational-quote'
+                              ? "e.g., Overcoming Fear, Success Mindset, Personal Growth..."
+                              : selectedTemplate === 'horror-story'
+                              ? "e.g., Haunted House, Urban Legend, Paranormal..."
+                              : selectedTemplate === 'comedy-skit'
+                              ? "e.g., Awkward Situations, Daily Life, Relationships..."
+                              : selectedTemplate === 'life-hack'
+                              ? "e.g., Productivity, Organization, Money Saving..."
+                              : "Enter a topic or theme for your content..."
+                          }
+                          className="w-full"
+                        />
+                      </div>
+
+                      {/* Template Parameters */}
+                      <div className="grid grid-cols-2 gap-4">
+                        {/* Video Length */}
+                                                 <div className="space-y-2">
+                           <Label className="text-xs">Video Length</Label>
+                           <Select value={templateVideoLength} onValueChange={(value: 'short' | 'medium' | 'long' | 'extended') => setTemplateVideoLength(value)}>
+                             <SelectTrigger>
+                               <SelectValue placeholder="Choose length" />
+                             </SelectTrigger>
+                             <SelectContent>
+                               <SelectItem value="short">📱 Short (5-8s)</SelectItem>
+                               <SelectItem value="medium">⏱️ Medium (10-15s)</SelectItem>
+                               <SelectItem value="long">🎬 Long (20-30s)</SelectItem>
+                               <SelectItem value="extended">🎪 Extended (35-45s)</SelectItem>
+                             </SelectContent>
+                           </Select>
+                         </div>
+
+                         {/* Content Style/Difficulty */}
+                         <div className="space-y-2">
+                           <Label className="text-xs">Content Style</Label>
+                           <Select value={templateContentStyle} onValueChange={(value: 'simple' | 'intermediate' | 'advanced') => setTemplateContentStyle(value)}>
+                             <SelectTrigger>
+                               <SelectValue placeholder="Choose style" />
+                             </SelectTrigger>
+                             <SelectContent>
+                               <SelectItem value="simple">🌱 Simple & Clear</SelectItem>
+                               <SelectItem value="intermediate">🔥 Balanced</SelectItem>
+                               <SelectItem value="advanced">🚀 Complex & Detailed</SelectItem>
+                             </SelectContent>
+                           </Select>
+                         </div>
+                       </div>
+
+                       {/* Content Tone */}
+                       <div className="space-y-2">
+                         <Label className="text-xs">Content Tone</Label>
+                         <Select value={templateContentTone} onValueChange={(value: 'default' | 'casual' | 'professional' | 'energetic' | 'dramatic' | 'humorous' | 'mysterious') => setTemplateContentTone(value)}>
+                           <SelectTrigger>
+                             <SelectValue placeholder="Choose tone" />
+                           </SelectTrigger>
+                           <SelectContent>
+                             <SelectItem value="default">🎯 Template Default</SelectItem>
+                             <SelectItem value="casual">😎 Casual & Friendly</SelectItem>
+                             <SelectItem value="professional">👔 Professional</SelectItem>
+                             <SelectItem value="energetic">⚡ High Energy</SelectItem>
+                             <SelectItem value="dramatic">🎭 Dramatic & Intense</SelectItem>
+                             <SelectItem value="humorous">😂 Funny & Light</SelectItem>
+                             <SelectItem value="mysterious">🔮 Mysterious</SelectItem>
+                           </SelectContent>
+                         </Select>
+                       </div>
+
+                      <p className="text-xs text-gray-400">
+                        💡 Customize parameters to fine-tune your content generation
+                      </p>
                     </div>
-                    <div className="p-3 bg-muted rounded-lg text-sm">
-                      {generatedContent}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      ✅ Content generated! It has been automatically filled in the speech text below.
-                    </div>
+
+                    <Button 
+                      onClick={() => {
+                        const topicInput = (document.getElementById('template-topic') as HTMLInputElement)?.value;
+                        
+                        generateTemplateContent(selectedTemplate, topicInput, {
+                          videoLength: templateVideoLength,
+                          contentStyle: templateContentStyle,
+                          contentTone: templateContentTone
+                        });
+                      }}
+                      disabled={isGeneratingContent}
+                      className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
+                    >
+                      {isGeneratingContent ? (
+                        <>
+                          <Zap className="mr-2 h-4 w-4 animate-spin" />
+                          Generating {videoTemplates.find(t => t.value === selectedTemplate)?.label}...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="mr-2 h-4 w-4" />
+                          Generate {videoTemplates.find(t => t.value === selectedTemplate)?.label}
+                        </>
+                      )}
+                    </Button>
+
+                    {generatedContent && (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-sm font-medium">Generated Content:</Label>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={clearGeneratedContent}
+                            className="text-xs"
+                          >
+                            <Trash2 className="mr-1 h-3 w-3" />
+                            Clear
+                          </Button>
+                        </div>
+                        <div className="p-3 bg-white/10 rounded-lg text-sm border border-white/10">
+                          {generatedContent}
+                        </div>
+                        <div className="text-xs text-gray-400">
+                          ✅ Content generated! It has been automatically filled in the speech text below.
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </CardContent>
             </Card>
+
+
 
             {/* Text-to-Speech */}
             <Card className="bg-white/5 border-white/10 backdrop-blur-sm">
@@ -1049,6 +1398,35 @@ function DashboardContent() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* Audio Segments Info */}
+                {audioSegments && audioSegments.length > 0 && (
+                  <div className="p-4 bg-purple-500/10 rounded-lg border border-purple-500/20">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-4 h-4 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"></div>
+                      <span className="text-sm font-medium text-purple-300">
+                        🎵 Audio Segments Ready
+                      </span>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-xs text-gray-400">
+                        <span>Segments: {audioSegments.length}</span>
+                        <span>Total Duration: {audioSegments.reduce((acc, seg) => acc + (seg.duration || 2), 0).toFixed(1)}s</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {audioSegments.map((segment, index) => (
+                          <div
+                            key={index}
+                            className="px-2 py-1 bg-purple-500/20 rounded text-xs text-purple-200 border border-purple-500/30"
+                            title={`Segment ${index + 1}: "${segment.text}" (${segment.duration?.toFixed(1) || '2.0'}s)`}
+                          >
+                            #{index + 1} ({segment.duration?.toFixed(1) || '2.0'}s)
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <Button 
                   onClick={handleRenderVideo}
                   disabled={isRendering}
@@ -1082,11 +1460,11 @@ function DashboardContent() {
         </div>
 
 
-        </div>
+              </div>
       </div>
     </div>
   );
-}
+} 
 
 export default function Dashboard() {
   return (

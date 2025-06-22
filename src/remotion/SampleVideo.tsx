@@ -6,6 +6,7 @@ import {
   useVideoConfig,
   Audio,
   Video,
+  Sequence,
 } from 'remotion';
 
 
@@ -22,6 +23,13 @@ interface SampleVideoProps {
   textAlignment?: 'left' | 'center' | 'right';
   backgroundBlur?: boolean;
   textAnimation?: 'none' | 'typewriter' | 'fade-in';
+  audioSegments?: Array<{
+    text: string;
+    audio: string;
+    chunkIndex: number;
+    wordCount: number;
+    duration?: number;
+  }> | null;
 }
 
 export const SampleVideo: React.FC<SampleVideoProps> = ({
@@ -36,6 +44,7 @@ export const SampleVideo: React.FC<SampleVideoProps> = ({
   textAlignment = 'center',
   backgroundBlur = false,
   textAnimation = 'fade-in',
+  audioSegments,
 }) => {
   const frame = useCurrentFrame();
   const {durationInFrames, fps} = useVideoConfig();
@@ -68,20 +77,36 @@ export const SampleVideo: React.FC<SampleVideoProps> = ({
   const selectedFontStyle = fontOptions.find(f => f.value === fontStyle) || fontOptions[0];
   const selectedColorStyle = colorOptions.find(c => c.value === textColor) || colorOptions[0];
   
-  // Debug logging for font/color selection (frame 0 only)
+  // Debug logging for font/color selection and audio segments (frame 0 only)
   if (frame === 0) {
-    console.log('🎨 SampleVideo Font/Color Debug:', {
+    console.log('🎨 SampleVideo Debug:', {
       receivedFontStyle: fontStyle,
       receivedTextColor: textColor,
       selectedFont: selectedFontStyle,
       selectedColor: selectedColorStyle,
-      availableFonts: fontOptions.map(f => f.value),
-      availableColors: colorOptions.map(c => c.value),
       fontSize,
       textAlignment,
       backgroundBlur,
-      textAnimation
+      textAnimation,
+      hasAudioSegments: !!audioSegments,
+      segmentCount: audioSegments?.length || 0,
+      hasFallbackAudio: !!audioSrc
     });
+    
+    if (audioSegments && audioSegments.length > 0) {
+      let accumulatedFrames = 0;
+      console.log('🎵 Audio Segments Schedule:');
+      audioSegments.forEach((segment, index) => {
+        const duration = segment.duration || 2;
+        const segmentFrames = Math.floor(duration * fps);
+        const startFrame = accumulatedFrames;
+        const endFrame = startFrame + segmentFrames;
+        const startTime = startFrame / fps;
+        const endTime = endFrame / fps;
+        console.log(`  Segment ${index + 1}: Frame ${startFrame}-${endFrame} (${startTime.toFixed(1)}s-${endTime.toFixed(1)}s) | "${segment.text}"`);
+        accumulatedFrames += segmentFrames;
+      });
+    }
   }
 
   // Helper function to get animation styles for single word display
@@ -172,10 +197,33 @@ export const SampleVideo: React.FC<SampleVideoProps> = ({
         fontFamily: 'Arial, sans-serif',
       }}
     >
-      {/* Audio Track */}
-      {audioSrc && (
+      {/* Audio Track - Individual Segments or Single Audio */}
+      {audioSegments && audioSegments.length > 0 ? (
+        // Play individual audio segments at their specific times using Sequence
+        (() => {
+          let accumulatedFrames = 0;
+          return audioSegments.map((segment, index) => {
+            const segmentDuration = segment.duration || 2;
+            const segmentFrames = Math.floor(segmentDuration * fps);
+            const startFrame = accumulatedFrames;
+            
+            accumulatedFrames += segmentFrames;
+            
+            return (
+              <Sequence
+                key={`segment-${index}`}
+                from={startFrame}
+                durationInFrames={segmentFrames}
+              >
+                <Audio src={segment.audio} />
+              </Sequence>
+            );
+          });
+        })()
+      ) : audioSrc ? (
+        // Fallback to single audio
         <Audio src={audioSrc} />
-      )}
+      ) : null}
 
       {/* Background Music */}
       {bgMusic && (
@@ -255,15 +303,101 @@ export const SampleVideo: React.FC<SampleVideoProps> = ({
             if (!speechText) return '';
             
             const currentTime = frame / fps;
-            const words = speechText.split(' ').filter(word => word.trim());
             
-            // Calculate current word index based on precise timing (duration / word count)
+            // Use audioSegments for precise timing if available
+            if (audioSegments && audioSegments.length > 0) {
+              // Only log on frame 0 to avoid spam
+              if (frame === 0) {
+                console.log('🎵 Using audioSegments for precise timing:', {
+                  segmentCount: audioSegments.length,
+                  totalSegmentDuration: audioSegments.reduce((acc, seg) => acc + (seg.duration || 2), 0).toFixed(1) + 's'
+                });
+              }
+              
+              let accumulatedFrames = 0;
+              let currentSegmentIndex = -1;
+              let frameWithinSegment = 0;
+              
+              // Find which segment we're currently in (frame-based)
+              for (let i = 0; i < audioSegments.length; i++) {
+                const segment = audioSegments[i];
+                const segmentDuration = segment.duration || 2;
+                const segmentFrames = Math.floor(segmentDuration * fps);
+                
+                if (frame >= accumulatedFrames && frame < accumulatedFrames + segmentFrames) {
+                  currentSegmentIndex = i;
+                  frameWithinSegment = frame - accumulatedFrames;
+                  break;
+                }
+                
+                accumulatedFrames += segmentFrames;
+              }
+              
+              if (currentSegmentIndex >= 0 && currentSegmentIndex < audioSegments.length) {
+                const currentSegment = audioSegments[currentSegmentIndex];
+                const segmentWords = currentSegment.text.split(' ').filter(word => word.trim());
+                const segmentDuration = currentSegment.duration || 2;
+                const segmentFrames = Math.floor(segmentDuration * fps);
+                
+                // Calculate precise timing within this segment (frame-based)
+                // Now using REAL MP3 duration, so we can use full segment duration
+                const framesPerWord = segmentFrames / segmentWords.length;
+                const wordIndexInSegment = Math.floor(frameWithinSegment / framesPerWord);
+                
+                if (wordIndexInSegment >= 0 && wordIndexInSegment < segmentWords.length) {
+                  const currentWord = segmentWords[wordIndexInSegment];
+                  let displayWord = currentWord;
+                  let showCursor = false;
+                  
+                  // Handle typewriter animation
+                  if (textAnimation === 'typewriter') {
+                    const progress = Math.min(1, Math.max(0, (frame % 60) / 30));
+                    const visibleChars = Math.floor(progress * currentWord.length);
+                    displayWord = currentWord.slice(0, Math.max(1, visibleChars));
+                    showCursor = displayWord.length < currentWord.length;
+                  }
+                  
+                  // Only log when segment or word changes to avoid spam
+                  if (frame % 30 === 0) {
+                    console.log('🎯 Segment timing:', {
+                      currentFrame: frame,
+                      segmentIndex: currentSegmentIndex,
+                      frameWithinSegment,
+                      wordIndex: wordIndexInSegment,
+                      word: currentWord,
+                      framesPerWord: framesPerWord.toFixed(1)
+                    });
+                  }
+                  
+                  return (
+                    <span style={getWordAnimationStyle()}>
+                      {displayWord}
+                      {showCursor && <span style={{ opacity: 0.7 }}>|</span>}
+                    </span>
+                  );
+                } else if (wordIndexInSegment >= segmentWords.length && segmentWords.length > 0) {
+                  // If we've run out of words but segment is still playing, show the last word
+                  const lastWord = segmentWords[segmentWords.length - 1];
+                  
+                  return (
+                    <span style={getWordAnimationStyle()}>
+                      {lastWord}
+                    </span>
+                  );
+                }
+              }
+              
+              return '';
+            }
+            
+            // Fallback to original timing logic
+            const words = speechText.split(' ').filter(word => word.trim());
             const totalDuration = audioDuration || (durationInFrames / fps);
             const adjustedDuration = Math.max(totalDuration * 0.95, 3);
             const timePerWord = adjustedDuration / words.length;
             const currentWordIndex = Math.floor(currentTime / timePerWord);
             
-                        // Show only current word (1 word per frame max)
+            // Show only current word (1 word per frame max)
             if (currentWordIndex >= 0 && currentWordIndex < words.length) {
               const currentWord = words[currentWordIndex];
               let displayWord = currentWord;
