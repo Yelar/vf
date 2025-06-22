@@ -67,6 +67,15 @@ function DashboardContent() {
   const [templateContentStyle, setTemplateContentStyle] = useState<'simple' | 'intermediate' | 'advanced'>('intermediate');
   const [templateContentTone, setTemplateContentTone] = useState<'default' | 'casual' | 'professional' | 'energetic' | 'dramatic' | 'humorous' | 'mysterious'>('default');
 
+  // Unsplash images feature states
+  const [addPictures, setAddPictures] = useState<boolean>(false);
+  const [segmentImages, setSegmentImages] = useState<Array<{
+    segmentIndex: number;
+    imageUrl: string;
+    description?: string;
+  }> | null>(null);
+  const [isGeneratingImages, setIsGeneratingImages] = useState(false);
+
   // Save to library states
   const [isSaving, setIsSaving] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
@@ -292,7 +301,14 @@ function DashboardContent() {
           alert('Your session has expired. Please sign in again.');
           return;
         }
-        throw new Error(errorData.message || 'Failed to generate speech');
+        
+        // Handle specific error types with better user messages
+        if (response.status === 429 && errorData.errorType === 'rate_limit') {
+          alert('⚠️ Eleven Labs Free Tier Limit Reached\n\nThe voice generation service is temporarily unavailable. This can happen due to:\n\n• High usage on the free tier\n• Multiple accounts detected\n• VPN/Proxy usage\n\nSolutions:\n✅ Wait a few hours and try again\n✅ Try with a different network\n✅ Consider upgrading to Eleven Labs paid plan\n\nYou can still create videos without voice - just type your text and generate the video!');
+          return;
+        }
+        
+        throw new Error(errorData.error || errorData.message || 'Failed to generate speech');
       }
 
       const data = await response.json();
@@ -314,6 +330,11 @@ function DashboardContent() {
         data.segments.forEach((segment: {text: string; duration: number; wordCount: number}, index: number) => {
           console.log(`📝 Segment ${index + 1}: "${segment.text}" (${segment.duration.toFixed(1)}s, ${segment.wordCount} words)`);
         });
+
+        // Fetch images if the add pictures toggle is enabled
+        if (addPictures) {
+          await fetchSegmentImages(data.segments);
+        }
       } else if (data.audio) {
         // Fallback to single audio response
       setGeneratedAudio(data.audio);
@@ -351,7 +372,67 @@ function DashboardContent() {
     clearGeneratedAudio();
   };
 
+  // Function to fetch images from Unsplash for segments
+  const fetchSegmentImages = async (segments: Array<{text: string; chunkIndex: number}>) => {
+    if (!addPictures || !segments || segments.length === 0) {
+      return;
+    }
 
+    setIsGeneratingImages(true);
+    console.log('🖼️ Generating keywords and fetching Unsplash images for segments...');
+
+    try {
+      // Step 1: Generate keywords using LLM
+      console.log('🧠 Generating keywords using AI...');
+      const keywordResponse = await fetch('/api/generate-keywords', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ segments }),
+      });
+
+      let keywordData = null;
+      if (keywordResponse.ok) {
+        const keywordResult = await keywordResponse.json();
+        if (keywordResult.success && keywordResult.keywordData) {
+          keywordData = keywordResult.keywordData;
+          console.log('✅ Keywords generated successfully using AI');
+        }
+      } else {
+        console.warn('⚠️ Keyword generation failed, falling back to basic extraction');
+      }
+
+      // Step 2: Fetch images using the generated keywords
+      console.log('🖼️ Fetching images from Unsplash...');
+      const imageResponse = await fetch('/api/fetch-unsplash-images', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ segments, keywordData }),
+      });
+
+      if (!imageResponse.ok) {
+        const errorData = await imageResponse.json();
+        throw new Error(errorData.message || 'Failed to fetch images');
+      }
+
+      const imageData = await imageResponse.json();
+      
+      if (imageData.success && imageData.images) {
+        setSegmentImages(imageData.images);
+        console.log(`✅ Successfully fetched ${imageData.images.length} images from Unsplash using ${keywordData ? 'AI-generated' : 'extracted'} keywords`);
+      } else {
+        throw new Error('Invalid images response');
+      }
+    } catch (error) {
+      console.error('❌ Failed to fetch Unsplash images:', error);
+      alert('Failed to fetch images. Please try again.');
+    } finally {
+      setIsGeneratingImages(false);
+    }
+  };
 
   // Apply template settings
   const applyTemplate = (templateValue: string) => {
@@ -607,6 +688,7 @@ function DashboardContent() {
           audioDuration,
           bgMusic: bgMusicSource,
           audioSegments,
+          segmentImages,
           fontStyle: selectedFont,
           textColor: selectedColor,
           fontSize,
@@ -813,6 +895,7 @@ function DashboardContent() {
                     audioDuration,
                     bgMusic: selectedBgMusic !== 'none' ? bgMusicOptions.find(m => m.value === selectedBgMusic)?.path : null,
                     audioSegments: audioSegments,
+                    segmentImages: segmentImages,
                     fontStyle: selectedFont,
                     textColor: selectedColor,
                     fontSize,
@@ -1191,6 +1274,69 @@ function DashboardContent() {
                   
                   <p className="text-xs text-muted-foreground">
                     🎨 Customize text appearance and animations
+                  </p>
+                </div>
+
+                {/* Add Pictures Toggle */}
+                <div className="space-y-3 p-4 bg-white/5 border border-white/10 rounded-lg">
+                  <Label className="text-sm font-medium text-white flex items-center gap-2">
+                    <div className="w-4 h-4 bg-gradient-to-r from-green-500 to-emerald-500 rounded">
+                      <div className="h-3 w-3 text-white p-0.5">🖼️</div>
+                    </div>
+                    Add Pictures from Unsplash
+                  </Label>
+                  
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="add-pictures-toggle"
+                      checked={addPictures}
+                      onChange={(e) => setAddPictures(e.target.checked)}
+                      className="rounded border-gray-300 text-primary focus:ring-primary"
+                    />
+                    <Label htmlFor="add-pictures-toggle" className="text-sm cursor-pointer">
+                      Overlay relevant images on each text segment
+                    </Label>
+                  </div>
+                  
+                  {addPictures && (
+                    <div className="text-xs text-gray-400 bg-blue-500/10 border border-blue-500/30 rounded p-2">
+                      🧠 AI will analyze each segment and generate smart keywords to find the most relevant images from Unsplash
+                    </div>
+                  )}
+
+                  {segmentImages && segmentImages.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-xs text-gray-400">
+                        <span>Images ready: {segmentImages.length}</span>
+                        {isGeneratingImages && <span className="animate-pulse">🧠 Generating keywords & fetching images...</span>}
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        {segmentImages.slice(0, 6).map((img, index) => (
+                          <div
+                            key={index}
+                            className="aspect-square bg-gray-700 rounded overflow-hidden"
+                            title={img.description}
+                          >
+                            <img
+                              src={img.imageUrl}
+                              alt={img.description || 'Segment image'}
+                              className="w-full h-full object-cover"
+                              loading="lazy"
+                            />
+                          </div>
+                        ))}
+                        {segmentImages.length > 6 && (
+                          <div className="aspect-square bg-gray-700 rounded flex items-center justify-center text-xs text-gray-400">
+                            +{segmentImages.length - 6} more
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  
+                  <p className="text-xs text-muted-foreground">
+                    🧠 AI analyzes your text and finds the perfect images for each segment
                   </p>
                 </div>
 

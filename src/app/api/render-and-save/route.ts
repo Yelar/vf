@@ -120,6 +120,7 @@ export async function POST(req: NextRequest) {
       backgroundBlur, 
       textAnimation, 
       audioSegments,
+      segmentImages,
       videoTitle,
       videoDescription
     } = await req.json();
@@ -217,6 +218,7 @@ export async function POST(req: NextRequest) {
       audioDuration: finalAudioDuration,
       bgMusic: resolvedBgMusic,
       audioSegments: audioSegments,
+      segmentImages: segmentImages,
       fontStyle,
       textColor,
       fontSize,

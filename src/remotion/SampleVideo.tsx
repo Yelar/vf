@@ -30,6 +30,11 @@ interface SampleVideoProps {
     wordCount: number;
     duration?: number;
   }> | null;
+  segmentImages?: Array<{
+    segmentIndex: number;
+    imageUrl: string;
+    description?: string;
+  }> | null;
 }
 
 export const SampleVideo: React.FC<SampleVideoProps> = ({
@@ -45,6 +50,7 @@ export const SampleVideo: React.FC<SampleVideoProps> = ({
   backgroundBlur = false,
   textAnimation = 'fade-in',
   audioSegments,
+  segmentImages,
 }) => {
   const frame = useCurrentFrame();
   const {durationInFrames, fps} = useVideoConfig();
@@ -261,6 +267,79 @@ export const SampleVideo: React.FC<SampleVideoProps> = ({
           playsInline
         />
       )}
+
+      {/* Segment Images Overlay */}
+      {segmentImages && audioSegments && audioSegments.length > 0 && (() => {
+        let accumulatedFrames = 0;
+        let currentSegmentIndex = -1;
+        
+        // Find which segment we're currently in
+        for (let i = 0; i < audioSegments.length; i++) {
+          const segment = audioSegments[i];
+          const segmentDuration = segment.duration || 2;
+          const segmentFrames = Math.floor(segmentDuration * fps);
+          
+          if (frame >= accumulatedFrames && frame < accumulatedFrames + segmentFrames) {
+            currentSegmentIndex = i;
+            break;
+          }
+          
+          accumulatedFrames += segmentFrames;
+        }
+        
+        // Find the image for the current segment
+        const currentImage = segmentImages.find(img => img.segmentIndex === currentSegmentIndex);
+        
+        if (currentImage && currentImage.imageUrl) {
+          const imageOpacity = interpolate(frame, [0, 15, 30], [0, 0.8, 0.8], {
+            extrapolateLeft: 'clamp',
+            extrapolateRight: 'clamp',
+          });
+          
+          return (
+            <div
+              style={{
+                position: 'absolute',
+                top: '8%',
+                left: '50%',
+                width: '95%',
+                height: '30%',
+                borderRadius: '8px',
+                overflow: 'hidden',
+                opacity: imageOpacity,
+                zIndex: 5,
+                border: 'none',
+                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
+                transform: 'translateX(-50%) translateZ(0)', // Center horizontally + hardware acceleration
+              }}
+            >
+              <img
+                src={currentImage.imageUrl}
+                alt={currentImage.description || 'Segment image'}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  objectPosition: 'center',
+                }}
+              />
+              {/* Gradient overlay for better text readability */}
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  background: 'linear-gradient(180deg, rgba(0,0,0,0.0) 0%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.4) 100%)',
+                }}
+              />
+            </div>
+          );
+        }
+        
+        return null;
+      })()}
       
       <div
         style={{

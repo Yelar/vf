@@ -66,7 +66,7 @@ async function combineAudioSegments(segments: Array<{text: string; audio: string
 
 export async function POST(req: NextRequest) {
   try {
-    const { speechText, backgroundVideo, audioSrc, audioDuration, bgMusic, fontStyle, textColor, fontSize, textAlignment, backgroundBlur, textAnimation, audioSegments } = await req.json();
+    const { speechText, backgroundVideo, audioSrc, audioDuration, bgMusic, fontStyle, textColor, fontSize, textAlignment, backgroundBlur, textAnimation, audioSegments, segmentImages } = await req.json();
 
     // Get user info from middleware headers
     const userEmail = req.headers.get('x-user-email') || 'unknown';
@@ -161,6 +161,7 @@ export async function POST(req: NextRequest) {
       audioDuration: finalAudioDuration,
       bgMusic: resolvedBgMusic,
       audioSegments: audioSegments, // Pass segments for subtitle timing
+      segmentImages: segmentImages, // Pass segment images for overlay
       fontStyle,
       textColor,
       fontSize,

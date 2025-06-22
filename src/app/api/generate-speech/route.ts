@@ -120,7 +120,19 @@ async function generateAudioChunk(text: string, voiceId: string, apiKey: string)
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`Eleven Labs API error for chunk "${text.slice(0, 30)}...": ${errorText}`);
+    let errorData;
+    try {
+      errorData = JSON.parse(errorText);
+    } catch {
+      errorData = { detail: { message: errorText } };
+    }
+    
+    // Handle specific Eleven Labs errors more gracefully
+    if (errorData.detail?.status === "detected_unusual_activity") {
+      throw new Error(`Eleven Labs Free Tier temporarily unavailable. Please try again later or consider upgrading to a paid plan.`);
+    }
+    
+    throw new Error(`Eleven Labs API error for chunk "${text.slice(0, 30)}...": ${errorData.detail?.message || errorText}`);
   }
 
   const audioBuffer = await response.arrayBuffer();
@@ -206,7 +218,13 @@ export async function POST(request: NextRequest) {
         }
       } catch (error) {
         console.error(`❌ Failed to generate audio for chunk ${i + 1}:`, error);
-        throw new Error(`Failed to generate audio for segment: "${chunk.slice(0, 30)}..."`);
+        
+        // If it's an Eleven Labs API limitation, throw a more helpful error
+        if (error instanceof Error && error.message.includes('Free Tier temporarily unavailable')) {
+          throw error; // Pass through the helpful error message
+        }
+        
+        throw new Error(`Failed to generate audio for segment: "${chunk.slice(0, 30)}..." - ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
     }
 
@@ -220,8 +238,27 @@ export async function POST(request: NextRequest) {
       originalText: text
     });
 
-  } catch (error) {
-    console.error('Speech generation error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-  }
+      } catch (error) {
+      console.error('Speech generation error:', error);
+      
+      // Provide more helpful error messages to the user
+      if (error instanceof Error) {
+        if (error.message.includes('Free Tier temporarily unavailable')) {
+          return NextResponse.json({ 
+            error: 'Eleven Labs Free Tier is temporarily unavailable. This may be due to high usage or account limitations. Please try again later or consider upgrading to a paid plan.',
+            errorType: 'rate_limit'
+          }, { status: 429 });
+        }
+        
+        return NextResponse.json({ 
+          error: error.message,
+          errorType: 'generation_error'
+        }, { status: 500 });
+      }
+      
+      return NextResponse.json({ 
+        error: 'An unexpected error occurred during speech generation',
+        errorType: 'unknown_error'
+      }, { status: 500 });
+    }
 }
