@@ -15,6 +15,7 @@ A Next.js application that generates vertical videos perfect for YouTube Shorts,
 - 📊 **User Authentication**: Secure login and personal video collections
 - 💾 **Cloud Storage**: Videos stored securely with UploadThing integration
 - 🔍 **Search & Filter**: Find your videos quickly by title or description
+- 🎤 **Voice Input**: Speak your topic ideas with Groq Whisper AI transcription
 
 ## 🚀 Setup
 
@@ -55,13 +56,20 @@ A Next.js application that generates vertical videos perfect for YouTube Shorts,
 2. **Navigate to Studio**: Access the video creation tools
 
 ### Creating Videos
-1. **Enter Speech Text**: Write the text you want to be spoken and displayed
-2. **Choose Voice**: Select from 6 different AI voices (male and female options)
-3. **Generate Speech**: Click "Generate Speech" to create the audio
-4. **Add Background** (optional): Upload a video or choose a preset
-5. **Generate Video**: 
-   - Click "Generate & Download" for immediate download
-   - Click "Save to Library" to store in your personal collection
+1. **Choose Template**: Select from AI-powered content templates (Educational, Drama, Comedy, etc.)
+2. **Enter Topic**: Type or use voice input (🎤) to speak your topic idea - AI will transcribe it automatically
+3. **Generate Content**: Let AI create engaging content based on your template and topic
+4. **Customize Text**: Edit the generated text or write your own
+5. **Choose Voice**: Select from 6 different AI voices (male and female options)
+6. **Generate Speech**: Click "Generate Speech" to create the audio with smart segmentation
+7. **Style Your Video**: Customize fonts, colors, animations, and effects
+8. **Add Visuals** (optional): 
+   - Upload background videos or choose presets
+   - Enable AI-powered image overlay from Unsplash
+   - Add background music
+9. **Generate Video**: 
+   - Click "Generate & Save to Library" to create and store your video
+   - Videos automatically download after creation
 
 ### Managing Your Library
 1. **View Library**: Click "Library" in the header to see all your saved videos
@@ -99,7 +107,7 @@ A Next.js application that generates vertical videos perfect for YouTube Shorts,
 - **Authentication**: NextAuth.js for secure user management
 - **Database**: SQLite with Better-SQLite3 for video metadata
 - **Storage**: UploadThing for cloud video storage
-- **AI**: Groq API for content generation
+- **AI**: Groq API for content generation and speech transcription (Whisper)
 
 ## 📁 Project Structure
 

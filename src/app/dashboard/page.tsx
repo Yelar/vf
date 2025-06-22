@@ -16,6 +16,7 @@ import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { Upload, Play, Trash2, Video, Mic, Volume2, Music, LogOut, User, Zap, Wand2, Sparkles, Film, Clock } from "lucide-react";
 import Link from 'next/link';
+import { SpeechToText } from '@/components/SpeechToText';
 
 function DashboardContent() {
   const { data: session } = useSession();
@@ -1050,30 +1051,52 @@ function DashboardContent() {
                     </div>
 
                     <div className="space-y-4">
-                      {/* Topic Input */}
+                      {/* Topic Input with Speech-to-Text */}
                       <div className="space-y-2">
                         <Label htmlFor="template-topic">Topic (optional)</Label>
-                        <Input
-                          id="template-topic"
-                          placeholder={
-                            selectedTemplate === 'educational-content' 
-                              ? "e.g., Quantum Physics, Machine Learning, Ancient Rome..."
-                              : selectedTemplate === 'drama-dialog'
-                              ? "e.g., Betrayal, Lost Love, Family Secrets..."
-                              : selectedTemplate === 'pop-song'
-                              ? "e.g., Summer Romance, Chasing Dreams, Friendship..."
-                              : selectedTemplate === 'motivational-quote'
-                              ? "e.g., Overcoming Fear, Success Mindset, Personal Growth..."
-                              : selectedTemplate === 'horror-story'
-                              ? "e.g., Haunted House, Urban Legend, Paranormal..."
-                              : selectedTemplate === 'comedy-skit'
-                              ? "e.g., Awkward Situations, Daily Life, Relationships..."
-                              : selectedTemplate === 'life-hack'
-                              ? "e.g., Productivity, Organization, Money Saving..."
-                              : "Enter a topic or theme for your content..."
-                          }
-                          className="w-full"
-                        />
+                        <div className="space-y-3">
+                          <Input
+                            id="template-topic"
+                            placeholder={
+                              selectedTemplate === 'educational-content' 
+                                ? "e.g., Quantum Physics, Machine Learning, Ancient Rome..."
+                                : selectedTemplate === 'drama-dialog'
+                                ? "e.g., Betrayal, Lost Love, Family Secrets..."
+                                : selectedTemplate === 'pop-song'
+                                ? "e.g., Summer Romance, Chasing Dreams, Friendship..."
+                                : selectedTemplate === 'motivational-quote'
+                                ? "e.g., Overcoming Fear, Success Mindset, Personal Growth..."
+                                : selectedTemplate === 'horror-story'
+                                ? "e.g., Haunted House, Urban Legend, Paranormal..."
+                                : selectedTemplate === 'comedy-skit'
+                                ? "e.g., Awkward Situations, Daily Life, Relationships..."
+                                : selectedTemplate === 'life-hack'
+                                ? "e.g., Productivity, Organization, Money Saving..."
+                                : "Enter a topic or theme for your content..."
+                            }
+                            className="w-full"
+                          />
+                          
+                          {/* Speech-to-Text for Topic Input */}
+                          <div className="p-3 bg-white/5 rounded-lg border border-white/10">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Mic className="w-4 h-4 text-purple-400" />
+                              <span className="text-sm font-medium text-white">🎤 Voice Input</span>
+                            </div>
+                            <SpeechToText
+                              onTranscriptionComplete={(text) => {
+                                const topicInput = document.getElementById('template-topic') as HTMLInputElement;
+                                if (topicInput) {
+                                  topicInput.value = text;
+                                  topicInput.dispatchEvent(new Event('input', { bubbles: true }));
+                                }
+                              }}
+                              placeholder="Record your topic idea"
+                              disabled={isGeneratingContent}
+                              className="w-full"
+                            />
+                          </div>
+                        </div>
                       </div>
 
                       {/* Template Parameters */}
@@ -1132,6 +1155,16 @@ function DashboardContent() {
                       <p className="text-xs text-gray-400">
                         💡 Customize parameters to fine-tune your content generation
                       </p>
+                      
+                      <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Mic className="w-4 h-4 text-blue-400" />
+                          <span className="text-sm font-medium text-blue-300">🚀 New: Voice Input</span>
+                        </div>
+                        <p className="text-xs text-blue-200">
+                          Now you can speak your topic ideas! Just click the microphone button in the topic section to record your voice and let AI transcribe it instantly using Groq's Whisper.
+                        </p>
+                      </div>
                     </div>
 
                     <Button 
