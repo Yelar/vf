@@ -32,6 +32,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           return null;
         } catch (error) {
           console.error("Auth error:", error);
+          
+          // Check if the error is due to unverified email
+          if (error instanceof Error && error.message === 'EMAIL_NOT_VERIFIED') {
+            // Return a special error that can be handled by the client
+            throw new Error('EMAIL_NOT_VERIFIED');
+          }
+          
           return null;
         }
       },

@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -18,7 +18,6 @@ export default function SignUpPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
-  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,9 +48,7 @@ export default function SignUpPage() {
 
       if (response.ok) {
         setSuccess(true);
-        setTimeout(() => {
-          router.push('/auth/signin');
-        }, 2000);
+        // Don't auto-redirect, let user read the verification message
       } else {
         setError(data.error || 'An error occurred');
       }
@@ -75,19 +72,40 @@ export default function SignUpPage() {
           <Card className="w-full max-w-md bg-white/5 border-white/10 backdrop-blur-xl">
             <CardContent className="pt-8">
               <div className="text-center space-y-6">
-                <div className="mx-auto w-20 h-20 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full flex items-center justify-center">
-                  <CheckCircle className="h-10 w-10 text-white" />
+                <div className="mx-auto w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+                  <Mail className="h-10 w-10 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-3xl font-bold text-white">Account Created!</h2>
+                  <h2 className="text-3xl font-bold text-white">Check Your Email!</h2>
                   <p className="text-gray-300 mt-3 text-lg">
-                    Welcome to VFS! Redirecting to sign in...
+                    We&apos;ve sent a verification link to your email address
+                  </p>
+                  <p className="text-gray-400 mt-2 text-sm">
+                    Please click the link in the email to verify your account before signing in
                   </p>
                 </div>
-                <div className="flex items-center justify-center gap-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse delay-75"></div>
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse delay-150"></div>
+                <div className="space-y-4">
+                  <div className="bg-blue-500/10 border border-blue-500/20 text-blue-300 px-4 py-3 rounded-lg text-sm">
+                    <div className="flex items-center gap-2 mb-1">
+                      <CheckCircle className="h-4 w-4" />
+                      <span className="font-medium">Next Steps:</span>
+                    </div>
+                    <ul className="text-xs space-y-1 text-left">
+                      <li>1. Check your email inbox (and spam folder)</li>
+                      <li>2. Click the verification link</li>
+                      <li>3. Return here to sign in</li>
+                    </ul>
+                  </div>
+                  
+                  <Link 
+                    href="/auth/signin"
+                    className="inline-block w-full"
+                  >
+                    <Button className="w-full h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white text-lg font-semibold">
+                      <ArrowRight className="mr-2 h-5 w-5" />
+                      Continue to Sign In
+                    </Button>
+                  </Link>
                 </div>
               </div>
             </CardContent>

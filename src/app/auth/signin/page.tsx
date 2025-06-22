@@ -16,6 +16,9 @@ export default function SignInPage() {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showResendVerification, setShowResendVerification] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendMessage, setResendMessage] = useState('');
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -31,7 +34,14 @@ export default function SignInPage() {
       });
 
       if (result?.error) {
-        setError('Invalid email or password');
+        // Check if the error is due to unverified email
+        if (result.error.includes('EMAIL_NOT_VERIFIED')) {
+          setError('Please verify your email address before signing in');
+          setShowResendVerification(true);
+        } else {
+          setError('Invalid email or password');
+          setShowResendVerification(false);
+        }
       } else {
         // Get session to ensure user is authenticated
         const session = await getSession();
@@ -44,6 +54,40 @@ export default function SignInPage() {
       console.error('Sign in error:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    if (!email) {
+      setResendMessage('Please enter your email address first');
+      return;
+    }
+
+    setResendLoading(true);
+    setResendMessage('');
+
+    try {
+      const response = await fetch('/api/auth/resend-verification', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setResendMessage('Verification email sent successfully! Please check your inbox.');
+        setShowResendVerification(false);
+      } else {
+        setResendMessage(data.message || data.error || 'Failed to resend verification email');
+      }
+    } catch (error) {
+      setResendMessage('An error occurred while resending the verification email');
+      console.error('Resend error:', error);
+    } finally {
+      setResendLoading(false);
     }
   };
 
@@ -94,6 +138,40 @@ export default function SignInPage() {
                 {error && (
                   <div className="bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-3 rounded-lg text-sm backdrop-blur-sm">
                     {error}
+                  </div>
+                )}
+
+                {resendMessage && (
+                  <div className={`px-4 py-3 rounded-lg text-sm backdrop-blur-sm ${
+                    resendMessage.includes('successfully') 
+                      ? 'bg-green-500/10 border border-green-500/20 text-green-400'
+                      : 'bg-red-500/10 border border-red-500/20 text-red-400'
+                  }`}>
+                    {resendMessage}
+                  </div>
+                )}
+
+                {showResendVerification && (
+                  <div className="bg-blue-500/10 border border-blue-500/20 text-blue-400 px-4 py-3 rounded-lg text-sm backdrop-blur-sm">
+                    <p className="mb-3">Need a new verification email?</p>
+                    <Button 
+                      onClick={handleResendVerification}
+                      disabled={resendLoading || !email}
+                      variant="outline"
+                      className="w-full bg-blue-500/20 border-blue-500/30 text-blue-300 hover:bg-blue-500/30 text-sm"
+                    >
+                      {resendLoading ? (
+                        <>
+                          <LogIn className="mr-2 h-4 w-4 animate-spin" />
+                          Sending...
+                        </>
+                      ) : (
+                        <>
+                          <Mail className="mr-2 h-4 w-4" />
+                          Resend Verification Email
+                        </>
+                      )}
+                    </Button>
                   </div>
                 )}
 

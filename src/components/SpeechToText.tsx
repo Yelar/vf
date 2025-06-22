@@ -3,7 +3,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Mic, MicOff, Square, Volume2, Loader2, AlertCircle } from 'lucide-react';
+import { Mic, Square, Volume2, Loader2, AlertCircle } from 'lucide-react';
 
 interface SpeechToTextProps {
   onTranscriptionComplete: (text: string) => void;

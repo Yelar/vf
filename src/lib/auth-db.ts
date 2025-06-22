@@ -12,6 +12,9 @@ export interface User {
   email: string;
   password: string;
   name: string;
+  email_verified: number; // 0 = not verified, 1 = verified
+  verification_token?: string;
+  verification_token_expires?: string;
   created_at: string;
 }
 
@@ -40,6 +43,9 @@ export function initializeDb() {
       email TEXT UNIQUE NOT NULL,
       password TEXT NOT NULL,
       name TEXT NOT NULL,
+      email_verified INTEGER DEFAULT 0,
+      verification_token TEXT,
+      verification_token_expires DATETIME,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
@@ -69,20 +75,42 @@ export function initializeDb() {
   } catch {
     // Column already exists, ignore
   }
+
+  // Add email verification columns if they don't exist (for existing databases)
+  try {
+    db.exec(`ALTER TABLE users ADD COLUMN email_verified INTEGER DEFAULT 0`);
+  } catch {
+    // Column already exists, ignore
+  }
+  
+  try {
+    db.exec(`ALTER TABLE users ADD COLUMN verification_token TEXT`);
+  } catch {
+    // Column already exists, ignore
+  }
+  
+  try {
+    db.exec(`ALTER TABLE users ADD COLUMN verification_token_expires DATETIME`);
+  } catch {
+    // Column already exists, ignore
+  }
 }
 
-// Create a new user
-export async function createUser(email: string, password: string, name: string): Promise<User | null> {
+// Create a new user with verification token
+export async function createUser(email: string, password: string, name: string, verificationToken?: string): Promise<User | null> {
   try {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12);
     
+    // Set token expiration to 24 hours from now
+    const tokenExpires = verificationToken ? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() : null;
+    
     const stmt = db.prepare(`
-      INSERT INTO users (email, password, name)
-      VALUES (?, ?, ?)
+      INSERT INTO users (email, password, name, verification_token, verification_token_expires)
+      VALUES (?, ?, ?, ?, ?)
     `);
     
-    const result = stmt.run(email, hashedPassword, name);
+    const result = stmt.run(email, hashedPassword, name, verificationToken || null, tokenExpires);
     
     // Get the created user
     const user = getUserById(result.lastInsertRowid as number);
@@ -123,13 +151,18 @@ export async function verifyPassword(email: string, password: string): Promise<U
     const user = getUserByEmail(email);
     if (!user) return null;
     
+    // Check if email is verified
+    if (!user.email_verified) {
+      throw new Error('EMAIL_NOT_VERIFIED');
+    }
+    
     const isValid = await bcrypt.compare(password, user.password);
     if (!isValid) return null;
     
     return user;
   } catch (error) {
     console.error('Error verifying password:', error);
-    return null;
+    throw error; // Re-throw to preserve error type
   }
 }
 
@@ -258,6 +291,52 @@ export function getSharedVideoById(id: number): (UserVideo & { creator_name: str
   } catch (error) {
     console.error('Error getting shared video by ID:', error);
     return null;
+  }
+}
+
+// Email verification functions
+export function getUserByVerificationToken(token: string): User | null {
+  try {
+    const stmt = db.prepare('SELECT * FROM users WHERE verification_token = ? AND verification_token_expires > datetime(\'now\')');
+    const user = stmt.get(token) as User | undefined;
+    return user || null;
+  } catch (error) {
+    console.error('Error getting user by verification token:', error);
+    return null;
+  }
+}
+
+export function verifyUserEmail(userId: number): boolean {
+  try {
+    const stmt = db.prepare(`
+      UPDATE users 
+      SET email_verified = 1, 
+          verification_token = NULL, 
+          verification_token_expires = NULL 
+      WHERE id = ?
+    `);
+    const result = stmt.run(userId);
+    return result.changes > 0;
+  } catch (error) {
+    console.error('Error verifying user email:', error);
+    return false;
+  }
+}
+
+export function updateVerificationToken(userId: number, token: string): boolean {
+  try {
+    const tokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    const stmt = db.prepare(`
+      UPDATE users 
+      SET verification_token = ?, 
+          verification_token_expires = ? 
+      WHERE id = ?
+    `);
+    const result = stmt.run(token, tokenExpires, userId);
+    return result.changes > 0;
+  } catch (error) {
+    console.error('Error updating verification token:', error);
+    return false;
   }
 }
 
