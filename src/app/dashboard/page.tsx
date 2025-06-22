@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
-import { Upload, Play, Download, Trash2, Video, Mic, Volume2, Music, LogOut, User, Zap, Wand2, Sparkles, Film } from "lucide-react";
+import { Upload, Play, Trash2, Video, Mic, Volume2, Music, LogOut, User, Zap, Wand2, Sparkles, Film, Clock } from "lucide-react";
 import Link from 'next/link';
 
 function DashboardContent() {
@@ -870,22 +870,22 @@ function DashboardContent() {
 
         <div className="container mx-auto px-6 py-8 space-y-8">
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
           {/* Video Preview */}
-          <Card className="bg-white/5 border-white/10 backdrop-blur-sm">
+          <Card className="bg-white/5 border-white/10 backdrop-blur-sm xl:sticky xl:top-8 xl:h-fit">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-white">
                 <div className="w-6 h-6 bg-gradient-to-r from-purple-500 to-blue-500 rounded flex items-center justify-center">
                   <Play className="h-3 w-3 text-white" />
                 </div>
-                Preview
+                Live Preview
               </CardTitle>
               <CardDescription className="text-gray-400">
-                Live preview of your AI-generated video
+                Real-time preview of your AI-generated video
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="mx-auto bg-black rounded-xl overflow-hidden border border-white/20" style={{ aspectRatio: '9/16', maxHeight: '500px' }}>
+              <div className="mx-auto bg-black rounded-xl overflow-hidden border border-white/20 shadow-2xl" style={{ aspectRatio: '9/16', maxHeight: '600px' }}>
                 <Player
                   component={SampleVideo}
                   inputProps={{
@@ -928,12 +928,88 @@ function DashboardContent() {
                 <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30">
                   🚀 AI Powered
                 </Badge>
+                {audioSegments && audioSegments.length > 0 && (
+                  <Badge className="bg-green-500/20 text-green-300 border-green-500/30">
+                    🎵 {audioSegments.length} Segments
+                  </Badge>
+                )}
+                {segmentImages && segmentImages.length > 0 && (
+                  <Badge className="bg-orange-500/20 text-orange-300 border-orange-500/30">
+                    🖼️ {segmentImages.length} Images
+                  </Badge>
+                )}
               </div>
             </CardContent>
           </Card>
 
           {/* Controls */}
-          <div className="space-y-6">
+          <div className="space-y-8">
+            {/* Quick Stats */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <Card className="bg-white/5 border-white/10 backdrop-blur-sm">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gradient-to-r from-purple-500/20 to-blue-500/20 rounded-lg flex items-center justify-center">
+                      <Mic className="w-5 h-5 text-purple-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-white">
+                        {speechText ? speechText.split(' ').length : 0}
+                      </p>
+                      <p className="text-xs text-gray-400">Words</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card className="bg-white/5 border-white/10 backdrop-blur-sm">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gradient-to-r from-green-500/20 to-emerald-500/20 rounded-lg flex items-center justify-center">
+                      <Clock className="w-5 h-5 text-green-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-white">
+                        {audioDuration ? `${audioDuration.toFixed(1)}s` : audioSegments ? `${audioSegments.reduce((acc, seg) => acc + (seg.duration || 2), 0).toFixed(1)}s` : '0s'}
+                      </p>
+                      <p className="text-xs text-gray-400">Duration</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card className="bg-white/5 border-white/10 backdrop-blur-sm">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gradient-to-r from-orange-500/20 to-red-500/20 rounded-lg flex items-center justify-center">
+                      <Video className="w-5 h-5 text-orange-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-white">
+                        {audioSegments?.length || 0}
+                      </p>
+                      <p className="text-xs text-gray-400">Segments</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card className="bg-white/5 border-white/10 backdrop-blur-sm">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gradient-to-r from-pink-500/20 to-rose-500/20 rounded-lg flex items-center justify-center">
+                      <Sparkles className="w-5 h-5 text-pink-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-white">
+                        {segmentImages?.length || 0}
+                      </p>
+                      <p className="text-xs text-gray-400">Images</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
 
             {/* Templates/Presets */}
             <Card className="bg-white/5 border-white/10 backdrop-blur-sm">
@@ -942,10 +1018,10 @@ function DashboardContent() {
                   <div className="w-6 h-6 bg-gradient-to-r from-purple-500 to-pink-500 rounded flex items-center justify-center">
                     <Wand2 className="h-3 w-3 text-white" />
                   </div>
-                  🪄 Templates & Presets
+                  🪄 AI Templates & Presets
                 </CardTitle>
                 <CardDescription className="text-gray-400">
-                  Quick-start with predefined themes and styling combinations
+                  Quick-start with AI-powered content generation and styling
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -1116,14 +1192,22 @@ function DashboardContent() {
             {/* Text-to-Speech */}
             <Card className="bg-white/5 border-white/10 backdrop-blur-sm">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-white">
-                  <div className="w-6 h-6 bg-gradient-to-r from-blue-500 to-cyan-500 rounded flex items-center justify-center">
-                    <Mic className="h-3 w-3 text-white" />
+                <CardTitle className="flex items-center justify-between text-white">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 bg-gradient-to-r from-blue-500 to-cyan-500 rounded flex items-center justify-center">
+                      <Mic className="h-3 w-3 text-white" />
+                    </div>
+                    🎤 AI Voice Synthesis
                   </div>
-                  AI Voice Synthesis
+                  {(generatedAudio || audioSegments) && (
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                      <span className="text-xs text-green-400 font-medium">Ready</span>
+                    </div>
+                  )}
                 </CardTitle>
                 <CardDescription className="text-gray-400">
-                  Generate premium AI voice with Eleven Labs
+                  Generate premium AI voice with intelligent text segmentation
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -1394,14 +1478,22 @@ function DashboardContent() {
             {/* Background Video */}
             <Card className="bg-white/5 border-white/10 backdrop-blur-sm">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-white">
-                  <div className="w-6 h-6 bg-gradient-to-r from-orange-500 to-red-500 rounded flex items-center justify-center">
-                    <Video className="h-3 w-3 text-white" />
+                <CardTitle className="flex items-center justify-between text-white">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 bg-gradient-to-r from-orange-500 to-red-500 rounded flex items-center justify-center">
+                      <Video className="h-3 w-3 text-white" />
+                    </div>
+                    📹 Background Video
                   </div>
-                  Background Video
+                  {backgroundVideo && (
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-orange-400 rounded-full animate-pulse"></div>
+                      <span className="text-xs text-orange-400 font-medium">Loaded</span>
+                    </div>
+                  )}
                 </CardTitle>
                 <CardDescription className="text-gray-400">
-                  Choose preset video or upload custom
+                  Choose from presets or upload your own video
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -1507,14 +1599,22 @@ function DashboardContent() {
             {/* Background Music */}
             <Card className="bg-white/5 border-white/10 backdrop-blur-sm">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-white">
-                  <div className="w-6 h-6 bg-gradient-to-r from-pink-500 to-rose-500 rounded flex items-center justify-center">
-                    <Music className="h-3 w-3 text-white" />
+                <CardTitle className="flex items-center justify-between text-white">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 bg-gradient-to-r from-pink-500 to-rose-500 rounded flex items-center justify-center">
+                      <Music className="h-3 w-3 text-white" />
+                    </div>
+                    🎵 Background Music
                   </div>
-                  Background Music
+                  {selectedBgMusic && selectedBgMusic !== 'none' && (
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-pink-400 rounded-full animate-pulse"></div>
+                      <span className="text-xs text-pink-400 font-medium">Selected</span>
+                    </div>
+                  )}
                 </CardTitle>
                 <CardDescription className="text-gray-400">
-                  Add ambient music to enhance your video
+                  Add ambient music to enhance your video (30% volume)
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -1565,19 +1665,66 @@ function DashboardContent() {
             </Card>
 
             {/* Generation */}
-            <Card className="bg-white/5 border-white/10 backdrop-blur-sm">
+            <Card className="bg-white/5 border-white/10 backdrop-blur-sm border-2 border-gradient-to-r from-purple-500/30 to-blue-500/30">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-white">
-                  <div className="w-6 h-6 bg-gradient-to-r from-green-500 to-emerald-500 rounded flex items-center justify-center">
-                    <Download className="h-3 w-3 text-white" />
+                <CardTitle className="flex items-center justify-between text-white">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 bg-gradient-to-r from-green-500 to-emerald-500 rounded flex items-center justify-center">
+                      <Film className="h-3 w-3 text-white" />
+                    </div>
+                    🚀 Generate & Export
                   </div>
-                  Generate Video
+                  {speechText.trim() && (
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                      <span className="text-xs text-green-400 font-medium">Ready to Generate</span>
+                    </div>
+                  )}
                 </CardTitle>
                 <CardDescription className="text-gray-400">
-                  Create and download your AI video
+                  Create and automatically save your AI video to library
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-6">
+                {/* Readiness Checklist */}
+                <div className="space-y-3">
+                  <h4 className="text-sm font-medium text-white mb-2">📋 Generation Checklist</h4>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-4 h-4 rounded-full flex items-center justify-center ${speechText.trim() ? 'bg-green-500' : 'bg-gray-600'}`}>
+                        {speechText.trim() ? '✓' : '○'}
+                      </div>
+                      <span className={`text-sm ${speechText.trim() ? 'text-green-300' : 'text-gray-400'}`}>
+                        Text Content ({speechText.split(' ').length} words)
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className={`w-4 h-4 rounded-full flex items-center justify-center ${(generatedAudio || audioSegments) ? 'bg-green-500' : 'bg-gray-600'}`}>
+                        {(generatedAudio || audioSegments) ? '✓' : '○'}
+                      </div>
+                      <span className={`text-sm ${(generatedAudio || audioSegments) ? 'text-green-300' : 'text-gray-400'}`}>
+                        AI Voice Generated {audioSegments && `(${audioSegments.length} segments)`}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className={`w-4 h-4 rounded-full flex items-center justify-center ${backgroundVideo ? 'bg-green-500' : 'bg-yellow-500'}`}>
+                        {backgroundVideo ? '✓' : '○'}
+                      </div>
+                      <span className={`text-sm ${backgroundVideo ? 'text-green-300' : 'text-yellow-300'}`}>
+                        Background Video {backgroundVideo ? '(Custom)' : '(Default will be used)'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className={`w-4 h-4 rounded-full flex items-center justify-center ${segmentImages && segmentImages.length > 0 ? 'bg-green-500' : 'bg-gray-600'}`}>
+                        {segmentImages && segmentImages.length > 0 ? '✓' : '○'}
+                      </div>
+                      <span className={`text-sm ${segmentImages && segmentImages.length > 0 ? 'text-green-300' : 'text-gray-400'}`}>
+                        Overlay Images {segmentImages && segmentImages.length > 0 && `(${segmentImages.length} images)`}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Audio Segments Info */}
                 {audioSegments && audioSegments.length > 0 && (
                   <div className="p-4 bg-purple-500/10 rounded-lg border border-purple-500/20">
@@ -1610,12 +1757,17 @@ function DashboardContent() {
                 <Button 
                   onClick={handleRenderVideo}
                   disabled={isSaving || !speechText.trim()}
-                  className="w-full h-12 text-lg font-semibold bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg shadow-purple-500/25"
+                  className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg shadow-purple-500/25 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
                   size="lg"
                 >
-                  <Film className="mr-2 h-5 w-5" />
-                  Generate & Save to Library
+                  <Film className="mr-3 h-6 w-6" />
+                  {isSaving ? 'Generating Video...' : 'Generate & Save to Library'}
+                  <Sparkles className="ml-3 h-5 w-5" />
                 </Button>
+                
+                <p className="text-xs text-center text-gray-400">
+                  💾 Video will be automatically saved to your library and downloaded
+                </p>
               </CardContent>
             </Card>
           </div>
