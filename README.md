@@ -11,6 +11,10 @@ A Next.js application that generates vertical videos perfect for YouTube Shorts,
 - 🎥 **Custom Backgrounds**: Upload your own videos or use presets
 - ⚡ **Real-time Preview**: See your video before generating
 - 📦 **High Quality Output**: 1080x1920 resolution at 60fps
+- 🏗️ **Video Library**: Save and manage your created videos
+- 📊 **User Authentication**: Secure login and personal video collections
+- 💾 **Cloud Storage**: Videos stored securely with UploadThing integration
+- 🔍 **Search & Filter**: Find your videos quickly by title or description
 
 ## 🚀 Setup
 
@@ -25,11 +29,15 @@ A Next.js application that generates vertical videos perfect for YouTube Shorts,
    npm install
    ```
 
-3. **Set up Eleven Labs API**
+3. **Set up API Keys**
    - Get an API key from [Eleven Labs](https://elevenlabs.io/docs/api-reference/authentication)
+   - Get an UploadThing token from [UploadThing](https://uploadthing.com)
    - Create a `.env.local` file in the root directory:
    ```env
    ELEVEN_LABS_API_KEY=your_eleven_labs_api_key_here
+   UPLOADTHING_TOKEN=your_uploadthing_token_here
+   NEXTAUTH_SECRET=your_secret_key_here
+   GROQ_API_KEY=your_groq_api_key_here
    ```
 
 4. **Run the development server**
@@ -42,11 +50,25 @@ A Next.js application that generates vertical videos perfect for YouTube Shorts,
 
 ## 🎬 How to Use
 
+### First Time Setup
+1. **Sign Up/Sign In**: Create an account or sign in to access the dashboard
+2. **Navigate to Studio**: Access the video creation tools
+
+### Creating Videos
 1. **Enter Speech Text**: Write the text you want to be spoken and displayed
 2. **Choose Voice**: Select from 6 different AI voices (male and female options)
 3. **Generate Speech**: Click "Generate Speech" to create the audio
 4. **Add Background** (optional): Upload a video or choose a preset
-5. **Generate Video**: Click "Generate YouTube Shorts Video" to create your final video
+5. **Generate Video**: 
+   - Click "Generate & Download" for immediate download
+   - Click "Save to Library" to store in your personal collection
+
+### Managing Your Library
+1. **View Library**: Click "Library" in the header to see all your saved videos
+2. **Search Videos**: Use the search bar to find specific videos
+3. **Edit Titles**: Click the edit icon to rename your videos
+4. **Download**: Click download button to save videos locally
+5. **Delete**: Remove unwanted videos from your library
 
 ## 🎯 Video Output
 
@@ -74,21 +96,38 @@ A Next.js application that generates vertical videos perfect for YouTube Shorts,
 - **Speech**: Eleven Labs API
 - **Audio**: Web Audio API for mixing
 - **Recording**: MediaRecorder API with canvas streams
+- **Authentication**: NextAuth.js for secure user management
+- **Database**: SQLite with Better-SQLite3 for video metadata
+- **Storage**: UploadThing for cloud video storage
+- **AI**: Groq API for content generation
 
 ## 📁 Project Structure
 
 ```
 src/
 ├── app/
-│   ├── api/generate-speech/     # Eleven Labs API integration
-│   ├── dashboard/               # Main application page
+│   ├── api/
+│   │   ├── auth/                # Authentication endpoints
+│   │   ├── generate-speech/     # Eleven Labs API integration
+│   │   ├── render-video/        # Video generation API
+│   │   ├── render-and-save/     # Video generation + library save
+│   │   ├── videos/              # Video CRUD operations
+│   │   └── uploadthing/         # File upload handling
+│   ├── auth/                    # Sign in/up pages
+│   ├── dashboard/               # Main video creation studio
+│   ├── library/                 # Video library management
 │   └── layout.tsx
 ├── components/
+│   ├── auth/                    # Authentication components
+│   ├── providers/               # Context providers
 │   └── ui/                      # shadcn/ui components
 ├── remotion/
 │   ├── Root.tsx
 │   └── SampleVideo.tsx          # Video composition with word-by-word text
 └── lib/
+    ├── auth.ts                  # NextAuth configuration
+    ├── auth-db.ts               # Database operations
+    ├── uploadthing.ts           # UploadThing configuration
     └── utils.ts
 ```
 
@@ -136,8 +175,19 @@ npm run remotion:preview
 Create a `.env.local` file with:
 
 ```env
-# Required: Eleven Labs API Key
-ELEVEN_LABS_API_KEY=your_api_key_here
+# Required: AI Services
+ELEVEN_LABS_API_KEY=your_eleven_labs_api_key_here
+GROQ_API_KEY=your_groq_api_key_here
+
+# Required: Authentication
+NEXTAUTH_SECRET=your_secret_key_here
+NEXTAUTH_URL=http://localhost:3000
+
+# Required: File Storage
+UPLOADTHING_TOKEN=your_uploadthing_token_here
+
+# Optional: For production
+NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
 ## 🤝 Contributing

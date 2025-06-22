@@ -10,19 +10,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Progress } from "@/components/ui/progress";
+
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
-import { Upload, Play, Download, Trash2, Video, Mic, Volume2, Music, LogOut, User, Zap, Wand2, Sparkles } from "lucide-react";
+import { Upload, Play, Download, Trash2, Video, Mic, Volume2, Music, LogOut, User, Zap, Wand2, Sparkles, Film } from "lucide-react";
+import Link from 'next/link';
 
 function DashboardContent() {
   const { data: session } = useSession();
-  const [isRendering, setIsRendering] = useState(false);
   const [backgroundVideo, setBackgroundVideo] = useState<string | null>(null);
   const [backgroundVideoFile, setBackgroundVideoFile] = useState<File | null>(null);
   const [selectedPresetVideo, setSelectedPresetVideo] = useState<string>('none');
-  const [renderProgress, setRenderProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Text-to-speech states
@@ -67,6 +66,12 @@ function DashboardContent() {
   const [templateVideoLength, setTemplateVideoLength] = useState<'short' | 'medium' | 'long' | 'extended'>('long');
   const [templateContentStyle, setTemplateContentStyle] = useState<'simple' | 'intermediate' | 'advanced'>('intermediate');
   const [templateContentTone, setTemplateContentTone] = useState<'default' | 'casual' | 'professional' | 'energetic' | 'dramatic' | 'humorous' | 'mysterious'>('default');
+
+  // Save to library states
+  const [isSaving, setIsSaving] = useState(false);
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [videoTitle, setVideoTitle] = useState('');
+  const [videoDescription, setVideoDescription] = useState('');
 
   // List of preset background videos (update this list when you add new videos)
   const presetVideos = [
@@ -525,87 +530,54 @@ function DashboardContent() {
     }
   };
 
-  const renderWithRemotion = async (
-    text: string, 
-    videoSource: File | string | null, 
-    audioSrc: string | null = null, 
-    audioDur: number | null = null, 
-    bgMusicSrc: string | null = null,
-    segments: Array<{text: string; audio: string; chunkIndex: number; wordCount: number; duration?: number}> | null = null,
-    fontStyle: string = selectedFont,
-    textColor: string = selectedColor,
-    textSize: number = fontSize,
-    textAlign: 'left' | 'center' | 'right' = textAlignment,
-    bgBlur: boolean = backgroundBlur,
-    animation: 'none' | 'typewriter' | 'fade-in' = textAnimation
-  ) => {
-    // TODO: Use segments for precise subtitle generation in future updates
-    console.log('🎬 Starting server-side Remotion rendering...', segments ? `with ${segments.length} audio segments` : 'with single audio');
-    
-    // For file uploads, we need to convert to a data URL or upload to a temporary location
-    let backgroundVideoUrl = null;
-    if (typeof videoSource === 'string') {
-      backgroundVideoUrl = videoSource; // Preset video path
-    } else if (videoSource) {
-      // Convert file to data URL for API
-      backgroundVideoUrl = URL.createObjectURL(videoSource);
-    }
-
-    const response = await fetch('/api/render-video', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        speechText: text,
-        backgroundVideo: backgroundVideoUrl,
-        audioSrc,
-        audioDuration: audioDur,
-        bgMusic: bgMusicSrc,
-        audioSegments: segments,
-        fontStyle,
-        textColor,
-        fontSize: textSize,
-        textAlignment: textAlign,
-        backgroundBlur: bgBlur,
-        textAnimation: animation,
-      }),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      if (response.status === 401) {
-        alert('Your session has expired. Please sign in again.');
-            return;
+  // Function to download video from video ID
+  const downloadVideoById = async (videoId: number) => {
+    try {
+      // Get video details first
+      const videoResponse = await fetch(`/api/videos/${videoId}`);
+      if (!videoResponse.ok) {
+        throw new Error('Failed to get video details');
       }
-      throw new Error(error.error || 'Server rendering failed');
+      
+      const video = await videoResponse.json();
+      if (!video.uploadthing_url) {
+        throw new Error('Video URL not found');
+      }
+      
+      const safeTitle = video.title.replace(/[^a-zA-Z0-9\s-_]/g, '').replace(/\s+/g, '-');
+      
+      // Fast download - instant response
+      const link = document.createElement('a');
+      link.href = video.uploadthing_url;
+      link.download = `${safeTitle}.mp4`;
+      
+      // Add download parameters to URL
+      const url = new URL(video.uploadthing_url);
+      url.searchParams.set('response-content-disposition', `attachment; filename="${safeTitle}.mp4"`);
+      link.href = url.toString();
+      
+      // Click to start download
+      link.click();
+      
+      console.log('Auto-download initiated for:', video.title);
+      
+    } catch (error) {
+      console.error('Auto-download failed:', error);
+      console.log('Auto-download failed, but video is saved to library');
     }
-
-    // Download the rendered video
-    const blob = await response.blob();
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-    a.download = `${text.slice(0, 30).replace(/[^a-z0-9]/gi, '-').toLowerCase()}-remotion-video.mp4`;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-          
-    // Clean up background video URL if it was created
-    if (backgroundVideoUrl && typeof videoSource !== 'string') {
-      URL.revokeObjectURL(backgroundVideoUrl);
-    }
-
-    console.log('✅ Remotion video downloaded successfully!');
   };
 
-  const handleRenderVideo = async () => {
-    setIsRendering(true);
-    setRenderProgress(0);
+  // Function to generate and save video to library
+  const handleSaveToLibrary = async () => {
+    if (!videoTitle.trim()) {
+      alert('Please enter a title for your video');
+      return;
+    }
+
+    setIsSaving(true);
 
     try {
-      console.log('🚀 Starting YouTube Shorts video generation...');
+      console.log('🚀 Starting YouTube Shorts video generation and save...');
       
       // Determine which video source to use
       let videoSource: File | string | null = null;
@@ -622,23 +594,73 @@ function DashboardContent() {
         const musicOption = bgMusicOptions.find(m => m.value === selectedBgMusic);
         bgMusicSource = musicOption?.path || null;
       }
-      
-      // Always use Remotion server-side rendering for high quality
-      console.log('🎬 Starting Remotion with segmented audio:', {
-        hasSegments: !!audioSegments,
-        segmentCount: audioSegments?.length || 0,
-        hasFallbackAudio: !!generatedAudio
+
+      const response = await fetch('/api/render-and-save', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          speechText,
+          backgroundVideo: typeof videoSource === 'string' ? videoSource : null,
+          audioSrc: generatedAudio,
+          audioDuration,
+          bgMusic: bgMusicSource,
+          audioSegments,
+          fontStyle: selectedFont,
+          textColor: selectedColor,
+          fontSize,
+          textAlignment,
+          backgroundBlur,
+          textAnimation,
+          videoTitle,
+          videoDescription,
+        }),
       });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to generate and save video');
+      }
+
+      const result = await response.json();
+      alert(`✅ Video generated and saved to your library successfully!`);
       
-      await renderWithRemotion(speechText, videoSource, generatedAudio, audioDuration, bgMusicSource, audioSegments, selectedFont, selectedColor, fontSize, textAlignment, backgroundBlur, textAnimation);
+      // Auto-download the video after saving
+      if (result.video && result.video.id) {
+        try {
+          console.log('🔄 Auto-downloading video...');
+          await downloadVideoById(result.video.id);
+          console.log('✅ Auto-download completed');
+        } catch (downloadError) {
+          console.error('❌ Auto-download failed:', downloadError);
+          // Don't show error to user as the video is still saved successfully
+        }
+      }
+      
+      // Clear the save dialog
+      setShowSaveDialog(false);
+      setVideoTitle('');
+      setVideoDescription('');
       
     } catch (error) {
-      console.error('❌ Error creating YouTube Shorts video:', error);
-      alert(`❌ Video generation failed: ${error}\n\nTry:\n1. Use a smaller background video file\n2. Use MP4 format for background\n3. Check browser console for details`);
+      console.error('❌ Error generating/saving video:', error);
+      alert(`❌ Failed to generate/save video: ${error instanceof Error ? error.message : 'Unknown error'}\n\nTry:\n1. Use a smaller background video file\n2. Use MP4 format for background\n3. Check browser console for details`);
     } finally {
-      setIsRendering(false);
-      setRenderProgress(0);
+      setIsSaving(false);
     }
+  };
+
+
+
+  const handleRenderVideo = async () => {
+    // Generate a default title based on the speech text
+    const defaultTitle = speechText.length > 50 
+      ? speechText.substring(0, 50).trim() + '...' 
+      : speechText.trim() || 'AI Generated Video';
+    
+    setVideoTitle(defaultTitle);
+    setShowSaveDialog(true);
   };
 
   const handlePresetVideoChange = (value: string) => {
@@ -734,6 +756,12 @@ function DashboardContent() {
         </div>
               </div>
               <div className="flex items-center gap-4">
+                <Link href="/library">
+                  <Button variant="ghost" className="text-gray-300 hover:text-white">
+                    <Film className="h-4 w-4 mr-2" />
+                    Library
+                  </Button>
+                </Link>
                 <div className="flex items-center gap-3 px-4 py-2 bg-white/5 rounded-lg border border-white/10">
                   <User className="h-4 w-4 text-purple-400" />
                   <span className="text-sm text-gray-300">{session?.user?.name || session?.user?.email}</span>
@@ -1429,36 +1457,96 @@ function DashboardContent() {
 
                 <Button 
                   onClick={handleRenderVideo}
-                  disabled={isRendering}
-                  className="w-full h-12 text-lg font-semibold bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg shadow-green-500/25"
+                  disabled={isSaving || !speechText.trim()}
+                  className="w-full h-12 text-lg font-semibold bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg shadow-purple-500/25"
                   size="lg"
                 >
-                  {isRendering ? (
-                    <>
-                      <Upload className="mr-2 h-5 w-5 animate-spin" />
-                      Generating... {renderProgress}%
-                    </>
-                  ) : (
-                    <>
-                      <Download className="mr-2 h-5 w-5" />
-                      Generate AI Video
-                    </>
-                  )}
+                  <Film className="mr-2 h-5 w-5" />
+                  Generate & Save to Library
                 </Button>
-
-                {isRendering && (
-                  <div className="space-y-2">
-                    <Progress value={renderProgress} className="w-full" />
-                    <p className="text-sm text-muted-foreground text-center">
-                      Creating your ultra-high quality video with Remotion...
-                    </p>
-                  </div>
-                )}
               </CardContent>
             </Card>
           </div>
         </div>
 
+        {/* Save to Library Dialog */}
+        {showSaveDialog && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+            <Card className="w-full max-w-md mx-4 bg-white/10 border-white/20 backdrop-blur-xl">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-white">
+                  <Film className="w-5 h-5" />
+                  Save Video to Library
+                </CardTitle>
+                <CardDescription className="text-gray-400">
+                  Enter details for your video before saving to your library
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="video-title" className="text-white">
+                    Video Title *
+                  </Label>
+                  <Input
+                    id="video-title"
+                    placeholder="Enter a title for your video..."
+                    value={videoTitle}
+                    onChange={(e) => setVideoTitle(e.target.value)}
+                    className="bg-white/10 border-white/20 text-white placeholder:text-gray-400"
+                    disabled={isSaving}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="video-description" className="text-white">
+                    Description (optional)
+                  </Label>
+                  <Textarea
+                    id="video-description"
+                    placeholder="Add a description for your video..."
+                    value={videoDescription}
+                    onChange={(e) => setVideoDescription(e.target.value)}
+                    className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 resize-none"
+                    rows={3}
+                    disabled={isSaving}
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      setShowSaveDialog(false);
+                      setVideoTitle('');
+                      setVideoDescription('');
+                    }}
+                    disabled={isSaving}
+                    className="flex-1 text-gray-400 hover:text-white"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleSaveToLibrary}
+                    disabled={isSaving || !videoTitle.trim()}
+                    className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                  >
+                    {isSaving ? (
+                      <>
+                        <Upload className="mr-2 h-4 w-4 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Film className="mr-2 h-4 w-4" />
+                        Save Video
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
               </div>
       </div>
