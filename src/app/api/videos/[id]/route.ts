@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { deleteVideo, updateVideoTitle, getVideoById, toggleVideoSharing } from '@/lib/auth-db';
+import { getVideoById, updateVideoTitle, deleteVideo, toggleVideoSharing } from '@/lib/auth-db';
 
-interface RouteParams {
-  params: Promise<{ id: string }>;
-}
-
-// GET /api/videos/[id] - Get a specific video
-export async function GET(req: NextRequest, { params }: RouteParams) {
+// GET /api/videos/[id] - Get specific video data
+export async function GET(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
     const session = await auth();
     
@@ -15,8 +14,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const resolvedParams = await params;
-    const videoId = parseInt(resolvedParams.id);
+    const videoId = parseInt(params.id);
     if (isNaN(videoId)) {
       return NextResponse.json({ error: 'Invalid video ID' }, { status: 400 });
     }
@@ -27,20 +25,23 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'Video not found' }, { status: 404 });
     }
 
-    // Check if user owns the video
+    // Check if user owns this video
     if (video.user_id !== parseInt(session.user.id)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    return NextResponse.json(video);
+    return NextResponse.json({ video });
   } catch (error) {
-    console.error('Error getting video:', error);
+    console.error('Error fetching video:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
-// DELETE /api/videos/[id] - Delete a video
-export async function DELETE(req: NextRequest, { params }: RouteParams) {
+// PUT /api/videos/[id] - Update video
+export async function PUT(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
     const session = await auth();
     
@@ -48,8 +49,43 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const resolvedParams = await params;
-    const videoId = parseInt(resolvedParams.id);
+    const videoId = parseInt(params.id);
+    if (isNaN(videoId)) {
+      return NextResponse.json({ error: 'Invalid video ID' }, { status: 400 });
+    }
+
+    const { title } = await req.json();
+
+    if (!title || !title.trim()) {
+      return NextResponse.json({ error: 'Title is required' }, { status: 400 });
+    }
+
+    const success = updateVideoTitle(videoId, parseInt(session.user.id), title.trim());
+    
+    if (!success) {
+      return NextResponse.json({ error: 'Failed to update video or video not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Error updating video:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+// DELETE /api/videos/[id] - Delete video
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const session = await auth();
+    
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const videoId = parseInt(params.id);
     if (isNaN(videoId)) {
       return NextResponse.json({ error: 'Invalid video ID' }, { status: 400 });
     }
@@ -57,18 +93,21 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
     const success = deleteVideo(videoId, parseInt(session.user.id));
     
     if (!success) {
-      return NextResponse.json({ error: 'Video not found or unauthorized' }, { status: 404 });
+      return NextResponse.json({ error: 'Failed to delete video or video not found' }, { status: 404 });
     }
 
-    return NextResponse.json({ message: 'Video deleted successfully' });
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error deleting video:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
-// PATCH /api/videos/[id] - Update video title
-export async function PATCH(req: NextRequest, { params }: RouteParams) {
+// PATCH /api/videos/[id] - Update video sharing status
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
     const session = await auth();
     
@@ -76,35 +115,20 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const resolvedParams = await params;
-    const videoId = parseInt(resolvedParams.id);
+    const videoId = parseInt(params.id);
     if (isNaN(videoId)) {
       return NextResponse.json({ error: 'Invalid video ID' }, { status: 400 });
     }
 
-    const body = await req.json();
-    const { title, toggleSharing } = body;
-    
-    let success = false;
-    
-    if (toggleSharing) {
-      // Toggle sharing status
-      success = toggleVideoSharing(videoId, parseInt(session.user.id));
-    } else if (title && typeof title === 'string') {
-      // Update title
-      success = updateVideoTitle(videoId, parseInt(session.user.id), title);
-    } else {
-      return NextResponse.json({ error: 'Valid title or toggleSharing flag is required' }, { status: 400 });
-    }
+    const success = toggleVideoSharing(videoId, parseInt(session.user.id));
     
     if (!success) {
-      return NextResponse.json({ error: 'Video not found or unauthorized' }, { status: 404 });
+      return NextResponse.json({ error: 'Failed to update sharing status or video not found' }, { status: 404 });
     }
 
-    const updatedVideo = getVideoById(videoId);
-    return NextResponse.json({ video: updatedVideo });
+    return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error updating video:', error);
+    console.error('Error updating video sharing status:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 } 

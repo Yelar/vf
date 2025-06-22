@@ -247,6 +247,29 @@ export function updateVideoTitle(id: number, userId: number, title: string): boo
   }
 }
 
+// Update complete video record after processing
+export function updateVideo(
+  id: number,
+  uploadthingUrl: string,
+  uploadthingKey: string,
+  fileSize: number,
+  duration?: number,
+  thumbnailUrl?: string
+): boolean {
+  try {
+    const stmt = db.prepare(`
+      UPDATE videos 
+      SET uploadthing_url = ?, uploadthing_key = ?, file_size = ?, duration = ?, thumbnail_url = ? 
+      WHERE id = ?
+    `);
+    const result = stmt.run(uploadthingUrl, uploadthingKey, fileSize, duration || null, thumbnailUrl || null, id);
+    return result.changes > 0;
+  } catch (error) {
+    console.error('Error updating video:', error);
+    return false;
+  }
+}
+
 // Toggle video sharing status
 export function toggleVideoSharing(id: number, userId: number): boolean {
   try {

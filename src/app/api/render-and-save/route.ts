@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { bundle } from '@remotion/bundler';
 import { getCompositions, renderMedia } from '@remotion/renderer';
 import { auth } from '@/lib/auth';
-import { createVideo } from '@/lib/auth-db';
+import { createVideo, updateVideo } from '@/lib/auth-db';
 import { sendVideoCompletionEmail } from '@/lib/email';
 import path from 'path';
 import { v4 as uuid } from 'uuid';
@@ -143,12 +143,44 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Video title is required' }, { status: 400 });
     }
 
-    // Return immediately with processing status
+    // Create video record immediately with placeholder URL
+    const videoMetadata = {
+      speechText,
+      backgroundVideo,
+      audioSrc: !!audioSrc,
+      audioDuration,
+      bgMusic,
+      fontStyle,
+      textColor,
+      fontSize,
+      textAlignment,
+      backgroundBlur,
+      textAnimation,
+      segmentCount: audioSegments ? audioSegments.length : 0,
+    };
+
+    const savedVideo = await createVideo(
+      parseInt(session.user.id),
+      videoTitle,
+      '', // Placeholder URL - will be updated after processing
+      '', // Placeholder key - will be updated after processing
+      0, // Placeholder size - will be updated after processing
+      videoMetadata,
+      videoDescription,
+      audioDuration || 5 // Estimated duration
+    );
+
+    if (!savedVideo) {
+      return NextResponse.json({ error: 'Failed to create video record' }, { status: 500 });
+    }
+
+    // Return immediately with processing status and video ID
     const processingId = uuid();
     
     // Start async video processing
     processVideoAsync({
       processingId,
+      videoId: savedVideo.id, // Pass the created video ID
       userId: parseInt(session.user.id),
       userEmail: session.user.email!,
       userName,
@@ -176,6 +208,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ 
       success: true,
       processingId,
+      videoId: savedVideo.id, // Return the video ID so frontend can navigate
       message: 'Video is being processed. You will receive an email notification when it\'s ready!',
       estimatedTime: '2-5 minutes'
     });
@@ -189,6 +222,7 @@ export async function POST(req: NextRequest) {
 // Async function to process video in the background
 async function processVideoAsync({
   processingId,
+  videoId,
   userId,
   userEmail,
   userName,
@@ -209,6 +243,7 @@ async function processVideoAsync({
   videoDescription
 }: {
   processingId: string;
+  videoId: number;
   userId: number;
   userEmail: string;
   userName: string;
@@ -388,35 +423,17 @@ async function processVideoAsync({
 
       console.log(`✅ Video ${processingId} uploaded to UploadThing: ${uploadResult.url}`);
 
-      // Save video metadata to database
-      const videoMetadata = {
-        speechText,
-        backgroundVideo,
-        audioSrc: !!audioFilePath,
-        audioDuration: finalAudioDuration,
-        bgMusic,
-        fontStyle,
-        textColor,
-        fontSize,
-        textAlignment,
-        backgroundBlur,
-        textAnimation,
-        segmentCount: audioSegments ? audioSegments.length : 0,
-      };
-
-      const savedVideo = await createVideo(
-        userId,
-        videoTitle,
+      // Update video record with actual URL and file info
+      const updateSuccess = updateVideo(
+        videoId,
         uploadResult.url,
         uploadResult.key,
         fileSize,
-        videoMetadata,
-        videoDescription,
         videoDuration
       );
 
-      if (!savedVideo) {
-        throw new Error('Failed to save video metadata');
+      if (!updateSuccess) {
+        throw new Error('Failed to update video record');
       }
 
       // Send completion email

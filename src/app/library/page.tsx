@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { useSession } from 'next-auth/react';
+import { useSession, signOut } from 'next-auth/react';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,7 +30,10 @@ import {
   ChevronRight,
   Eye,
   EyeOff,
-  CheckCircle2
+  CheckCircle2,
+  Plus,
+  User,
+  LogOut
 } from "lucide-react";
 import Link from 'next/link';
 
@@ -322,8 +325,6 @@ function LibraryContent() {
   const closeVideoModal = () => {
     setPlayingVideoId(null);
   };
-
-
 
   const toggleSharing = async (video: UserVideo) => {
     try {
