@@ -12,9 +12,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Segments array is required' }, { status: 400 });
     }
 
-    const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-    if (!OPENAI_API_KEY) {
-      return NextResponse.json({ error: 'OpenAI API key not configured' }, { status: 500 });
+    const AZURE_API_KEY = process.env.AZURE_OPENAI_API_KEY;
+    const AZURE_ENDPOINT = process.env.AZURE_OPENAI_ENDPOINT || "https://vfs-gpt.openai.azure.com";
+    const API_VERSION = process.env.AZURE_OPENAI_API_VERSION || "2024-02-01";
+    
+    if (!AZURE_API_KEY) {
+      return NextResponse.json({ error: 'Azure OpenAI API key not configured' }, { status: 500 });
     }
 
     // Function to generate image prompt from text segment (fallback)
@@ -44,40 +47,42 @@ export async function POST(request: NextRequest) {
         const promptSource = promptData && promptData[index] ? 'LLM-generated' : 'auto-generated';
         console.log(`🎨 Segment ${index + 1} (${promptSource}): "${segment.text}" -> prompt: "${prompt}"`);
         
-        const openaiResponse = await fetch('https://api.openai.com/v1/images/generations', {
+        const azureUrl = `${AZURE_ENDPOINT}/openai/deployments/dall-e-3/images/generations?api-version=${API_VERSION}`;
+        const openaiResponse = await fetch(azureUrl, {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${OPENAI_API_KEY}`,
+            'Authorization': `Bearer ${AZURE_API_KEY}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
             model: "dall-e-3",
             prompt: prompt,
             n: 1,
-            size: "1024x1792", // Portrait orientation similar to what was requested from Unsplash
+            size: "1024x1024", // Azure DALL-E 3 supports 1024x1024, 1024x1792, 1792x1024
             quality: "standard",
-            style: "natural"
+            style: "vivid"
           }),
         });
 
         if (!openaiResponse.ok) {
-          console.error(`❌ OpenAI API error for segment ${index + 1}:`, openaiResponse.statusText);
+          console.error(`❌ Azure OpenAI API error for segment ${index + 1}:`, openaiResponse.statusText);
           
           // Try a simpler fallback prompt
           const fallbackPrompt = "A clean, professional background image suitable for educational content";
-          const fallbackResponse = await fetch('https://api.openai.com/v1/images/generations', {
+          const fallbackUrl = `${AZURE_ENDPOINT}/openai/deployments/dall-e-3/images/generations?api-version=${API_VERSION}`;
+          const fallbackResponse = await fetch(fallbackUrl, {
             method: 'POST',
             headers: {
-              'Authorization': `Bearer ${OPENAI_API_KEY}`,
+              'Authorization': `Bearer ${AZURE_API_KEY}`,
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
               model: "dall-e-3",
               prompt: fallbackPrompt,
               n: 1,
-              size: "1024x1792",
+              size: "1024x1024",
               quality: "standard",
-              style: "natural"
+              style: "vivid"
             }),
           });
           
@@ -116,7 +121,7 @@ export async function POST(request: NextRequest) {
     const results = await Promise.all(imagePromises);
     const validImages = results.filter(result => result !== null);
 
-    console.log(`✅ Successfully generated ${validImages.length}/${segments.length} images with OpenAI`);
+    console.log(`✅ Successfully generated ${validImages.length}/${segments.length} images with Azure OpenAI DALL-E 3`);
 
     return NextResponse.json({
       success: true,
@@ -125,7 +130,7 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('❌ OpenAI image generation error:', error);
+    console.error('❌ Azure OpenAI image generation error:', error);
     return NextResponse.json({ 
       error: 'Failed to generate images',
       details: error instanceof Error ? error.message : 'Unknown error'

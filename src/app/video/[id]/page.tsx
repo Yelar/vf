@@ -470,19 +470,19 @@ function VideoCreationContent() {
     clearGeneratedAudio();
   };
 
-  // Function to fetch images from Unsplash for segments
+  // Function to generate AI images for segments
   const fetchSegmentImages = async (segments: Array<{text: string; chunkIndex: number}>) => {
     if (!addPictures || !segments || segments.length === 0) {
       return;
     }
 
     setIsGeneratingImages(true);
-    console.log('🖼️ Generating keywords and fetching Unsplash images for segments...');
+    console.log('🎨 Generating prompts and creating AI images for segments...');
 
     try {
-      // Step 1: Generate keywords using LLM
-      console.log('🧠 Generating keywords using AI...');
-      const keywordResponse = await fetch('/api/generate-keywords', {
+      // Step 1: Generate image prompts using LLM
+      console.log('🧠 Generating image prompts using AI...');
+      const promptResponse = await fetch('/api/generate-prompts', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -490,43 +490,43 @@ function VideoCreationContent() {
         body: JSON.stringify({ segments }),
       });
 
-      let keywordData = null;
-      if (keywordResponse.ok) {
-        const keywordResult = await keywordResponse.json();
-        if (keywordResult.success && keywordResult.keywordData) {
-          keywordData = keywordResult.keywordData;
-          console.log('✅ Keywords generated successfully using AI');
+      let promptData = null;
+      if (promptResponse.ok) {
+        const promptResult = await promptResponse.json();
+        if (promptResult.success && promptResult.promptData) {
+          promptData = promptResult.promptData;
+          console.log('✅ Image prompts generated successfully using AI');
         }
       } else {
-        console.warn('⚠️ Keyword generation failed, falling back to basic extraction');
+        console.warn('⚠️ Prompt generation failed, falling back to basic prompt creation');
       }
 
-      // Step 2: Fetch images using the generated keywords
-      console.log('🖼️ Fetching images from Unsplash...');
-      const imageResponse = await fetch('/api/fetch-unsplash-images', {
+      // Step 2: Generate images using the AI prompts
+      console.log('🎨 Generating images with AI...');
+      const imageResponse = await fetch('/api/generate-images', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ segments, keywordData }),
+        body: JSON.stringify({ segments, promptData }),
       });
 
       if (!imageResponse.ok) {
         const errorData = await imageResponse.json();
-        throw new Error(errorData.message || 'Failed to fetch images');
+        throw new Error(errorData.message || 'Failed to generate images');
       }
 
       const imageData = await imageResponse.json();
       
       if (imageData.success && imageData.images) {
         setSegmentImages(imageData.images);
-        console.log(`✅ Successfully fetched ${imageData.images.length} images from Unsplash using ${keywordData ? 'AI-generated' : 'extracted'} keywords`);
+        console.log(`✅ Successfully generated ${imageData.images.length} AI images using ${promptData ? 'AI-generated' : 'auto-generated'} prompts`);
       } else {
         throw new Error('Invalid images response');
       }
     } catch (error) {
-      console.error('❌ Failed to fetch Unsplash images:', error);
-      alert('Failed to fetch images. Please try again.');
+      console.error('❌ Failed to generate AI images:', error);
+      alert('Failed to generate images. Please try again.');
     } finally {
       setIsGeneratingImages(false);
     }
@@ -1500,7 +1500,7 @@ function VideoCreationContent() {
                     <div className="w-4 h-4 bg-gradient-to-r from-green-500 to-emerald-500 rounded">
                       <div className="h-3 w-3 text-white p-0.5">🖼️</div>
                     </div>
-                    Add Pictures from Unsplash
+                    Generate AI Images
                   </Label>
                   
                   <div className="flex items-center space-x-2">
@@ -1512,21 +1512,21 @@ function VideoCreationContent() {
                       className="rounded border-gray-300 text-primary focus:ring-primary"
                     />
                     <Label htmlFor="add-pictures-toggle" className="text-sm cursor-pointer">
-                      Overlay relevant images on each text segment
+                      Generate custom AI images for each text segment
                     </Label>
                   </div>
                   
                   {addPictures && (
                     <div className="text-xs text-gray-400 bg-blue-500/10 border border-blue-500/30 rounded p-2">
-                      🧠 AI will analyze each segment and generate smart keywords to find the most relevant images from Unsplash
+                      🎨 AI will analyze each segment and generate unique, custom images tailored to your content
                     </div>
                   )}
 
                   {segmentImages && segmentImages.length > 0 && (
                     <div className="space-y-2">
                       <div className="flex items-center justify-between text-xs text-gray-400">
-                        <span>Images ready: {segmentImages.length}</span>
-                        {isGeneratingImages && <span className="animate-pulse">🧠 Generating keywords & fetching images...</span>}
+                        <span>AI Images ready: {segmentImages.length}</span>
+                        {isGeneratingImages && <span className="animate-pulse">🎨 Generating AI images...</span>}
                       </div>
                       <div className="grid grid-cols-3 gap-2">
                         {segmentImages.slice(0, 6).map((img, index) => (
@@ -1553,7 +1553,7 @@ function VideoCreationContent() {
                   )}
                   
                   <p className="text-xs text-muted-foreground">
-                    🧠 AI analyzes your text and finds the perfect images for each segment
+                    🎨 AI analyzes your text and creates unique, custom images for each segment
                   </p>
                 </div>
 
