@@ -1,24 +1,27 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useSession, signOut } from 'next-auth/react';
+import { useSession } from 'next-auth/react';
 import { AuthGuard } from '@/components/auth/AuthGuard';
+import { NavigationHeader } from '@/components/ui/navigation-header';
+import { ModernCard, ModernCardContent } from '@/components/ui/modern-card';
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { 
   Video, 
   Play, 
-  LogOut, 
-  User, 
-  Film, 
-  Clock,
-  TrendingUp,
   Globe,
   Plus,
   Library,
   Share2,
   Copy,
-  Check
+  Check,
+  Zap,
+  Sparkles,
+  ChevronRight,
+  Calendar,
+  Download
 } from "lucide-react";
 import Link from 'next/link';
 
@@ -83,278 +86,221 @@ function DashboardContent() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const formatDate = (dateString: string) => {
+
+
+  const formatDateFull = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
       month: 'short',
-      day: 'numeric'
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
     });
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-black to-blue-900">
-        {/* Header */}
-      <header className="border-b border-gray-800 bg-black/50 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg flex items-center justify-center">
-                  <Film className="w-5 h-5 text-white" />
-          </div>
-                <span className="text-xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
-                    VFS Studio
-                </span>
-        </div>
-              </div>
-            
-            {/* Navigation */}
-            <nav className="hidden md:flex items-center space-x-6">
-              <Link 
-                href="/library" 
-                className="flex items-center space-x-2 text-gray-300 hover:text-white transition-colors"
-              >
-                <Library className="w-4 h-4" />
-                <span>Library</span>
-                </Link>
-              <Link 
-                href="/shared" 
-                className="flex items-center space-x-2 text-gray-300 hover:text-white transition-colors"
-              >
-                <Globe className="w-4 h-4" />
-                <span>Shared</span>
-                </Link>
-            </nav>
-
-            {/* User menu */}
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2 text-sm text-gray-300">
-                <User className="w-4 h-4" />
-                <span>{session?.user?.name || session?.user?.email}</span>
-                </div>
-                <Button
-                variant="ghost"
-                  size="sm"
-                  onClick={() => signOut()}
-                className="text-gray-300 hover:text-white"
-                >
-                <LogOut className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-          </div>
-        </header>
+    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-black to-purple-950/50">
+      <NavigationHeader />
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="container mx-auto px-4 py-8 space-y-8">
         {/* Welcome Section */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">
-            Welcome back, {session?.user?.name?.split(' ')[0] || 'Creator'}! 🎬
+        <div className="flex flex-col items-center justify-center text-center space-y-6 py-20 min-h-[50vh] w-full">
+          <div className="inline-flex items-center space-x-2 px-4 py-2 bg-purple-500/10 border border-purple-500/20 rounded-full">
+            <Sparkles className="w-4 h-4 text-purple-400" />
+            <span className="text-sm text-purple-300 font-medium">Welcome to VFS Studio</span>
+          </div>
+          
+          <h1 className="text-6xl md:text-7xl lg:text-8xl font-bold w-full">
+            <span className="text-white">Hello, </span>
+            <span className="bg-gradient-to-r from-purple-400 via-purple-300 to-blue-400 bg-clip-text text-transparent">
+              {session?.user?.name?.split(' ')[0] || 'Creator'}!
+            </span>
           </h1>
-          <p className="text-xl text-gray-300">
-            Ready to create your next viral video?
+          
+          <p className="text-xl md:text-2xl text-gray-400 max-w-4xl mx-auto leading-relaxed">
+            Ready to create your next viral video? Let&apos;s turn your ideas into engaging content with AI.
           </p>
                     </div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Link href="/video/new">
-            <Card className="bg-gradient-to-br from-purple-600 to-blue-600 border-none hover:scale-105 transition-transform cursor-pointer">
-              <CardContent className="p-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Link href="/video/new" className="group">
+            <ModernCard gradient="purple" hover glow className="h-full">
+              <ModernCardContent className="p-6">
                 <div className="flex items-center space-x-4">
-                  <div className="p-3 bg-white/20 rounded-full">
-                    <Plus className="w-6 h-6 text-white" />
+                  <div className="w-14 h-14 bg-gradient-to-br from-purple-600 to-blue-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                    <Plus className="w-7 h-7 text-white" />
                     </div>
-                    <div>
-                    <h3 className="text-lg font-semibold text-white">Create New Video</h3>
-                    <p className="text-purple-100">Start with AI-powered content</p>
+                  <div className="flex-1">
+                    <h3 className="text-xl font-bold text-white mb-1">Create Video</h3>
+                    <p className="text-purple-200 text-sm">Start with AI-powered content generation</p>
+                    <div className="flex items-center space-x-1 mt-2">
+                      <Zap className="w-3 h-3 text-yellow-400" />
+                      <span className="text-xs text-yellow-400 font-medium">AI Powered</span>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
+                  <ChevronRight className="w-5 h-5 text-purple-300 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </ModernCardContent>
+            </ModernCard>
           </Link>
 
-          <Link href="/library">
-            <Card className="bg-gradient-to-br from-green-600 to-teal-600 border-none hover:scale-105 transition-transform cursor-pointer">
-              <CardContent className="p-6">
+          <Link href="/library" className="group">
+            <ModernCard gradient="blue" hover glow className="h-full">
+              <ModernCardContent className="p-6">
                 <div className="flex items-center space-x-4">
-                  <div className="p-3 bg-white/20 rounded-full">
-                    <Library className="w-6 h-6 text-white" />
+                  <div className="w-14 h-14 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                    <Library className="w-7 h-7 text-white" />
                     </div>
-                    <div>
-                    <h3 className="text-lg font-semibold text-white">My Library</h3>
-                    <p className="text-green-100">Manage your videos</p>
+                  <div className="flex-1">
+                    <h3 className="text-xl font-bold text-white mb-1">My Library</h3>
+                    <p className="text-blue-200 text-sm">Manage and organize your videos</p>
+                    <div className="flex items-center space-x-1 mt-2">
+                      <Video className="w-3 h-3 text-blue-400" />
+                      <span className="text-xs text-blue-400 font-medium">{stats?.totalVideos || 0} Videos</span>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
+                  <ChevronRight className="w-5 h-5 text-blue-300 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </ModernCardContent>
+            </ModernCard>
           </Link>
 
-          <Link href="/shared">
-            <Card className="bg-gradient-to-br from-orange-600 to-red-600 border-none hover:scale-105 transition-transform cursor-pointer">
-              <CardContent className="p-6">
+          <Link href="/shared" className="group">
+            <ModernCard gradient="green" hover glow className="h-full">
+              <ModernCardContent className="p-6">
                 <div className="flex items-center space-x-4">
-                  <div className="p-3 bg-white/20 rounded-full">
-                    <Globe className="w-6 h-6 text-white" />
+                  <div className="w-14 h-14 bg-gradient-to-br from-green-600 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                    <Globe className="w-7 h-7 text-white" />
                     </div>
-                    <div>
-                    <h3 className="text-lg font-semibold text-white">Shared Videos</h3>
-                    <p className="text-orange-100">Community content</p>
+                  <div className="flex-1">
+                    <h3 className="text-xl font-bold text-white mb-1">Shared Videos</h3>
+                    <p className="text-green-200 text-sm">Explore community content</p>
+                    <div className="flex items-center space-x-1 mt-2">
+                      <Share2 className="w-3 h-3 text-green-400" />
+                      <span className="text-xs text-green-400 font-medium">{stats?.sharedVideos || 0} Shared</span>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
+                  <ChevronRight className="w-5 h-5 text-green-300 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </ModernCardContent>
+            </ModernCard>
           </Link>
             </div>
 
-        {/* Statistics Grid */}
-        {!loading && stats && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <Card className="bg-black/30 border-gray-700">
-              <CardContent className="p-6">
-                        <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-400">Total Videos</p>
-                    <p className="text-2xl font-bold text-white">{stats.totalVideos}</p>
-                        </div>
-                  <Video className="w-8 h-8 text-purple-400" />
-                        </div>
-              </CardContent>
-            </Card>
 
-            <Card className="bg-black/30 border-gray-700">
-              <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-400">Shared Videos</p>
-                    <p className="text-2xl font-bold text-white">{stats.sharedVideos}</p>
-                </div>
-                  <Share2 className="w-8 h-8 text-blue-400" />
-                  </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-black/30 border-gray-700">
-              <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-400">Total Duration</p>
-                    <p className="text-2xl font-bold text-white">{formatDuration(stats.totalDuration)}</p>
-                    </div>
-                  <Clock className="w-8 h-8 text-green-400" />
-                  </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-black/30 border-gray-700">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-400">This Month</p>
-                    <p className="text-2xl font-bold text-white">
-                      {stats.recentVideos.filter(v => {
-                        const videoDate = new Date(v.created_at);
-                        const now = new Date();
-                        return videoDate.getMonth() === now.getMonth() && 
-                               videoDate.getFullYear() === now.getFullYear();
-                      }).length}
-                  </p>
-                </div>
-                  <TrendingUp className="w-8 h-8 text-orange-400" />
-                    </div>
-              </CardContent>
-            </Card>
-                    </div>
-                  )}
 
         {/* Recent Videos */}
-        {!loading && stats && stats.recentVideos.length > 0 && (
-          <Card className="bg-black/30 border-gray-700">
-            <CardHeader>
-              <CardTitle className="text-white flex items-center space-x-2">
-                <Clock className="w-5 h-5" />
-                <span>Recent Videos</span>
-                </CardTitle>
-              <CardDescription>Your latest creations</CardDescription>
-              </CardHeader>
-            <CardContent>
-                <div className="space-y-3">
-                {stats.recentVideos.slice(0, 5).map((video) => (
-                  <div 
-                    key={video.id} 
-                    className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg hover:bg-gray-800/70 transition-colors"
-                  >
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg flex items-center justify-center">
-                        <Play className="w-5 h-5 text-white" />
-                      </div>
-                      <div>
-                        <p className="text-white font-medium">{video.title}</p>
-                        <p className="text-sm text-gray-400">
-                          {formatDate(video.created_at)}
-                          {video.duration && ` • ${formatDuration(video.duration)}`}
-                          {video.is_shared === 1 && (
-                            <span className="ml-2 text-xs bg-blue-600 text-white px-2 py-1 rounded">
-                              Shared
-                      </span>
-                          )}
-                        </p>
-                    </div>
-                      </div>
-                    <div className="flex items-center space-x-2">
-                      {video.url && (
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => copyVideoUrl(video.url, video.id)}
-                          className="text-blue-400 hover:text-blue-300"
-                        >
-                          {copiedVideoId === video.id ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                        </Button>
+        <div className="space-y-6">
+                        <div className="flex items-center justify-between">
+                  <div>
+              <h2 className="text-2xl font-bold text-white mb-1">Recent Videos</h2>
+              <p className="text-gray-400">Your latest AI-generated content</p>
+            </div>
+            <Link href="/library">
+              <Button variant="outline" className="border-purple-500/50 text-purple-300 hover:bg-purple-500/10">
+                View All
+                <ChevronRight className="w-4 h-4 ml-1" />
+              </Button>
+            </Link>
+          </div>
+
+          {loading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <Skeleton key={i} className="h-48 bg-white/5" />
+              ))}
+            </div>
+          ) : stats?.recentVideos?.length ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {stats.recentVideos.slice(0, 6).map((video) => (
+                <ModernCard key={video.id} hover glow className="group">
+                  <ModernCardContent className="p-0">
+                    {/* Video Thumbnail Placeholder */}
+                    <div className="aspect-video bg-gradient-to-br from-purple-900/50 to-blue-900/50 rounded-t-lg flex items-center justify-center relative overflow-hidden">
+                      <Play className="w-12 h-12 text-white/70 group-hover:scale-110 transition-transform" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+                      
+                      {/* Video Duration */}
+                      {video.duration && (
+                        <div className="absolute bottom-2 right-2 px-2 py-1 bg-black/70 rounded text-xs text-white font-medium">
+                          {formatDuration(video.duration)}
+                        </div>
                       )}
-                      <Link href={`/video/${video.id}`}>
-                        <Button variant="ghost" size="sm" className="text-purple-400 hover:text-purple-300">
-                          <Film className="w-4 h-4" />
-                        </Button>
-                      </Link>
+                      
+                      {/* Shared Badge */}
+                      {video.is_shared === 1 && (
+                        <div className="absolute top-2 left-2">
+                          <Badge className="bg-green-500/80 text-white border-0">
+                            <Globe className="w-3 h-3 mr-1" />
+                            Shared
+                          </Badge>
+                        </div>
+                      )}
                     </div>
-                          </div>
+                    
+                    <div className="p-4 space-y-3">
+                      <div>
+                        <h3 className="font-semibold text-white line-clamp-2 group-hover:text-purple-300 transition-colors">
+                          {video.title}
+                        </h3>
+                        <div className="flex items-center space-x-2 mt-1">
+                          <Calendar className="w-3 h-3 text-gray-500" />
+                          <span className="text-xs text-gray-500">
+                            {formatDateFull(video.created_at)}
+                      </span>
+                    </div>
+                      </div>
+                      
+                      <div className="flex items-center justify-between">
+                        <div className="flex space-x-2">
+                          <Link href={`/video/${video.id}`}>
+                            <Button size="sm" variant="outline" className="border-purple-500/50 text-purple-300 hover:bg-purple-500/10">
+                              <Play className="w-3 h-3 mr-1" />
+                              Edit
+                            </Button>
+                          </Link>
+                          
+                        <Button 
+                            size="sm"
+                          variant="ghost" 
+                          onClick={() => copyVideoUrl(video.url, video.id)}
+                            className="text-gray-400 hover:text-white"
+                          >
+                            {copiedVideoId === video.id ? (
+                              <Check className="w-3 h-3" />
+                            ) : (
+                              <Copy className="w-3 h-3" />
+                            )}
+                        </Button>
+                        </div>
+                        
+                        <Button size="sm" variant="ghost" className="text-gray-400 hover:text-white">
+                          <Download className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  </ModernCardContent>
+                </ModernCard>
                         ))}
                       </div>
-              
-              {stats.recentVideos.length > 5 && (
-                <div className="mt-4 text-center">
-                  <Link href="/library">
-                    <Button variant="outline" className="text-purple-400 border-purple-400 hover:bg-purple-400 hover:text-white">
-                      View All Videos
-                </Button>
-                  </Link>
-                </div>
-              )}
-              </CardContent>
-            </Card>
-        )}
-
-        {/* Empty State */}
-        {!loading && stats && stats.totalVideos === 0 && (
-          <Card className="bg-black/30 border-gray-700">
-            <CardContent className="p-12 text-center">
-              <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Video className="w-8 h-8 text-white" />
-                </div>
-              <h3 className="text-xl font-semibold text-white mb-2">No videos yet</h3>
-              <p className="text-gray-400 mb-6">
-                Create your first AI-powered video to get started!
-              </p>
+          ) : (
+            <ModernCard className="text-center py-12">
+              <ModernCardContent>
+                <Video className="w-16 h-16 text-gray-500 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold text-white mb-2">No Videos Yet</h3>
+                <p className="text-gray-400 mb-6">Create your first AI-powered video to get started!</p>
               <Link href="/video/new">
                 <Button className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700">
                   <Plus className="w-4 h-4 mr-2" />
-                  Create Your First Video
+                    Create First Video
                   </Button>
               </Link>
-              </CardContent>
-            </Card>
+              </ModernCardContent>
+            </ModernCard>
         )}
+        </div>
       </main>
     </div>
   );

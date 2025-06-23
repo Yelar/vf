@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-// Note: Azure OpenAI doesn't have built-in speech transcription
-// You'll need to implement Azure Speech Service or another transcription service
+import Groq from 'groq-sdk';
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,8 +14,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Audio file is required' }, { status: 400 });
     }
 
-    if (!process.env.AZURE_OPENAI_API_KEY) {
-      return NextResponse.json({ error: 'Azure OpenAI API key not configured' }, { status: 500 });
+    if (!process.env.GROQ_API_KEY) {
+      return NextResponse.json({ error: 'Groq API key not configured' }, { status: 500 });
     }
 
     // Validate file type
@@ -32,12 +31,22 @@ export async function POST(request: NextRequest) {
     console.log(`🎵 Processing audio file: ${audioFile.name} (${(audioFile.size / 1024 / 1024).toFixed(2)} MB)`);
 
     try {
-      // Note: Azure OpenAI doesn't have Whisper transcription built-in
-      // You'll need to use Azure Speech Service or another transcription service
-      // For now, this is a placeholder that will need to be implemented with Azure Speech Service
-      
-      // Placeholder response - you'll need to implement actual transcription
-      const transcribedText = "This is a placeholder. You need to implement Azure Speech Service for audio transcription.";
+      // Initialize Groq client
+      const groq = new Groq({
+        apiKey: process.env.GROQ_API_KEY
+      });
+
+      // Transcribe using Groq Whisper - pass the file directly
+      const transcription = await groq.audio.transcriptions.create({
+        file: audioFile,
+        model: 'whisper-large-v3',
+        prompt: '', // Optional: provide context or vocabulary
+        response_format: 'json',
+        language: 'en', // Optional: specify language (auto-detect if not provided)
+        temperature: 0.0 // Lower temperature for more deterministic results
+      });
+
+      const transcribedText = transcription.text;
 
       if (!transcribedText) {
         throw new Error('No transcription result');
@@ -49,9 +58,9 @@ export async function POST(request: NextRequest) {
         success: true,
         text: transcribedText,
         metadata: {
-          duration: audioFile.size > 0 ? 'detected' : 'unknown',
+          duration: 'detected',
           language: 'auto-detected',
-          model: 'azure-speech-service-placeholder'
+          model: 'whisper-large-v3'
         }
       });
 
@@ -60,18 +69,25 @@ export async function POST(request: NextRequest) {
       
       // Handle specific transcription errors
       if (transcriptionError instanceof Error) {
-        if (transcriptionError.message.includes('rate limit')) {
+        if (transcriptionError.message.includes('rate limit') || transcriptionError.message.includes('429')) {
           return NextResponse.json({ 
             error: 'Too many requests. Please wait a moment and try again.',
             errorType: 'rate_limit'
           }, { status: 429 });
         }
         
-        if (transcriptionError.message.includes('audio')) {
+        if (transcriptionError.message.includes('audio') || transcriptionError.message.includes('format')) {
           return NextResponse.json({ 
-            error: 'Invalid audio format. Please use WAV, MP3, or M4A format.',
+            error: 'Invalid audio format. Please use WAV, MP3, M4A, or FLAC format.',
             errorType: 'invalid_audio'
           }, { status: 400 });
+        }
+
+        if (transcriptionError.message.includes('API key') || transcriptionError.message.includes('401')) {
+          return NextResponse.json({ 
+            error: 'Invalid API credentials',
+            errorType: 'auth_error'
+          }, { status: 401 });
         }
       }
       

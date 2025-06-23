@@ -281,3 +281,24 @@ This project is licensed under the MIT License.
 - 💼 Social Media Marketing
 - 🎓 Educational Content
 - 📢 Announcements
+
+
+
+Prompt:
+Add a new template for the video gen page called quiz. User uploads topic, pdf, and other files. 
+gpt generates the quiz in JSON format
+
+Each question gets audio with eleven labs, 
+
+
+Question is located on the screen with the answer choices at the same time for the duration of audio 
+
+Waiting tik sound for 5 seconds with the, 5, 4, 3, 2, 1 on the screen each second
+
+Then answer gets audio
+
+Then next question
+
+To do that, create a prompt that asks to create a set of questions along with the video script. 
+
+Like, each step of the video is either just text

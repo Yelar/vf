@@ -1,13 +1,15 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { useSession, signOut } from 'next-auth/react';
+import { useSession } from 'next-auth/react';
 import { AuthGuard } from '@/components/auth/AuthGuard';
+import { NavigationHeader } from '@/components/ui/navigation-header';
+import { ModernCard, ModernCardContent } from '@/components/ui/modern-card';
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { 
   Video, 
   Play, 
@@ -18,24 +20,28 @@ import {
   X, 
   Calendar,
   HardDrive,
-  Clock,
   Search,
-  ArrowLeft,
-  Film,
-  Globe,
   Grid3X3,
   List,
-  Filter,
   ChevronLeft,
   ChevronRight,
   Eye,
   EyeOff,
-  CheckCircle2,
-  Plus,
-  User,
-  LogOut
+  Globe,
+  Copy,
+  Check,
+  MoreVertical,
+  SortAsc,
+  SortDesc
 } from "lucide-react";
 import Link from 'next/link';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface UserVideo {
   id: number;
@@ -64,17 +70,14 @@ function LibraryContent() {
   const [searchTerm, setSearchTerm] = useState('');
   const [editingVideoId, setEditingVideoId] = useState<number | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
-  const [downloadingVideoId, setDownloadingVideoId] = useState<number | null>(null);
-  const [playingVideoId, setPlayingVideoId] = useState<number | null>(null);
+  const [copyingVideoId, setCopyingVideoId] = useState<number | null>(null);
   
-  // New UX state
+  // Modern UX state
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [sortField, setSortField] = useState<SortField>('created_at');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
-  const [selectedVideos, setSelectedVideos] = useState<Set<number>>(new Set());
   const [currentPage, setCurrentPage] = useState(1);
   const [videosPerPage] = useState(12);
-  const [showFilters, setShowFilters] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'shared' | 'private'>('all');
 
   // Fetch user videos
@@ -181,14 +184,6 @@ function LibraryContent() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  };
-
   const formatDateFull = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -199,63 +194,29 @@ function LibraryContent() {
     });
   };
 
-  // Selection functions
-  const toggleVideoSelection = (videoId: number) => {
-    const newSelected = new Set(selectedVideos);
-    if (newSelected.has(videoId)) {
-      newSelected.delete(videoId);
-    } else {
-      newSelected.add(videoId);
-    }
-    setSelectedVideos(newSelected);
-  };
-
-  const clearSelection = () => {
-    setSelectedVideos(new Set());
-  };
-
-  // Bulk actions
-  const bulkDelete = async () => {
-    if (selectedVideos.size === 0) return;
-    
-    if (!confirm(`Are you sure you want to delete ${selectedVideos.size} video(s)? This action cannot be undone.`)) {
-      return;
-    }
-
+  const copyVideoUrl = async (url: string, videoId: number) => {
     try {
-      await Promise.all(
-        Array.from(selectedVideos).map(videoId =>
-          fetch(`/api/videos/${videoId}`, { method: 'DELETE' })
-        )
-      );
-      
-      setVideos(videos.filter(video => !selectedVideos.has(video.id)));
-      setSelectedVideos(new Set());
-    } catch (err) {
-      console.error('Error deleting videos:', err);
-      alert('Failed to delete some videos. Please try again.');
+      await navigator.clipboard.writeText(url);
+      setCopyingVideoId(videoId);
+      setTimeout(() => setCopyingVideoId(null), 2000);
+    } catch (error) {
+      console.error('Failed to copy URL:', error);
     }
   };
 
-  // Individual video actions
   const deleteVideo = async (videoId: number) => {
-    if (!confirm('Are you sure you want to delete this video? This action cannot be undone.')) {
-      return;
-    }
+    if (!confirm('Are you sure you want to delete this video?')) return;
 
     try {
       const response = await fetch(`/api/videos/${videoId}`, {
         method: 'DELETE',
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to delete video');
+      if (response.ok) {
+        setVideos(videos.filter(v => v.id !== videoId));
       }
-
-      setVideos(videos.filter(video => video.id !== videoId));
-    } catch (err) {
-      console.error('Error deleting video:', err);
-      alert('Failed to delete video. Please try again.');
+    } catch (error) {
+      console.error('Error deleting video:', error);
     }
   };
 
@@ -265,33 +226,22 @@ function LibraryContent() {
   };
 
   const saveTitle = async (videoId: number) => {
-    if (!editingTitle.trim()) {
-      alert('Title cannot be empty');
-      return;
-    }
-
     try {
       const response = await fetch(`/api/videos/${videoId}`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: editingTitle }),
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to update title');
-      }
-
-      setVideos(videos.map(video =>
-        video.id === videoId ? { ...video, title: editingTitle } : video
+      if (response.ok) {
+        setVideos(videos.map(v => 
+          v.id === videoId ? { ...v, title: editingTitle } : v
       ));
-
       setEditingVideoId(null);
       setEditingTitle('');
-    } catch (err) {
-      console.error('Error updating title:', err);
-      alert('Failed to update title. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error updating title:', error);
     }
   };
 
@@ -301,162 +251,100 @@ function LibraryContent() {
   };
 
   const downloadVideo = async (video: UserVideo) => {
-    setDownloadingVideoId(video.id);
-    
-    const safeTitle = video.title.replace(/[^a-zA-Z0-9\s-_]/g, '').replace(/\s+/g, '-');
-    
+    try {
     const link = document.createElement('a');
     link.href = video.uploadthing_url;
-    link.download = `${safeTitle}.mp4`;
-    
-    const url = new URL(video.uploadthing_url);
-    url.searchParams.set('response-content-disposition', `attachment; filename="${safeTitle}.mp4"`);
-    link.href = url.toString();
-    
+      link.download = `${video.title}.mp4`;
+      document.body.appendChild(link);
     link.click();
-    
-    setTimeout(() => setDownloadingVideoId(null), 1000);
-  };
-
-  const playVideo = (video: UserVideo) => {
-    setPlayingVideoId(video.id);
-  };
-
-  const closeVideoModal = () => {
-    setPlayingVideoId(null);
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Error downloading video:', error);
+    }
   };
 
   const toggleSharing = async (video: UserVideo) => {
     try {
       const response = await fetch(`/api/videos/${video.id}`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ is_shared: video.is_shared === 1 ? 0 : 1 }),
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to update sharing status');
-      }
-
+      if (response.ok) {
       setVideos(videos.map(v =>
-        v.id === video.id ? { ...v, is_shared: v.is_shared === 1 ? 0 : 1 } : v
+          v.id === video.id ? { ...v, is_shared: video.is_shared === 1 ? 0 : 1 } : v
       ));
-    } catch (err) {
-      console.error('Error updating sharing status:', err);
-      alert('Failed to update sharing status. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error toggling sharing:', error);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-black text-white">
-        <div className="container mx-auto px-6 py-8">
-          <div className="animate-pulse space-y-6">
-            <div className="h-8 bg-gray-700 rounded w-1/4"></div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {[...Array(8)].map((_, i) => (
-                <div key={i} className="bg-gray-700 rounded-lg h-64"></div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   if (error) {
     return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <Video className="h-16 w-16 text-red-500 mx-auto" />
-          <h2 className="text-2xl font-bold">Error Loading Library</h2>
-          <p className="text-gray-400">{error}</p>
-          <Button onClick={fetchVideos} className="bg-purple-600 hover:bg-purple-700">
+      <div className="min-h-screen bg-gradient-to-br from-gray-950 via-black to-purple-950/50">
+        <NavigationHeader />
+        <div className="container mx-auto px-4 py-8">
+          <ModernCard className="text-center py-12">
+            <ModernCardContent>
+              <X className="w-16 h-16 text-red-500 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-white mb-2">Error Loading Videos</h3>
+              <p className="text-gray-400 mb-6">{error}</p>
+              <Button onClick={fetchVideos} className="bg-gradient-to-r from-purple-600 to-blue-600">
             Try Again
           </Button>
+            </ModernCardContent>
+          </ModernCard>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      {/* Animated Background */}
-      <div className="fixed inset-0 bg-gradient-to-br from-purple-900/10 via-black to-blue-900/10">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_40%,rgba(120,119,198,0.1),transparent_50%)]"></div>
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,rgba(120,119,198,0.05),transparent_50%)]"></div>
-      </div>
-
-      <div className="relative z-10">
+    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-black to-purple-950/50">
+      <NavigationHeader />
+      
+      <main className="container mx-auto px-4 py-8 space-y-8">
         {/* Header */}
-        <header className="border-b border-white/10 backdrop-blur-xl bg-black/30">
-          <div className="container mx-auto px-6 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <Link href="/dashboard">
-                  <Button variant="ghost" size="sm" className="text-gray-300 hover:text-white">
-                    <ArrowLeft className="h-4 w-4 mr-2" />
-                    Dashboard
-                  </Button>
-                </Link>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg flex items-center justify-center">
-                    <Film className="w-6 h-6 text-white" />
-                  </div>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div>
-                    <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
-                      My Library
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
+              My Video Library
                     </h1>
-                    <p className="text-sm text-gray-400">
-                      {filteredAndSortedVideos.length} video{filteredAndSortedVideos.length !== 1 ? 's' : ''}
+            <p className="text-gray-400 mt-1">
+              {loading ? 'Loading...' : `${filteredAndSortedVideos.length} video${filteredAndSortedVideos.length !== 1 ? 's' : ''} found`}
                     </p>
-                  </div>
-                </div>
               </div>
               
-              <div className="flex items-center gap-3">
-                <Link href="/shared">
-                  <Button variant="ghost" className="text-green-300 hover:text-green-200">
-                    <Globe className="h-4 w-4 mr-2" />
-                    Shared Library
+          <div className="flex items-center space-x-3">
+            <Link href="/video/new">
+              <Button className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700">
+                <Video className="w-4 h-4 mr-2" />
+                Create Video
                   </Button>
                 </Link>
               </div>
             </div>
-          </div>
-        </header>
 
-        <div className="container mx-auto px-6 py-8 space-y-6">
-          {/* Controls Bar */}
-          <div className="bg-white/5 border border-white/10 rounded-lg p-4 backdrop-blur-sm">
-            <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
-              {/* Left Side - Search and Filters */}
-              <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center flex-1">
-                <div className="relative flex-1 max-w-md">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+        {/* Filters and Controls */}
+        <ModernCard gradient="purple">
+          <ModernCardContent className="p-6">
+            <div className="flex flex-col lg:flex-row gap-4">
+              {/* Search */}
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                   <Input
                     placeholder="Search videos..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 bg-white/10 border-white/20 text-white placeholder-gray-400"
+                  className="pl-10 bg-white/5 border-white/10 text-white placeholder-gray-400"
                   />
                 </div>
                 
-                <div className="flex gap-2">
-                  <Button
-                    variant={showFilters ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setShowFilters(!showFilters)}
-                    className="whitespace-nowrap"
-                  >
-                    <Filter className="h-4 w-4 mr-2" />
-                    Filters
-                  </Button>
-                  
+              {/* Filter by sharing status */}
                   <Select value={selectedFilter} onValueChange={(value: 'all' | 'shared' | 'private') => setSelectedFilter(value)}>
-                    <SelectTrigger className="w-32 bg-white/10 border-white/20">
+                <SelectTrigger className="w-full lg:w-40 bg-white/5 border-white/10 text-white">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -465,440 +353,346 @@ function LibraryContent() {
                       <SelectItem value="private">Private</SelectItem>
                     </SelectContent>
                   </Select>
-                </div>
-              </div>
 
-              {/* Right Side - View Controls */}
-              <div className="flex gap-2 items-center">
-                <div className="flex gap-1 bg-white/10 rounded-lg p-1">
-                  <Button
-                    variant={viewMode === 'grid' ? "default" : "ghost"}
-                    size="sm"
-                    onClick={() => setViewMode('grid')}
-                    className="h-8 w-8 p-0"
-                  >
-                    <Grid3X3 className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant={viewMode === 'list' ? "default" : "ghost"}
-                    size="sm"
-                    onClick={() => setViewMode('list')}
-                    className="h-8 w-8 p-0"
-                  >
-                    <List className="h-4 w-4" />
-                  </Button>
-                </div>
-                
-                <Select value={`${sortField}-${sortOrder}`} onValueChange={(value) => {
-                  const [field, order] = value.split('-') as [SortField, SortOrder];
-                  setSortField(field);
-                  setSortOrder(order);
-                }}>
-                  <SelectTrigger className="w-40 bg-white/10 border-white/20">
+              {/* Sort */}
+              <Select value={sortField} onValueChange={(value: SortField) => setSortField(value)}>
+                <SelectTrigger className="w-full lg:w-40 bg-white/5 border-white/10 text-white">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="created_at-desc">Newest First</SelectItem>
-                    <SelectItem value="created_at-asc">Oldest First</SelectItem>
-                    <SelectItem value="title-asc">Title A-Z</SelectItem>
-                    <SelectItem value="title-desc">Title Z-A</SelectItem>
-                    <SelectItem value="file_size-desc">Largest First</SelectItem>
-                    <SelectItem value="file_size-asc">Smallest First</SelectItem>
-                    <SelectItem value="duration-desc">Longest First</SelectItem>
-                    <SelectItem value="duration-asc">Shortest First</SelectItem>
+                  <SelectItem value="created_at">Date</SelectItem>
+                  <SelectItem value="title">Title</SelectItem>
+                  <SelectItem value="file_size">Size</SelectItem>
+                  <SelectItem value="duration">Duration</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
-            </div>
 
-            {/* Extended Filters (Collapsible) */}
-            {showFilters && (
-              <div className="mt-4 pt-4 border-t border-white/10">
-                <div className="flex flex-wrap gap-4 items-center">
-                  <div className="text-sm text-gray-300">Quick filters:</div>
+              {/* Sort Order */}
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setSearchTerm('')}
-                    disabled={!searchTerm}
+                onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                className="border-white/10 text-white hover:bg-white/10"
                   >
-                    Clear Search
+                {sortOrder === 'asc' ? <SortAsc className="w-4 h-4" /> : <SortDesc className="w-4 h-4" />}
+                  </Button>
+              
+              {/* View Mode */}
+              <div className="flex border border-white/10 rounded-lg overflow-hidden">
+                  <Button
+                  variant={viewMode === 'grid' ? 'default' : 'ghost'}
+                    size="sm"
+                  onClick={() => setViewMode('grid')}
+                  className="rounded-none border-0"
+                  >
+                  <Grid3X3 className="w-4 h-4" />
                   </Button>
                   <Button
-                    variant="outline"
+                  variant={viewMode === 'list' ? 'default' : 'ghost'}
                     size="sm"
-                    onClick={() => setSelectedFilter('all')}
-                    disabled={selectedFilter === 'all'}
+                  onClick={() => setViewMode('list')}
+                  className="rounded-none border-0"
                   >
-                    Show All
+                  <List className="w-4 h-4" />
                   </Button>
-                  <Badge variant="secondary" className="text-xs">
-                    {filteredAndSortedVideos.length} of {videos.length} videos shown
-                  </Badge>
                 </div>
               </div>
-            )}
+          </ModernCardContent>
+        </ModernCard>
+
+        {/* Content */}
+        {loading ? (
+          <div className={`grid gap-6 ${viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'}`}>
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="h-64 bg-white/5" />
+            ))}
           </div>
-
-          {/* Bulk Actions Bar */}
-          {selectedVideos.size > 0 && (
-            <div className="bg-purple-600/20 border border-purple-500/30 rounded-lg p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <CheckCircle2 className="h-5 w-5 text-purple-400" />
-                  <span className="text-purple-200">
-                    {selectedVideos.size} video{selectedVideos.size !== 1 ? 's' : ''} selected
-                  </span>
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={clearSelection}
-                    className="border-purple-500/30 text-purple-200 hover:bg-purple-500/20"
-                  >
-                    Clear Selection
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={bulkDelete}
-                    className="bg-red-600 hover:bg-red-700"
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete Selected
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Videos Display */}
-          {filteredAndSortedVideos.length === 0 ? (
-            <div className="text-center py-16 space-y-4">
-              <Video className="h-16 w-16 text-gray-500 mx-auto" />
-              <h3 className="text-xl font-semibold text-gray-300">
-                {searchTerm || selectedFilter !== 'all' ? 'No videos found' : 'No videos yet'}
+        ) : filteredAndSortedVideos.length === 0 ? (
+          <ModernCard className="text-center py-12">
+            <ModernCardContent>
+              <Video className="w-16 h-16 text-gray-500 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-white mb-2">
+                {searchTerm ? 'No videos found' : 'No videos yet'}
               </h3>
-              <p className="text-gray-500 max-w-md mx-auto">
-                {searchTerm || selectedFilter !== 'all' 
+              <p className="text-gray-400 mb-6">
+                {searchTerm 
                   ? 'Try adjusting your search or filters'
-                  : 'Create your first AI-powered video in the dashboard!'
+                  : 'Create your first AI-powered video to get started!'
                 }
               </p>
-              {(!searchTerm && selectedFilter === 'all') && (
-                <Link href="/dashboard">
-                  <Button className="bg-purple-600 hover:bg-purple-700 mt-4">
-                    <Video className="h-4 w-4 mr-2" />
-                    Create Video
+              {!searchTerm && (
+                <Link href="/video/new">
+                  <Button className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700">
+                    <Video className="w-4 h-4 mr-2" />
+                    Create First Video
                   </Button>
                 </Link>
               )}
-            </div>
+            </ModernCardContent>
+          </ModernCard>
           ) : (
             <>
-              {/* Grid View */}
-              {viewMode === 'grid' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {/* Videos Grid/List */}
+            <div className={`grid gap-6 ${viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'}`}>
                   {paginatedVideos.map((video) => (
-                    <Card 
-                      key={video.id} 
-                      className={`bg-white/5 border-white/10 backdrop-blur-sm hover:bg-white/10 transition-all duration-200 group ${
-                        selectedVideos.has(video.id) ? 'ring-2 ring-purple-500 bg-purple-500/10' : ''
-                      }`}
-                    >
-                      <CardHeader className="p-4">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex items-center gap-2 flex-1 min-w-0">
-                            <input
-                              type="checkbox"
-                              checked={selectedVideos.has(video.id)}
-                              onChange={() => toggleVideoSelection(video.id)}
-                              className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                            />
+                <ModernCard key={video.id} hover glow className="group">
+                  <ModernCardContent className="p-0">
+                    {viewMode === 'grid' ? (
+                      // Grid View
+                      <>
+                        {/* Video Thumbnail */}
+                        <div className="aspect-video bg-gradient-to-br from-purple-900/50 to-blue-900/50 rounded-t-lg flex items-center justify-center relative overflow-hidden">
+                          <Play className="w-12 h-12 text-white/70 group-hover:scale-110 transition-transform" />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+                          
+                          {/* Video Duration */}
+                          {video.duration && (
+                            <div className="absolute bottom-2 right-2 px-2 py-1 bg-black/70 rounded text-xs text-white font-medium">
+                              {formatDuration(video.duration)}
+                            </div>
+                          )}
+                          
+                          {/* Shared Badge */}
+                          {video.is_shared === 1 && (
+                            <div className="absolute top-2 left-2">
+                              <Badge className="bg-green-500/80 text-white border-0">
+                                <Globe className="w-3 h-3 mr-1" />
+                                Shared
+                              </Badge>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Video Info */}
+                        <div className="p-4 space-y-3">
+                          <div>
                             {editingVideoId === video.id ? (
-                              <div className="flex-1 flex gap-1">
+                              <div className="flex space-x-2">
                                 <Input
                                   value={editingTitle}
                                   onChange={(e) => setEditingTitle(e.target.value)}
-                                  className="text-sm bg-white/10 border-white/20"
+                                  className="flex-1 text-sm bg-white/5 border-white/10"
                                   onKeyDown={(e) => {
                                     if (e.key === 'Enter') saveTitle(video.id);
                                     if (e.key === 'Escape') cancelEdit();
                                   }}
-                                  autoFocus
                                 />
-                                <Button size="sm" onClick={() => saveTitle(video.id)} className="h-8 w-8 p-0">
-                                  <Save className="h-3 w-3" />
+                                <Button size="sm" onClick={() => saveTitle(video.id)} className="px-2">
+                                  <Save className="w-3 h-3" />
                                 </Button>
-                                <Button size="sm" variant="outline" onClick={cancelEdit} className="h-8 w-8 p-0">
-                                  <X className="h-3 w-3" />
+                                <Button size="sm" variant="ghost" onClick={cancelEdit} className="px-2">
+                                  <X className="w-3 h-3" />
                                 </Button>
                               </div>
                             ) : (
-                              <CardTitle className="text-sm font-medium text-white truncate flex-1">
+                              <h3 className="font-semibold text-white line-clamp-2 group-hover:text-purple-300 transition-colors">
                                 {video.title}
-                              </CardTitle>
+                              </h3>
                             )}
+                          
+                            <div className="flex items-center justify-between mt-2">
+                              <div className="flex items-center space-x-3 text-xs text-gray-500">
+                                <div className="flex items-center space-x-1">
+                                  <Calendar className="w-3 h-3" />
+                                  <span>{formatDateFull(video.created_at)}</span>
+                          </div>
+                                <div className="flex items-center space-x-1">
+                                  <HardDrive className="w-3 h-3" />
+                                  <span>{formatFileSize(video.file_size)}</span>
+                        </div>
+                        </div>
+                            </div>
                           </div>
                           
-                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => playVideo(video)}
-                              className="h-7 w-7 p-0 hover:bg-white/20"
-                            >
-                              <Play className="h-3 w-3" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => startEditingTitle(video)}
-                              className="h-7 w-7 p-0 hover:bg-white/20"
-                            >
-                              <Edit3 className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        </div>
-                      </CardHeader>
-                      
-                      <CardContent className="p-4 pt-0 space-y-3">
-                        {/* Video Thumbnail/Preview */}
-                        <div 
-                          className="aspect-video bg-gray-800 rounded-lg flex items-center justify-center cursor-pointer hover:bg-gray-700 transition-colors"
-                          onClick={() => playVideo(video)}
-                        >
-                          <Play className="h-8 w-8 text-gray-400" />
-                        </div>
-                        
-                        {/* Video Stats */}
-                        <div className="space-y-2">
-                          <div className="flex justify-between items-center text-xs text-gray-400">
-                            <div className="flex items-center gap-1">
-                              <Calendar className="h-3 w-3" />
-                              {formatDate(video.created_at)}
-                            </div>
-                            {video.is_shared === 1 && (
-                              <Badge variant="secondary" className="text-xs">
-                                <Globe className="h-3 w-3 mr-1" />
-                                Shared
-                              </Badge>
-                            )}
-                          </div>
-                          
-                          <div className="flex justify-between text-xs text-gray-400">
-                            <div className="flex items-center gap-1">
-                              <HardDrive className="h-3 w-3" />
-                              {formatFileSize(video.file_size)}
-                            </div>
-                            {video.duration && (
-                              <div className="flex items-center gap-1">
-                                <Clock className="h-3 w-3" />
-                                {formatDuration(video.duration)}
-                              </div>
-                            )}
-                      </div>
+                          {/* Actions */}
+                          <div className="flex items-center justify-between">
+                            <div className="flex space-x-2">
+                              <Link href={`/video/${video.id}`}>
+                                <Button size="sm" variant="outline" className="border-purple-500/50 text-purple-300 hover:bg-purple-500/10">
+                                  <Play className="w-3 h-3 mr-1" />
+                                  Edit
+                                </Button>
+                              </Link>
                     </div>
                     
-                        {/* Actions */}
-                        <div className="flex gap-2 pt-2">
-                          <Button
-                            size="sm"
-                            onClick={() => downloadVideo(video)}
-                            disabled={downloadingVideoId === video.id}
-                            className="flex-1 bg-purple-600 hover:bg-purple-700"
-                          >
-                            {downloadingVideoId === video.id ? (
-                              <div className="animate-spin h-3 w-3 border border-white border-t-transparent rounded-full" />
-                            ) : (
-                              <Download className="h-3 w-3 mr-1" />
-                            )}
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button size="sm" variant="ghost" className="text-gray-400 hover:text-white">
+                                  <MoreVertical className="w-4 h-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent className="bg-gray-900/95 backdrop-blur border-white/10" align="end">
+                                <DropdownMenuItem onClick={() => startEditingTitle(video)} className="text-gray-300 hover:text-white hover:bg-white/10">
+                                  <Edit3 className="mr-2 h-4 w-4" />
+                                  Rename
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => copyVideoUrl(video.uploadthing_url, video.id)} className="text-gray-300 hover:text-white hover:bg-white/10">
+                                  {copyingVideoId === video.id ? (
+                                    <Check className="mr-2 h-4 w-4 text-green-400" />
+                                  ) : (
+                                    <Copy className="mr-2 h-4 w-4" />
+                                  )}
+                                  Copy Link
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => downloadVideo(video)} className="text-gray-300 hover:text-white hover:bg-white/10">
+                                  <Download className="mr-2 h-4 w-4" />
                             Download
-                          </Button>
-                          
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => toggleSharing(video)}
-                            className="border-white/20 hover:bg-white/10"
-                          >
-                            {video.is_shared === 1 ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-                          </Button>
-                          
-                        <Button
-                          size="sm"
-                            variant="outline"
-                            onClick={() => deleteVideo(video.id)}
-                            className="border-red-500/30 text-red-400 hover:bg-red-500/10"
-                        >
-                            <Trash2 className="h-3 w-3" />
-                        </Button>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => toggleSharing(video)} className="text-gray-300 hover:text-white hover:bg-white/10">
+                                  {video.is_shared === 1 ? (
+                                    <>
+                                      <EyeOff className="mr-2 h-4 w-4" />
+                                      Make Private
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Eye className="mr-2 h-4 w-4" />
+                                      Make Public
+                                    </>
+                                  )}
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator className="bg-white/10" />
+                                <DropdownMenuItem onClick={() => deleteVideo(video.id)} className="text-red-400 hover:text-red-300 hover:bg-red-500/10">
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                         </div>
-                      </CardContent>
-                    </Card>
-                  ))}
                           </div>
-                        )}
-
-              {/* List View */}
-              {viewMode === 'list' && (
-                <div className="space-y-2">
-                  {paginatedVideos.map((video) => (
-                    <Card 
-                      key={video.id} 
-                      className={`bg-white/5 border-white/10 backdrop-blur-sm hover:bg-white/10 transition-all duration-200 ${
-                        selectedVideos.has(video.id) ? 'ring-2 ring-purple-500 bg-purple-500/10' : ''
-                      }`}
-                    >
-                      <CardContent className="p-4">
-                        <div className="flex items-center gap-4">
-                          <input
-                            type="checkbox"
-                            checked={selectedVideos.has(video.id)}
-                            onChange={() => toggleVideoSelection(video.id)}
-                            className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                          />
-                          
-                          <div 
-                            className="w-16 h-10 bg-gray-800 rounded flex items-center justify-center cursor-pointer hover:bg-gray-700 transition-colors flex-shrink-0"
-                            onClick={() => playVideo(video)}
-                          >
-                            <Play className="h-4 w-4 text-gray-400" />
+                      </>
+                    ) : (
+                      // List View
+                      <div className="p-4 flex items-center space-x-4">
+                        <div className="w-20 h-12 bg-gradient-to-br from-purple-900/50 to-blue-900/50 rounded flex items-center justify-center flex-shrink-0">
+                          <Play className="w-6 h-6 text-white/70" />
                       </div>
 
                           <div className="flex-1 min-w-0">
                             {editingVideoId === video.id ? (
-                              <div className="flex gap-2 items-center">
+                            <div className="flex space-x-2">
                                 <Input
                                   value={editingTitle}
                                   onChange={(e) => setEditingTitle(e.target.value)}
-                                  className="bg-white/10 border-white/20"
+                                className="flex-1 text-sm bg-white/5 border-white/10"
                                   onKeyDown={(e) => {
                                     if (e.key === 'Enter') saveTitle(video.id);
                                     if (e.key === 'Escape') cancelEdit();
                                   }}
-                                  autoFocus
                                 />
-                                <Button size="sm" onClick={() => saveTitle(video.id)}>
-                                  <Save className="h-4 w-4" />
+                              <Button size="sm" onClick={() => saveTitle(video.id)} className="px-2">
+                                <Save className="w-3 h-3" />
                                 </Button>
-                                <Button size="sm" variant="outline" onClick={cancelEdit}>
-                                  <X className="h-4 w-4" />
+                              <Button size="sm" variant="ghost" onClick={cancelEdit} className="px-2">
+                                <X className="w-3 h-3" />
                                 </Button>
                         </div>
                       ) : (
-                              <div>
-                                <h3 className="font-medium text-white truncate">{video.title}</h3>
-                                <div className="flex items-center gap-4 text-sm text-gray-400 mt-1">
+                            <h3 className="font-semibold text-white truncate">{video.title}</h3>
+                          )}
+                          
+                          <div className="flex items-center space-x-4 mt-1 text-xs text-gray-400">
                                   <span>{formatDateFull(video.created_at)}</span>
                                   <span>{formatFileSize(video.file_size)}</span>
                                   {video.duration && <span>{formatDuration(video.duration)}</span>}
                                   {video.is_shared === 1 && (
-                                    <Badge variant="secondary" className="text-xs">
-                                      <Globe className="h-3 w-3 mr-1" />
+                              <Badge className="bg-green-500/20 text-green-300 border-green-500/30 text-xs">
+                                <Globe className="w-2 h-2 mr-1" />
                                       Shared
                                     </Badge>
                                   )}
                                 </div>
-                        </div>
-                      )}
                           </div>
 
-                          <div className="flex gap-2 flex-shrink-0">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => playVideo(video)}
-                              className="hover:bg-white/10"
-                            >
-                              <Play className="h-4 w-4" />
+                        <div className="flex items-center space-x-2">
+                          <Link href={`/video/${video.id}`}>
+                            <Button size="sm" variant="outline" className="border-purple-500/50 text-purple-300 hover:bg-purple-500/10">
+                              <Play className="w-3 h-3 mr-1" />
+                              Edit
                             </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => startEditingTitle(video)}
-                              className="hover:bg-white/10"
-                            >
-                              <Edit3 className="h-4 w-4" />
+                          </Link>
+                          
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button size="sm" variant="ghost" className="text-gray-400 hover:text-white">
+                                <MoreVertical className="w-4 h-4" />
                             </Button>
-                        <Button
-                          size="sm"
-                          onClick={() => downloadVideo(video)}
-                          disabled={downloadingVideoId === video.id}
-                              className="bg-purple-600 hover:bg-purple-700"
-                        >
-                          {downloadingVideoId === video.id ? (
-                                <div className="animate-spin h-4 w-4 border border-white border-t-transparent rounded-full" />
-                          ) : (
-                                <Download className="h-4 w-4" />
-                          )}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => toggleSharing(video)}
-                              className="border-white/20 hover:bg-white/10"
-                        >
-                              {video.is_shared === 1 ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </Button>
-                        <Button
-                          size="sm"
-                              variant="outline"
-                          onClick={() => deleteVideo(video.id)}
-                              className="border-red-500/30 text-red-400 hover:bg-red-500/10"
-                        >
-                              <Trash2 className="h-4 w-4" />
-                        </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent className="bg-gray-900/95 backdrop-blur border-white/10" align="end">
+                              <DropdownMenuItem onClick={() => startEditingTitle(video)} className="text-gray-300 hover:text-white hover:bg-white/10">
+                                <Edit3 className="mr-2 h-4 w-4" />
+                                Rename
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => copyVideoUrl(video.uploadthing_url, video.id)} className="text-gray-300 hover:text-white hover:bg-white/10">
+                                {copyingVideoId === video.id ? (
+                                  <Check className="mr-2 h-4 w-4 text-green-400" />
+                                ) : (
+                                  <Copy className="mr-2 h-4 w-4" />
+                                )}
+                                Copy Link
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => downloadVideo(video)} className="text-gray-300 hover:text-white hover:bg-white/10">
+                                <Download className="mr-2 h-4 w-4" />
+                                Download
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => toggleSharing(video)} className="text-gray-300 hover:text-white hover:bg-white/10">
+                                {video.is_shared === 1 ? (
+                                  <>
+                                    <EyeOff className="mr-2 h-4 w-4" />
+                                    Make Private
+                                  </>
+                                ) : (
+                                  <>
+                                    <Eye className="mr-2 h-4 w-4" />
+                                    Make Public
+                                  </>
+                                )}
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator className="bg-white/10" />
+                              <DropdownMenuItem onClick={() => deleteVideo(video.id)} className="text-red-400 hover:text-red-300 hover:bg-red-500/10">
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
+                    )}
+                  </ModernCardContent>
+                </ModernCard>
               ))}
             </div>
-          )}
 
               {/* Pagination */}
               {totalPages > 1 && (
-                <div className="flex items-center justify-between bg-white/5 border border-white/10 rounded-lg p-4">
-                  <div className="text-sm text-gray-400">
-                    Showing {(currentPage - 1) * videosPerPage + 1} to {Math.min(currentPage * videosPerPage, filteredAndSortedVideos.length)} of {filteredAndSortedVideos.length} videos
-                  </div>
-                  
-                  <div className="flex items-center gap-2">
+              <div className="flex items-center justify-center space-x-2">
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                       disabled={currentPage === 1}
-                      className="border-white/20 hover:bg-white/10"
+                  onClick={() => setCurrentPage(currentPage - 1)}
+                  className="border-white/10 text-white hover:bg-white/10"
                     >
-                      <ChevronLeft className="h-4 w-4" />
+                  <ChevronLeft className="w-4 h-4" />
                       Previous
                     </Button>
                     
-                    <div className="flex gap-1">
+                <div className="flex space-x-1">
                       {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                        let pageNum;
-                        if (totalPages <= 5) {
-                          pageNum = i + 1;
-                        } else if (currentPage <= 3) {
-                          pageNum = i + 1;
-                        } else if (currentPage >= totalPages - 2) {
-                          pageNum = totalPages - 4 + i;
-                        } else {
-                          pageNum = currentPage - 2 + i;
-                        }
-                        
+                    const page = i + 1;
                         return (
                           <Button
-                            key={pageNum}
-                            variant={currentPage === pageNum ? "default" : "outline"}
+                        key={page}
+                        variant={currentPage === page ? "default" : "outline"}
                             size="sm"
-                            onClick={() => setCurrentPage(pageNum)}
-                            className={currentPage === pageNum ? "bg-purple-600" : "border-white/20 hover:bg-white/10"}
+                        onClick={() => setCurrentPage(page)}
+                        className={`border-white/10 ${
+                          currentPage === page 
+                            ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white' 
+                            : 'text-white hover:bg-white/10'
+                        }`}
                           >
-                            {pageNum}
+                        {page}
                           </Button>
                         );
                       })}
@@ -907,62 +701,18 @@ function LibraryContent() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
                       disabled={currentPage === totalPages}
-                      className="border-white/20 hover:bg-white/10"
+                  onClick={() => setCurrentPage(currentPage + 1)}
+                  className="border-white/10 text-white hover:bg-white/10"
                     >
                       Next
-                      <ChevronRight className="h-4 w-4" />
+                  <ChevronRight className="w-4 h-4" />
                     </Button>
-                  </div>
                 </div>
               )}
             </>
           )}
-        </div>
-      </div>
-
-      {/* Video Modal */}
-      {playingVideoId && (
-        <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="relative w-full max-w-4xl mx-auto">
-            <Button
-              className="absolute -top-12 right-0 bg-white/10 hover:bg-white/20"
-              onClick={closeVideoModal}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-            
-            {(() => {
-              const video = videos.find(v => v.id === playingVideoId);
-              if (!video) return null;
-              
-              return (
-                <div className="bg-black rounded-lg overflow-hidden">
-                  <video
-                    src={video.uploadthing_url}
-                    controls
-                    autoPlay
-                    className="w-full max-h-[80vh]"
-                    onError={(e) => {
-                      console.error('Video playback error:', e);
-                      alert('Error playing video. The file might be corrupted or in an unsupported format.');
-                    }}
-                  />
-                  <div className="p-4 border-t border-gray-700">
-                    <h3 className="font-semibold text-white mb-2">{video.title}</h3>
-                    <div className="flex gap-4 text-sm text-gray-400">
-                      <span>{formatDateFull(video.created_at)}</span>
-                      <span>{formatFileSize(video.file_size)}</span>
-                      {video.duration && <span>{formatDuration(video.duration)}</span>}
-                    </div>
-                  </div>
-                </div>
-              );
-            })()}
-          </div>
-        </div>
-      )}
+      </main>
     </div>
   );
 }
