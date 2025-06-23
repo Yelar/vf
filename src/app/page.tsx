@@ -130,7 +130,7 @@ export default function Home() {
                 </div>
                 <CardTitle className="text-white text-xl">AI Content Generation</CardTitle>
                 <CardDescription className="text-gray-400">
-                  GROQ-powered educational content creation for any topic
+                  Azure OpenAI GPT-4o powered educational content creation for any topic
                 </CardDescription>
               </CardHeader>
               <CardContent>

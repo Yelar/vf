@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import Groq from 'groq-sdk';
+import { AzureOpenAI } from 'openai';
 
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY,
+const client = new AzureOpenAI({
+  endpoint: process.env.AZURE_OPENAI_ENDPOINT || "https://vfs-gpt.openai.azure.com/",
+  apiKey: process.env.AZURE_OPENAI_API_KEY,
+  deployment: process.env.AZURE_OPENAI_DEPLOYMENT_NAME || "gpt-4o",
+  apiVersion: process.env.AZURE_OPENAI_API_VERSION || "2024-04-01-preview",
 });
 
 export async function POST(request: NextRequest) {
@@ -18,8 +21,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Topic is required' }, { status: 400 });
     }
 
-    if (!process.env.GROQ_API_KEY) {
-      return NextResponse.json({ error: 'GROQ API key not configured' }, { status: 500 });
+    if (!process.env.AZURE_OPENAI_API_KEY) {
+      return NextResponse.json({ error: 'Azure OpenAI API key not configured' }, { status: 500 });
     }
 
     // Define prompts based on video length and difficulty
@@ -78,10 +81,10 @@ CRITICAL: Return ONLY the content text. No quotes, no explanations, no formattin
 Make it engaging, informative, and perfect for a YouTube Short video. Focus on the most interesting and important aspects that would captivate viewers immediately.`;
     }
 
-    console.log(`🤖 Generating ${contentType} with GROQ for topic: "${topic}"`);
+    console.log(`🤖 Generating ${contentType} with Azure OpenAI GPT-4o for topic: "${topic}"`);
 
-    const completion = await groq.chat.completions.create({
-      model: 'meta-llama/llama-4-scout-17b-16e-instruct', // Fast and capable GROQ model
+    const completion = await client.chat.completions.create({
+      model: process.env.AZURE_OPENAI_DEPLOYMENT_NAME || "gpt-4o", // Use GPT-4o deployment
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }
@@ -95,7 +98,7 @@ Make it engaging, informative, and perfect for a YouTube Short video. Focus on t
     const generatedContent = completion.choices[0]?.message?.content?.trim();
 
     if (!generatedContent) {
-      throw new Error('No content generated from GROQ');
+      throw new Error('No content generated from Azure OpenAI');
     }
 
     console.log(`✅ Generated ${contentType} (${generatedContent.split(' ').length} words): "${generatedContent.slice(0, 100)}..."`);

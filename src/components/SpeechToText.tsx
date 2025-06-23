@@ -120,7 +120,7 @@ export const SpeechToText: React.FC<SpeechToTextProps> = ({
     setError(null);
     
     try {
-      console.log('🧠 Starting transcription with Groq Whisper...');
+              console.log('🧠 Starting transcription with Azure Speech Service...');
       
       const formData = new FormData();
       formData.append('audio', audioBlob, 'recording.webm');

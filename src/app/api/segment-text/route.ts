@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import Groq from 'groq-sdk';
+import { AzureOpenAI } from 'openai';
 
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY,
+const client = new AzureOpenAI({
+  endpoint: process.env.AZURE_OPENAI_ENDPOINT || "https://vfs-gpt.openai.azure.com/",
+  apiKey: process.env.AZURE_OPENAI_API_KEY,
+  deployment: process.env.AZURE_OPENAI_DEPLOYMENT_NAME || "gpt-4o",
+  apiVersion: process.env.AZURE_OPENAI_API_VERSION || "2024-04-01-preview",
 });
 
 export async function POST(request: NextRequest) {
@@ -17,8 +20,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Text is required' }, { status: 400 });
     }
 
-    if (!process.env.GROQ_API_KEY) {
-      return NextResponse.json({ error: 'GROQ API key not configured' }, { status: 500 });
+    if (!process.env.AZURE_OPENAI_API_KEY) {
+      return NextResponse.json({ error: 'Azure OpenAI API key not configured' }, { status: 500 });
     }
 
     const systemPrompt = `You are an expert text segmentation specialist. Your job is to divide text into natural, meaningful segments that work well for text-to-speech and video subtitles.
@@ -41,10 +44,10 @@ Example output: ["Quantum physics is fascinating.", "It deals with the smallest 
 
 "${text}"`;
 
-    console.log(`🤖 Using GROQ to segment text intelligently...`);
+    console.log(`🤖 Using Azure OpenAI GPT-4o to segment text intelligently...`);
 
-    const completion = await groq.chat.completions.create({
-      model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+    const completion = await client.chat.completions.create({
+      model: process.env.AZURE_OPENAI_DEPLOYMENT_NAME || "gpt-4o",
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }
@@ -58,7 +61,7 @@ Example output: ["Quantum physics is fascinating.", "It deals with the smallest 
     const segmentationResult = completion.choices[0]?.message?.content?.trim();
 
     if (!segmentationResult) {
-      throw new Error('No segmentation result from GROQ');
+      throw new Error('No segmentation result from Azure OpenAI');
     }
 
     // Parse the JSON response
@@ -66,7 +69,7 @@ Example output: ["Quantum physics is fascinating.", "It deals with the smallest 
     try {
       segments = JSON.parse(segmentationResult);
     } catch {
-      console.error('❌ Failed to parse GROQ response as JSON:', segmentationResult);
+      console.error('❌ Failed to parse Azure OpenAI response as JSON:', segmentationResult);
       // Fallback to basic segmentation if LLM response is malformed
       segments = text
         .split(/[.!?]+/)

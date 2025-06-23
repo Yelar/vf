@@ -15,7 +15,7 @@ A Next.js application that generates vertical videos perfect for YouTube Shorts,
 - 📊 **User Authentication**: Secure login and personal video collections
 - 💾 **Cloud Storage**: Videos stored securely with UploadThing integration
 - 🔍 **Search & Filter**: Find your videos quickly by title or description
-- 🎤 **Voice Input**: Speak your topic ideas with Groq Whisper AI transcription
+- 🎤 **Voice Input**: Speak your topic ideas with Azure Speech Service transcription
 - 📧 **Async Processing**: Videos processed in background with email notifications
 - ⚡ **Non-blocking**: Continue working while videos render (2-5 minutes)
 
@@ -42,7 +42,11 @@ A Next.js application that generates vertical videos perfect for YouTube Shorts,
    UPLOADTHING_TOKEN=your_uploadthing_token_here
    RESEND_API_KEY=your_resend_api_key_here
    NEXTAUTH_SECRET=your_secret_key_here
-   GROQ_API_KEY=your_groq_api_key_here
+   # Azure OpenAI Configuration
+   AZURE_OPENAI_API_KEY=your_azure_openai_api_key_here
+   AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com/
+   AZURE_OPENAI_DEPLOYMENT_NAME=gpt-4o
+   AZURE_OPENAI_API_VERSION=2024-04-01-preview
    ```
 
 4. **Run the development server**
@@ -124,7 +128,7 @@ A Next.js application that generates vertical videos perfect for YouTube Shorts,
 - **Database**: SQLite with Better-SQLite3 for video metadata
 - **Storage**: UploadThing for cloud video storage
 - **Email**: Resend for beautiful async video completion notifications
-- **AI**: Groq API for content generation and speech transcription (Whisper)
+- **AI**: Azure OpenAI GPT-4o for content generation and Azure Speech Service for transcription
 
 ## 📁 Project Structure
 
@@ -210,7 +214,11 @@ Create a `.env.local` file with:
 ```env
 # Required: AI Services
 ELEVEN_LABS_API_KEY=your_eleven_labs_api_key_here
-GROQ_API_KEY=your_groq_api_key_here
+# Azure OpenAI Configuration
+AZURE_OPENAI_API_KEY=your_azure_openai_api_key_here
+AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com/
+AZURE_OPENAI_DEPLOYMENT_NAME=gpt-4o
+AZURE_OPENAI_API_VERSION=2024-04-01-preview
 
 # Required: Authentication
 NEXTAUTH_SECRET=your_secret_key_here

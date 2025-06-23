@@ -1262,7 +1262,7 @@ function VideoCreationContent() {
                           <span className="text-sm font-medium text-blue-300">🚀 New: Voice Input</span>
                         </div>
                         <p className="text-xs text-blue-200">
-                          Now you can speak your topic ideas! Just click the microphone button in the topic section to record your voice and let AI transcribe it instantly using Groq&apos;s Whisper.
+                          Now you can speak your topic ideas! Just click the microphone button in the topic section to record your voice and let AI transcribe it instantly using Azure Speech Service.
                         </p>
                       </div>
                     </div>

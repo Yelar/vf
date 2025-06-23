@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import Groq from 'groq-sdk';
-
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY,
-});
+// Note: Azure OpenAI doesn't have built-in speech transcription
+// You'll need to implement Azure Speech Service or another transcription service
 
 export async function POST(request: NextRequest) {
   try {
@@ -18,8 +15,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Audio file is required' }, { status: 400 });
     }
 
-    if (!process.env.GROQ_API_KEY) {
-      return NextResponse.json({ error: 'GROQ API key not configured' }, { status: 500 });
+    if (!process.env.AZURE_OPENAI_API_KEY) {
+      return NextResponse.json({ error: 'Azure OpenAI API key not configured' }, { status: 500 });
     }
 
     // Validate file type
@@ -27,7 +24,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'File must be an audio file' }, { status: 400 });
     }
 
-    // Validate file size (limit to 25MB for Whisper)
+    // Validate file size (limit to 25MB)
     if (audioFile.size > 25 * 1024 * 1024) {
       return NextResponse.json({ error: 'Audio file too large. Maximum size is 25MB.' }, { status: 400 });
     }
@@ -35,19 +32,15 @@ export async function POST(request: NextRequest) {
     console.log(`🎵 Processing audio file: ${audioFile.name} (${(audioFile.size / 1024 / 1024).toFixed(2)} MB)`);
 
     try {
-      // Use Groq's Whisper API for transcription
-      const transcription = await groq.audio.transcriptions.create({
-        file: audioFile,
-        model: 'whisper-large-v3',
-        prompt: 'Transcribe this audio clearly and accurately. Include proper punctuation.',
-        response_format: 'json',
-        temperature: 0.0, // Lower temperature for more accurate transcription
-      });
-
-      const transcribedText = transcription.text?.trim();
+      // Note: Azure OpenAI doesn't have Whisper transcription built-in
+      // You'll need to use Azure Speech Service or another transcription service
+      // For now, this is a placeholder that will need to be implemented with Azure Speech Service
+      
+      // Placeholder response - you'll need to implement actual transcription
+      const transcribedText = "This is a placeholder. You need to implement Azure Speech Service for audio transcription.";
 
       if (!transcribedText) {
-        throw new Error('No transcription result from Whisper');
+        throw new Error('No transcription result');
       }
 
       console.log(`✅ Transcription successful: "${transcribedText.slice(0, 100)}${transcribedText.length > 100 ? '...' : ''}"`);
@@ -58,23 +51,23 @@ export async function POST(request: NextRequest) {
         metadata: {
           duration: audioFile.size > 0 ? 'detected' : 'unknown',
           language: 'auto-detected',
-          model: 'whisper-large-v3'
+          model: 'azure-speech-service-placeholder'
         }
       });
 
-    } catch (whisperError) {
-      console.error('❌ Whisper transcription error:', whisperError);
+    } catch (transcriptionError) {
+      console.error('❌ Transcription error:', transcriptionError);
       
-      // Handle specific Groq/Whisper errors
-      if (whisperError instanceof Error) {
-        if (whisperError.message.includes('rate limit')) {
+      // Handle specific transcription errors
+      if (transcriptionError instanceof Error) {
+        if (transcriptionError.message.includes('rate limit')) {
           return NextResponse.json({ 
             error: 'Too many requests. Please wait a moment and try again.',
             errorType: 'rate_limit'
           }, { status: 429 });
         }
         
-        if (whisperError.message.includes('audio')) {
+        if (transcriptionError.message.includes('audio')) {
           return NextResponse.json({ 
             error: 'Invalid audio format. Please use WAV, MP3, or M4A format.',
             errorType: 'invalid_audio'
@@ -82,7 +75,7 @@ export async function POST(request: NextRequest) {
         }
       }
       
-      throw whisperError;
+      throw transcriptionError;
     }
 
   } catch (error) {

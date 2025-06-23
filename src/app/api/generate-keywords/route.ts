@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import Groq from 'groq-sdk';
+import { AzureOpenAI } from 'openai';
 
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY,
+const client = new AzureOpenAI({
+  endpoint: process.env.AZURE_OPENAI_ENDPOINT || "https://vfs-gpt.openai.azure.com/",
+  apiKey: process.env.AZURE_OPENAI_API_KEY,
+  deployment: process.env.AZURE_OPENAI_DEPLOYMENT_NAME || "gpt-4o",
+  apiVersion: process.env.AZURE_OPENAI_API_VERSION || "2024-04-01-preview",
 });
 
 export async function POST(request: NextRequest) {
@@ -17,8 +20,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Segments array is required' }, { status: 400 });
     }
 
-    if (!process.env.GROQ_API_KEY) {
-      return NextResponse.json({ error: 'GROQ API key not configured' }, { status: 500 });
+    if (!process.env.AZURE_OPENAI_API_KEY) {
+      return NextResponse.json({ error: 'Azure OpenAI API key not configured' }, { status: 500 });
     }
 
     const systemPrompt = `You are an expert image search keyword generator. Your job is to analyze text segments and generate the most relevant, specific keywords that would find appropriate images on Unsplash.
@@ -45,10 +48,10 @@ ${segmentTexts.map((text: string, index: number) => `${index + 1}. "${text}"`).j
 
 Return a JSON array of keyword arrays, one for each segment.`;
 
-    console.log(`🤖 Using GROQ to generate keywords for ${segmentTexts.length} segments...`);
+    console.log(`🤖 Using Azure OpenAI GPT-4o to generate keywords for ${segmentTexts.length} segments...`);
 
-    const completion = await groq.chat.completions.create({
-      model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+    const completion = await client.chat.completions.create({
+      model: process.env.AZURE_OPENAI_DEPLOYMENT_NAME || "gpt-4o",
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }
@@ -62,7 +65,7 @@ Return a JSON array of keyword arrays, one for each segment.`;
     const keywordResult = completion.choices[0]?.message?.content?.trim();
 
     if (!keywordResult) {
-      throw new Error('No keyword result from GROQ');
+      throw new Error('No keyword result from Azure OpenAI');
     }
 
     // Parse the JSON response
@@ -70,7 +73,7 @@ Return a JSON array of keyword arrays, one for each segment.`;
     try {
       generatedKeywords = JSON.parse(keywordResult);
     } catch {
-      console.error('❌ Failed to parse GROQ response as JSON:', keywordResult);
+      console.error('❌ Failed to parse Azure OpenAI response as JSON:', keywordResult);
       // Fallback to simple keyword extraction if LLM response is malformed
       generatedKeywords = segmentTexts.map((text: string) => {
         const words = text.toLowerCase()
