@@ -44,3 +44,5 @@ next-env.d.ts
 /public/bg-videos
 /public/bg-music
 users.db
+users.db-shm
+users.db-wal

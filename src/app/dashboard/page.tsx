@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { NavigationHeader } from '@/components/ui/navigation-header';
@@ -46,8 +46,8 @@ function DashboardContent() {
   const [loading, setLoading] = useState(true);
   const [copiedVideoId, setCopiedVideoId] = useState<number | null>(null);
 
-  // Copy video URL to clipboard
-  const copyVideoUrl = async (url: string, videoId: number) => {
+  // Copy video URL to clipboard - optimized with useCallback
+  const copyVideoUrl = useCallback(async (url: string, videoId: number) => {
     try {
       await navigator.clipboard.writeText(url);
       setCopiedVideoId(videoId);
@@ -55,13 +55,18 @@ function DashboardContent() {
     } catch (error) {
       console.error('Failed to copy URL:', error);
     }
-  };
+  }, []);
 
-  // Fetch dashboard statistics
-  const fetchStats = async () => {
+  // Fetch dashboard statistics - optimized with useCallback
+  const fetchStats = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/dashboard-stats');
+      const response = await fetch('/api/dashboard-stats', {
+        // Add cache headers for better performance
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
+      });
       
       if (response.ok) {
       const data = await response.json();
@@ -72,23 +77,22 @@ function DashboardContent() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (session?.user) {
       fetchStats();
     }
-  }, [session]);
+  }, [session, fetchStats]);
 
-  const formatDuration = (seconds: number) => {
+  // Memoized utility functions for performance
+  const formatDuration = useCallback((seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
+  }, []);
 
-
-
-  const formatDateFull = (dateString: string) => {
+  const formatDateFull = useCallback((dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
@@ -96,7 +100,12 @@ function DashboardContent() {
       hour: '2-digit',
       minute: '2-digit'
     });
-  };
+  }, []);
+
+  // Memoize recent videos for performance
+  const recentVideos = useMemo(() => {
+    return stats?.recentVideos?.slice(0, 6) || [];
+  }, [stats?.recentVideos]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-950 via-black to-purple-950/50">
@@ -212,15 +221,16 @@ function DashboardContent() {
                 <Skeleton key={i} className="h-48 bg-white/5" />
               ))}
             </div>
-          ) : stats?.recentVideos?.length ? (
+          ) : recentVideos.length ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {stats.recentVideos.slice(0, 6).map((video) => (
+              {recentVideos.map((video) => (
                 <ModernCard key={video.id} hover glow className="group">
                   <ModernCardContent className="p-0">
                     {/* Video Thumbnail Placeholder */}
-                    <div className="aspect-video bg-gradient-to-br from-purple-900/50 to-blue-900/50 rounded-t-lg flex items-center justify-center relative overflow-hidden">
-                      <Play className="w-12 h-12 text-white/70 group-hover:scale-110 transition-transform" />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+                    <Link href={`/watch/${video.id}`}>
+                      <div className="aspect-video bg-gradient-to-br from-purple-900/50 to-blue-900/50 rounded-t-lg flex items-center justify-center relative overflow-hidden cursor-pointer">
+                        <Play className="w-12 h-12 text-white/70 group-hover:scale-110 transition-transform" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
                       
                       {/* Video Duration */}
                       {video.duration && (
@@ -238,7 +248,8 @@ function DashboardContent() {
                           </Badge>
                         </div>
                       )}
-                    </div>
+                      </div>
+                    </Link>
                     
                     <div className="p-4 space-y-3">
                       <div>
@@ -255,10 +266,10 @@ function DashboardContent() {
                       
                       <div className="flex items-center justify-between">
                         <div className="flex space-x-2">
-                          <Link href={`/video/${video.id}`}>
+                          <Link href={`/watch/${video.id}`}>
                             <Button size="sm" variant="outline" className="border-purple-500/50 text-purple-300 hover:bg-purple-500/10">
                               <Play className="w-3 h-3 mr-1" />
-                              Edit
+                              Watch
                             </Button>
                           </Link>
                           

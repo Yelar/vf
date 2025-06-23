@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { NavigationHeader } from '@/components/ui/navigation-header';
@@ -80,11 +80,16 @@ function LibraryContent() {
   const [videosPerPage] = useState(12);
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'shared' | 'private'>('all');
 
-  // Fetch user videos
-  const fetchVideos = async () => {
+  // Fetch user videos - optimized with useCallback
+  const fetchVideos = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/videos');
+      const response = await fetch('/api/videos', {
+        // Add cache headers for better performance
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
+      });
       
       if (!response.ok) {
         throw new Error('Failed to fetch videos');
@@ -99,13 +104,13 @@ function LibraryContent() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (session?.user) {
       fetchVideos();
     }
-  }, [session]);
+  }, [session, fetchVideos]);
 
   // Advanced filtering and sorting
   const filteredAndSortedVideos = useMemo(() => {
@@ -169,22 +174,22 @@ function LibraryContent() {
     setCurrentPage(1);
   }, [searchTerm, selectedFilter, sortField, sortOrder]);
 
-  // Utility functions
-  const formatFileSize = (bytes: number) => {
+  // Utility functions - optimized with useCallback
+  const formatFileSize = useCallback((bytes: number) => {
     if (bytes === 0) return '0 B';
     const k = 1024;
     const sizes = ['B', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-  };
+  }, []);
 
-  const formatDuration = (seconds: number) => {
+  const formatDuration = useCallback((seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
+  }, []);
 
-  const formatDateFull = (dateString: string) => {
+  const formatDateFull = useCallback((dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
@@ -192,9 +197,9 @@ function LibraryContent() {
       hour: '2-digit',
       minute: '2-digit'
     });
-  };
+  }, []);
 
-  const copyVideoUrl = async (url: string, videoId: number) => {
+  const copyVideoUrl = useCallback(async (url: string, videoId: number) => {
     try {
       await navigator.clipboard.writeText(url);
       setCopyingVideoId(videoId);
@@ -202,7 +207,7 @@ function LibraryContent() {
     } catch (error) {
       console.error('Failed to copy URL:', error);
     }
-  };
+  }, []);
 
   const deleteVideo = async (videoId: number) => {
     if (!confirm('Are you sure you want to delete this video?')) return;
@@ -441,9 +446,10 @@ function LibraryContent() {
                       // Grid View
                       <>
                         {/* Video Thumbnail */}
-                        <div className="aspect-video bg-gradient-to-br from-purple-900/50 to-blue-900/50 rounded-t-lg flex items-center justify-center relative overflow-hidden">
-                          <Play className="w-12 h-12 text-white/70 group-hover:scale-110 transition-transform" />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+                        <Link href={`/watch/${video.id}`}>
+                          <div className="aspect-video bg-gradient-to-br from-purple-900/50 to-blue-900/50 rounded-t-lg flex items-center justify-center relative overflow-hidden cursor-pointer">
+                            <Play className="w-12 h-12 text-white/70 group-hover:scale-110 transition-transform" />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
                           
                           {/* Video Duration */}
                           {video.duration && (
@@ -461,7 +467,8 @@ function LibraryContent() {
                               </Badge>
                             </div>
                           )}
-                        </div>
+                          </div>
+                        </Link>
                         
                         {/* Video Info */}
                         <div className="p-4 space-y-3">
@@ -507,10 +514,10 @@ function LibraryContent() {
                           {/* Actions */}
                           <div className="flex items-center justify-between">
                             <div className="flex space-x-2">
-                              <Link href={`/video/${video.id}`}>
+                              <Link href={`/watch/${video.id}`}>
                                 <Button size="sm" variant="outline" className="border-purple-500/50 text-purple-300 hover:bg-purple-500/10">
                                   <Play className="w-3 h-3 mr-1" />
-                                  Edit
+                                  Watch
                                 </Button>
                               </Link>
                     </div>
@@ -522,6 +529,13 @@ function LibraryContent() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent className="bg-gray-900/95 backdrop-blur border-white/10" align="end">
+                                <Link href={`/video/${video.id}`}>
+                                  <DropdownMenuItem className="text-gray-300 hover:text-white hover:bg-white/10">
+                                    <Edit3 className="mr-2 h-4 w-4" />
+                                    Edit Video
+                                  </DropdownMenuItem>
+                                </Link>
+                                <DropdownMenuSeparator className="bg-white/10" />
                                 <DropdownMenuItem onClick={() => startEditingTitle(video)} className="text-gray-300 hover:text-white hover:bg-white/10">
                                   <Edit3 className="mr-2 h-4 w-4" />
                                   Rename
@@ -564,9 +578,11 @@ function LibraryContent() {
                     ) : (
                       // List View
                       <div className="p-4 flex items-center space-x-4">
-                        <div className="w-20 h-12 bg-gradient-to-br from-purple-900/50 to-blue-900/50 rounded flex items-center justify-center flex-shrink-0">
-                          <Play className="w-6 h-6 text-white/70" />
-                      </div>
+                        <Link href={`/watch/${video.id}`}>
+                          <div className="w-20 h-12 bg-gradient-to-br from-purple-900/50 to-blue-900/50 rounded flex items-center justify-center flex-shrink-0 cursor-pointer hover:scale-105 transition-transform">
+                            <Play className="w-6 h-6 text-white/70" />
+                          </div>
+                        </Link>
 
                           <div className="flex-1 min-w-0">
                             {editingVideoId === video.id ? (
@@ -605,10 +621,10 @@ function LibraryContent() {
                           </div>
 
                         <div className="flex items-center space-x-2">
-                          <Link href={`/video/${video.id}`}>
+                          <Link href={`/watch/${video.id}`}>
                             <Button size="sm" variant="outline" className="border-purple-500/50 text-purple-300 hover:bg-purple-500/10">
                               <Play className="w-3 h-3 mr-1" />
-                              Edit
+                              Watch
                             </Button>
                           </Link>
                           
@@ -619,6 +635,13 @@ function LibraryContent() {
                             </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent className="bg-gray-900/95 backdrop-blur border-white/10" align="end">
+                              <Link href={`/video/${video.id}`}>
+                                <DropdownMenuItem className="text-gray-300 hover:text-white hover:bg-white/10">
+                                  <Edit3 className="mr-2 h-4 w-4" />
+                                  Edit Video
+                                </DropdownMenuItem>
+                              </Link>
+                              <DropdownMenuSeparator className="bg-white/10" />
                               <DropdownMenuItem onClick={() => startEditingTitle(video)} className="text-gray-300 hover:text-white hover:bg-white/10">
                                 <Edit3 className="mr-2 h-4 w-4" />
                                 Rename
