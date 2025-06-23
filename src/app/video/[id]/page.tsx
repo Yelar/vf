@@ -37,7 +37,9 @@ import {
   FileIcon,
   UploadCloud,
   GripVertical,
-  Image
+  Image,
+  Edit3,
+  Plus
 } from "lucide-react";
 import Link from 'next/link';
 import { SpeechToText } from '@/components/SpeechToText';
@@ -219,6 +221,25 @@ function VideoCreationContent() {
   const [questionCount, setQuestionCount] = useState(5);
   const [additionalContent, setAdditionalContent] = useState('');
   const [generateQuizImages, setGenerateQuizImages] = useState(false);
+
+  // Quiz editing states
+  const [editingQuizItem, setEditingQuizItem] = useState<string | null>(null);
+  const [showAddQuizDialog, setShowAddQuizDialog] = useState(false);
+  const [newQuizItem, setNewQuizItem] = useState<{
+    type: 'question' | 'text';
+    question_text: string;
+    choices: { A: string; B: string; C: string; D: string };
+    wait_time: number;
+    answer: 'A' | 'B' | 'C' | 'D';
+    content: string;
+  }>({
+    type: 'question',
+    question_text: '',
+    choices: { A: '', B: '', C: '', D: '' },
+    wait_time: 5,
+    answer: 'A',
+    content: ''
+  });
 
   // List of preset background videos (update this list when you add new videos)
   const presetVideos = [
@@ -866,6 +887,70 @@ function VideoCreationContent() {
 
   const removeQuizItem = (index: number) => {
     setQuizData(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Edit quiz item functionality
+  const startEditingItem = (id: string) => {
+    const item = quizData.find(q => q.id === id);
+    if (item) {
+      setNewQuizItem({
+        type: item.type,
+        question_text: item.question_text || '',
+        choices: item.choices || { A: '', B: '', C: '', D: '' },
+        wait_time: item.wait_time || 5,
+        answer: item.answer || 'A',
+        content: item.content || ''
+      });
+      setEditingQuizItem(id);
+      setShowAddQuizDialog(true);
+    }
+  };
+
+  const saveQuizItem = () => {
+    if (editingQuizItem) {
+      // Update existing item
+      setQuizData(prev => prev.map(item => 
+        item.id === editingQuizItem 
+          ? {
+              ...item,
+              ...newQuizItem,
+              id: item.id // Keep the same ID
+            }
+          : item
+      ));
+    } else {
+      // Add new item
+      const newItem = {
+        ...newQuizItem,
+        id: `${Date.now()}-${Math.random()}`
+      };
+      setQuizData(prev => [...prev, newItem]);
+    }
+    
+    // Reset form
+    setNewQuizItem({
+      type: 'question',
+      question_text: '',
+      choices: { A: '', B: '', C: '', D: '' },
+      wait_time: 5,
+      answer: 'A',
+      content: ''
+    });
+    setEditingQuizItem(null);
+    setShowAddQuizDialog(false);
+  };
+
+  const cancelEditingQuizItem = () => {
+    setNewQuizItem({
+      type: 'question',
+      question_text: '',
+      choices: { A: '', B: '', C: '', D: '' },
+      wait_time: 5,
+      answer: 'A',
+      content: ''
+    });
+    setEditingQuizItem(null);
+    setShowAddQuizDialog(false);
   };
 
   // Generate images for quiz questions
@@ -1538,7 +1623,18 @@ function VideoCreationContent() {
                   </Select>
                 </div>
 
-                {selectedTemplate !== 'none' && (
+                {selectedTemplate === 'quiz' && (
+                  <div className="p-3 bg-purple-500/10 rounded-lg border border-purple-500/20">
+                    <p className="text-sm text-purple-200">
+                      🧠 {videoTemplates.find(t => t.value === selectedTemplate)?.description}
+                    </p>
+                    <p className="text-xs text-purple-300 mt-1">
+                      Use the quiz generation section below to create your interactive quiz content.
+                    </p>
+                  </div>
+                )}
+
+                {selectedTemplate !== 'none' && selectedTemplate !== 'quiz' && (
                   <div className="space-y-3">
                     <div className="p-3 bg-white/5 rounded-lg border border-white/10">
                       <p className="text-sm text-gray-300">
@@ -1883,19 +1979,30 @@ function VideoCreationContent() {
                     </Button>
 
                     {/* Generated Quiz Content with Reordering */}
-                    {quizData.length > 0 && (
+                    {quizData.length > 0 ? (
                       <div className="space-y-4">
                         <div className="flex items-center justify-between">
                           <Label className="text-sm font-medium">Quiz Content ({quizData.length} items):</Label>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setQuizData([])}
-                            className="text-xs"
-                          >
-                            <Trash2 className="mr-1 h-3 w-3" />
-                            Clear All
-                          </Button>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setShowAddQuizDialog(true)}
+                              className="text-xs bg-green-600/20 border-green-500/30 text-green-300 hover:bg-green-600/30"
+                            >
+                              <Plus className="mr-1 h-3 w-3" />
+                              Add Item
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setQuizData([])}
+                              className="text-xs"
+                            >
+                              <Trash2 className="mr-1 h-3 w-3" />
+                              Clear All
+                            </Button>
+                          </div>
                         </div>
                         
                         <div className="space-y-2 max-h-96 overflow-y-auto border border-white/10 rounded-lg p-3 bg-white/5">
@@ -1916,8 +2023,16 @@ function VideoCreationContent() {
                                 </div>
                               </div>
 
-                              {/* Delete Button */}
-                              <div className="absolute right-1 top-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              {/* Edit and Delete Buttons */}
+                              <div className="absolute right-1 top-1 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => startEditingItem(item.id)}
+                                  className="h-6 w-6 p-0 text-blue-400 hover:text-blue-300"
+                                >
+                                  <Edit3 className="h-3 w-3" />
+                                </Button>
                                 <Button
                                   variant="ghost"
                                   size="sm"
@@ -2129,6 +2244,23 @@ function VideoCreationContent() {
                               Generate Audio for Quiz
                             </>
                           )}
+                        </Button>
+                      </div>
+                    ) : (
+                      /* Empty Quiz State */
+                      <div className="text-center py-8 space-y-4">
+                        <div className="text-gray-400">
+                          <Brain className="mx-auto h-12 w-12 mb-2 opacity-50" />
+                          <p className="text-sm">No quiz content yet.</p>
+                          <p className="text-xs">Generate quiz content or add items manually.</p>
+                        </div>
+                        <Button
+                          variant="outline"
+                          onClick={() => setShowAddQuizDialog(true)}
+                          className="bg-green-600/20 border-green-500/30 text-green-300 hover:bg-green-600/30"
+                        >
+                          <Plus className="mr-2 h-4 w-4" />
+                          Add First Item
                         </Button>
                       </div>
                     )}
@@ -2821,6 +2953,178 @@ function VideoCreationContent() {
                       <>
                         <Film className="mr-2 h-4 w-4" />
                         Save Video
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Quiz Edit/Add Dialog */}
+        {showAddQuizDialog && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+            <Card className="w-full max-w-2xl mx-4 bg-white/10 border-white/20 backdrop-blur-xl max-h-[90vh] overflow-y-auto">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-white">
+                  {editingQuizItem ? <Edit3 className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
+                  {editingQuizItem ? 'Edit Quiz Item' : 'Add New Quiz Item'}
+                </CardTitle>
+                <CardDescription className="text-gray-400">
+                  {editingQuizItem ? 'Modify your quiz item' : 'Create a new question or text for your quiz'}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Item Type Selection */}
+                <div className="space-y-2">
+                  <Label className="text-white">Item Type</Label>
+                  <Select 
+                    value={newQuizItem.type} 
+                    onValueChange={(value: 'question' | 'text') => 
+                      setNewQuizItem(prev => ({ ...prev, type: value }))
+                    }
+                  >
+                    <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="question">❓ Question with Multiple Choice</SelectItem>
+                      <SelectItem value="text">📝 Text/Information</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {newQuizItem.type === 'question' ? (
+                  <>
+                    {/* Question Text */}
+                    <div className="space-y-2">
+                      <Label className="text-white">Question Text *</Label>
+                      <Textarea
+                        placeholder="Enter your question..."
+                        value={newQuizItem.question_text}
+                        onChange={(e) => setNewQuizItem(prev => ({ 
+                          ...prev, 
+                          question_text: e.target.value 
+                        }))}
+                        className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 resize-none"
+                        rows={2}
+                      />
+                    </div>
+
+                    {/* Answer Choices */}
+                    <div className="space-y-3">
+                      <Label className="text-white">Answer Choices *</Label>
+                      <div className="grid grid-cols-1 gap-3">
+                        {(['A', 'B', 'C', 'D'] as const).map((letter) => (
+                          <div key={letter} className="flex items-center gap-3">
+                            <div className="flex items-center justify-center w-8 h-8 bg-blue-500/20 border border-blue-500/30 rounded text-blue-300 font-bold">
+                              {letter}
+                            </div>
+                            <Input
+                              placeholder={`Choice ${letter}...`}
+                              value={newQuizItem.choices[letter]}
+                              onChange={(e) => setNewQuizItem(prev => ({ 
+                                ...prev, 
+                                choices: { ...prev.choices, [letter]: e.target.value }
+                              }))}
+                              className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 flex-1"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Correct Answer */}
+                    <div className="space-y-2">
+                      <Label className="text-white">Correct Answer *</Label>
+                      <Select 
+                        value={newQuizItem.answer} 
+                        onValueChange={(value: 'A' | 'B' | 'C' | 'D') => 
+                          setNewQuizItem(prev => ({ ...prev, answer: value }))
+                        }
+                      >
+                        <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="A">A: {newQuizItem.choices.A || 'Choice A'}</SelectItem>
+                          <SelectItem value="B">B: {newQuizItem.choices.B || 'Choice B'}</SelectItem>
+                          <SelectItem value="C">C: {newQuizItem.choices.C || 'Choice C'}</SelectItem>
+                          <SelectItem value="D">D: {newQuizItem.choices.D || 'Choice D'}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Wait Time */}
+                    <div className="space-y-2">
+                      <Label className="text-white">Wait Time (seconds)</Label>
+                      <Select 
+                        value={newQuizItem.wait_time.toString()} 
+                        onValueChange={(value) => 
+                          setNewQuizItem(prev => ({ ...prev, wait_time: parseInt(value) }))
+                        }
+                      >
+                        <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="3">3 seconds</SelectItem>
+                          <SelectItem value="5">5 seconds</SelectItem>
+                          <SelectItem value="7">7 seconds</SelectItem>
+                          <SelectItem value="10">10 seconds</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </>
+                ) : (
+                  /* Text Content */
+                  <div className="space-y-2">
+                    <Label className="text-white">Text Content *</Label>
+                    <Textarea
+                      placeholder="Enter your text content..."
+                      value={newQuizItem.content}
+                      onChange={(e) => setNewQuizItem(prev => ({ 
+                        ...prev, 
+                        content: e.target.value 
+                      }))}
+                      className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 resize-none"
+                      rows={4}
+                    />
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                <div className="flex gap-3 pt-4">
+                  <Button
+                    variant="ghost"
+                    onClick={cancelEditingQuizItem}
+                    className="flex-1 text-gray-400 hover:text-white"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={saveQuizItem}
+                    disabled={
+                      newQuizItem.type === 'question' 
+                        ? (!newQuizItem.question_text.trim() || 
+                           !newQuizItem.choices.A.trim() || 
+                           !newQuizItem.choices.B.trim() || 
+                           !newQuizItem.choices.C.trim() || 
+                           !newQuizItem.choices.D.trim())
+                        : !newQuizItem.content.trim()
+                    }
+                    className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
+                  >
+                    {editingQuizItem ? (
+                      <>
+                        <Edit3 className="mr-2 h-4 w-4" />
+                        Update Item
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Add Item
                       </>
                     )}
                   </Button>
