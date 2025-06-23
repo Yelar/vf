@@ -5,9 +5,10 @@ import { getToken } from 'next-auth/jwt';
 export async function middleware(request: NextRequest) {
   // Only protect API routes (except auth routes)
   if (request.nextUrl.pathname.startsWith('/api/')) {
-    // Allow auth routes and temp-audio routes to pass through
+    // Allow auth routes, temp-audio routes, and uploadthing routes to pass through
     if (request.nextUrl.pathname.startsWith('/api/auth/') || 
-        request.nextUrl.pathname.startsWith('/api/temp-audio/')) {
+        request.nextUrl.pathname.startsWith('/api/temp-audio/') ||
+        request.nextUrl.pathname.startsWith('/api/uploadthing')) {
       return NextResponse.next();
     }
 

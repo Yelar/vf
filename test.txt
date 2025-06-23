@@ -1,0 +1,27 @@
+Quiz Content Test File
+=====================
+
+This is a test file for the quiz generation system.
+
+JavaScript Fundamentals
+-----------------------
+
+1. Variables and Data Types
+   - let, const, var
+   - String, Number, Boolean, Object, Array
+
+2. Functions
+   - Function declarations
+   - Arrow functions
+   - Parameters and return values
+
+3. Control Flow
+   - if/else statements
+   - for loops
+   - while loops
+
+4. Objects and Arrays
+   - Creating and accessing objects
+   - Array methods (push, pop, map, filter)
+
+This content can be used to generate quiz questions about JavaScript programming concepts. 

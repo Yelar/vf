@@ -31,10 +31,18 @@ import {
   Clock,
   Share2,
   Copy,
-  Check
+  Check,
+  Brain,
+  FileText,
+  FileIcon,
+  UploadCloud,
+  GripVertical,
+  Image
 } from "lucide-react";
 import Link from 'next/link';
 import { SpeechToText } from '@/components/SpeechToText';
+import { UploadButton } from '@uploadthing/react';
+import type { OurFileRouter } from '@/lib/uploadthing';
 
 function VideoCreationContent() {
   const { data: session } = useSession();
@@ -179,6 +187,38 @@ function VideoCreationContent() {
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [videoTitle, setVideoTitle] = useState('');
   const [videoDescription, setVideoDescription] = useState('');
+
+  // Quiz generation states
+  const [isQuizMode, setIsQuizMode] = useState(false);
+  const [quizData, setQuizData] = useState<Array<{
+    type: 'question' | 'text';
+    question_text?: string;
+    choices?: { A: string; B: string; C: string; D: string };
+    wait_time?: number;
+    answer?: 'A' | 'B' | 'C' | 'D';
+    content?: string;
+    id: string; // For managing order and editing
+  }>>([]);
+  const [quizTopic, setQuizTopic] = useState('');
+  const [quizDifficulty, setQuizDifficulty] = useState<'beginner' | 'intermediate' | 'advanced'>('intermediate');
+  const [uploadedQuizFiles, setUploadedQuizFiles] = useState<Array<{
+    key: string;
+    url: string;
+    name: string;
+    type: string;
+    size: number;
+  }>>([]);
+  const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
+  const [quizAudioSegments, setQuizAudioSegments] = useState<Array<{
+    id: string;
+    type: 'question' | 'choices' | 'wait' | 'answer' | 'text';
+    text: string;
+    audio?: string;
+    duration?: number;
+  }>>([]);
+  const [questionCount, setQuestionCount] = useState(5);
+  const [additionalContent, setAdditionalContent] = useState('');
+  const [generateQuizImages, setGenerateQuizImages] = useState(false);
 
   // List of preset background videos (update this list when you add new videos)
   const presetVideos = [
@@ -360,6 +400,23 @@ function VideoCreationContent() {
         alignment: 'center',
         blur: false,
         animation: 'none',
+        voice: 'EXAVITQu4vr4xnSDxMaL', // Bella - Friendly Female
+        bgVideo: 'none',
+        bgMusic: 'none'
+      }
+    },
+    {
+      value: 'quiz',
+      label: '🧠 Interactive Quiz',
+      description: 'Generate interactive quiz videos with questions and answers',
+      prompt: null, // Special handling for quiz generation
+      settings: {
+        font: 'montserrat',
+        color: 'blue',
+        fontSize: 85,
+        alignment: 'center',
+        blur: false,
+        animation: 'fade-in',
         voice: 'EXAVITQu4vr4xnSDxMaL', // Bella - Friendly Female
         bgVideo: 'none',
         bgMusic: 'none'
@@ -570,8 +627,314 @@ function VideoCreationContent() {
   // Handle template selection
   const handleTemplateChange = (templateValue: string) => {
     setSelectedTemplate(templateValue);
-    if (templateValue !== 'none') {
+    
+    // Enable quiz mode for quiz template
+    if (templateValue === 'quiz') {
+      setIsQuizMode(true);
+      // Clear existing speech text when switching to quiz mode
+      setSpeechText('');
+      clearGeneratedAudio();
+    } else {
+      setIsQuizMode(false);
+      // Clear quiz data when switching away from quiz mode
+      setQuizData([]);
+      setQuizTopic('');
+      setUploadedQuizFiles([]);
+      setQuizAudioSegments([]);
+    }
+    
+    if (templateValue !== 'none' && templateValue !== 'quiz') {
       applyTemplate(templateValue);
+    }
+  };
+
+  // Generate quiz content
+  const generateQuizContent = async () => {
+    if (!quizTopic.trim()) {
+      alert('Please enter a quiz topic');
+      return;
+    }
+
+    setIsGeneratingQuiz(true);
+    try {
+      console.log('🧠 Generating quiz content...');
+      
+      const response = await fetch('/api/generate-quiz', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          topic: quizTopic,
+          questionCount: questionCount,
+          difficulty: quizDifficulty,
+          additionalContent: additionalContent.trim() || null,
+          uploadedFiles: uploadedQuizFiles
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.details || errorData.error || 'Failed to generate quiz');
+      }
+
+      const data = await response.json();
+      
+      // Add unique IDs to quiz items
+      const quizWithIds = data.quiz.map((item: {
+        type: 'question' | 'text';
+        question_text?: string;
+        choices?: { A: string; B: string; C: string; D: string };
+        wait_time?: number;
+        answer?: 'A' | 'B' | 'C' | 'D';
+        content?: string;
+      }, index: number) => ({
+        ...item,
+        id: `quiz-item-${index}-${Date.now()}`
+      }));
+      
+      setQuizData(quizWithIds);
+      console.log('✅ Quiz generated successfully:', quizWithIds);
+      
+    } catch (error) {
+      console.error('❌ Quiz generation error:', error);
+      alert(`Failed to generate quiz: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsGeneratingQuiz(false);
+    }
+  };
+
+  // Generate audio segments for quiz
+  const generateQuizAudio = async () => {
+    if (quizData.length === 0) {
+      alert('Please generate quiz content first');
+      return;
+    }
+
+    setIsGeneratingSpeech(true);
+    try {
+      console.log('🎤 Generating quiz audio segments...');
+      
+      // Create audio segments based on quiz structure
+      const audioSegments: Array<{
+        id: string;
+        type: 'question' | 'choices' | 'wait' | 'answer' | 'text';
+        text: string;
+        audio?: string;
+        duration?: number;
+      }> = [];
+
+      // Process each quiz item
+      for (const item of quizData) {
+        if (item.type === 'text') {
+          // For text items, add directly
+          audioSegments.push({
+            id: `${item.id}-text`,
+            type: 'text',
+            text: item.content || ''
+          });
+        } else if (item.type === 'question') {
+          // For questions, break into segments: question -> choices -> wait -> answer
+          
+          // 1. Question text
+          audioSegments.push({
+            id: `${item.id}-question`,
+            type: 'question',
+            text: item.question_text || ''
+          });
+
+          // 2. Choices
+          const choicesText = item.choices ? 
+            `A: ${item.choices.A}. B: ${item.choices.B}. C: ${item.choices.C}. D: ${item.choices.D}` : '';
+          audioSegments.push({
+            id: `${item.id}-choices`,
+            type: 'choices',
+            text: choicesText
+          });
+
+          // 3. Wait time (countdown)
+          const waitTime = item.wait_time || 5;
+          // Create countdown text: "5, 4, 3, 2, 1" for 5 seconds
+          const countdownNumbers = Array.from({length: waitTime}, (_, i) => waitTime - i);
+          const countdownText = countdownNumbers.join(', ');
+          
+          audioSegments.push({
+            id: `${item.id}-wait`,
+            type: 'wait',
+            text: countdownText,
+            duration: waitTime
+          });
+
+          // 4. Answer
+          const answerText = item.answer && item.choices ? 
+            `The correct answer is ${item.answer}: ${item.choices[item.answer]}` : '';
+          audioSegments.push({
+            id: `${item.id}-answer`,
+            type: 'answer',
+            text: answerText
+          });
+        }
+      }
+
+      console.log('📋 Audio segments to generate:', audioSegments.length);
+
+      // Generate audio for non-wait segments
+      for (const segment of audioSegments) {
+        if (segment.type !== 'wait' && segment.text.trim()) {
+          console.log(`🎤 Generating audio for: ${segment.text.slice(0, 50)}...`);
+          
+          const response = await fetch('/api/generate-speech', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              text: segment.text,
+              voiceId: selectedVoice,
+              useSegments: false // Generate individual audio
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error(`Failed to generate audio for segment: ${segment.text.slice(0, 30)}...`);
+          }
+
+          const audioData = await response.json();
+          segment.audio = audioData.audio;
+          segment.duration = audioData.audioDuration;
+        }
+      }
+
+      setQuizAudioSegments(audioSegments);
+      
+      // Clear regular audio segments since we're using quiz audio
+      setAudioSegments(null);
+      setGeneratedAudio(null);
+
+      // Generate images for quiz questions if enabled
+      if (generateQuizImages) {
+        await fetchQuizImages(audioSegments);
+      }
+
+      console.log('✅ Quiz audio generation complete:', audioSegments.length, 'segments');
+      
+    } catch (error) {
+      console.error('❌ Quiz audio generation error:', error);
+      alert(`Failed to generate quiz audio: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsGeneratingSpeech(false);
+    }
+  };
+
+  // File upload handlers for quiz
+  const handleQuizFileUpload = (files: Array<{
+    key: string;
+    url: string;
+    name: string;
+    type?: string;
+    size: number;
+  }>) => {
+    const newFiles = files.map(file => ({
+      key: file.key,
+      url: file.url,
+      name: file.name,
+      type: file.type || 'unknown',
+      size: file.size
+    }));
+    setUploadedQuizFiles(prev => [...prev, ...newFiles]);
+  };
+
+  const removeQuizFile = (keyToRemove: string) => {
+    setUploadedQuizFiles(prev => prev.filter(file => file.key !== keyToRemove));
+  };
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  // Quiz reordering functions
+  const moveQuizItem = (fromIndex: number, toIndex: number) => {
+    const newQuizData = [...quizData];
+    const [removed] = newQuizData.splice(fromIndex, 1);
+    newQuizData.splice(toIndex, 0, removed);
+    setQuizData(newQuizData);
+  };
+
+  const removeQuizItem = (index: number) => {
+    setQuizData(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Generate images for quiz questions
+  const fetchQuizImages = async (audioSegments: Array<{
+    id: string;
+    type: 'question' | 'choices' | 'wait' | 'answer' | 'text';
+    text: string;
+    audio?: string;
+    duration?: number;
+  }>) => {
+    setIsGeneratingImages(true);
+    try {
+      console.log('🖼️ Generating quiz images with OpenAI DALL-E...');
+      
+      // Filter for question segments only and map to proper segment index
+      const questionSegments = audioSegments
+        .map((seg, originalIndex) => ({ ...seg, originalIndex }))
+        .filter(seg => seg.type === 'question');
+      
+      if (questionSegments.length === 0) {
+        console.log('No question segments found for image generation');
+        return;
+      }
+
+      console.log('📝 Question segments for image generation:', questionSegments.map(seg => ({
+        text: seg.text,
+        type: seg.type,
+        originalIndex: seg.originalIndex
+      })));
+
+      const response = await fetch('/api/generate-images', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          segments: questionSegments.map((seg) => ({
+            text: seg.text,
+            chunkIndex: seg.originalIndex // Use original index for proper mapping
+          }))
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.details || errorData.error || 'Failed to generate quiz images');
+      }
+
+      const data = await response.json();
+      
+      // Map the images back to the correct segment indices
+      const mappedImages = data.images.map((img: {
+        segmentIndex: number;
+        imageUrl: string;
+        description?: string;
+        prompt?: string;
+      }) => ({
+        ...img,
+        segmentIndex: questionSegments.find((_, qIndex) => qIndex === img.segmentIndex)?.originalIndex || img.segmentIndex
+      }));
+      
+      setSegmentImages(mappedImages);
+      console.log('✅ Quiz images generated with OpenAI:', mappedImages.length, 'images');
+      
+    } catch (error) {
+      console.error('❌ Quiz image generation error:', error);
+      alert(`Failed to generate quiz images: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsGeneratingImages(false);
     }
   };
 
@@ -745,12 +1108,18 @@ function VideoCreationContent() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          speechText,
+          speechText: isQuizMode ? (quizAudioSegments.map(seg => seg.text).join(' ')) : speechText,
           backgroundVideo: typeof videoSource === 'string' ? videoSource : null,
           audioSrc: generatedAudio,
           audioDuration,
           bgMusic: bgMusicSource,
-          audioSegments,
+          audioSegments: isQuizMode ? quizAudioSegments.map(seg => ({
+            text: seg.text,
+            audio: seg.audio || '',
+            chunkIndex: 0,
+            wordCount: seg.text.split(' ').length,
+            duration: seg.duration || 0
+          })) : audioSegments,
           segmentImages,
           fontStyle: selectedFont,
           textColor: selectedColor,
@@ -760,6 +1129,10 @@ function VideoCreationContent() {
           textAnimation,
           videoTitle,
           videoDescription,
+          // Quiz mode metadata
+          isQuizMode,
+          quizTopic: isQuizMode ? quizTopic : null,
+          quizData: isQuizMode ? quizData : null,
         }),
       });
 
@@ -806,10 +1179,16 @@ function VideoCreationContent() {
 
 
   const handleRenderVideo = async () => {
-    // Generate a default title based on the speech text
-    const defaultTitle = speechText.length > 50 
-      ? speechText.substring(0, 50).trim() + '...' 
-      : speechText.trim() || 'AI Generated Video';
+    // Generate a default title based on the content
+    let defaultTitle: string;
+    
+    if (isQuizMode && quizTopic) {
+      defaultTitle = `Quiz: ${quizTopic}`;
+    } else if (speechText.length > 50) {
+      defaultTitle = speechText.substring(0, 50).trim() + '...';
+    } else {
+      defaultTitle = speechText.trim() || 'AI Generated Video';
+    }
     
     setVideoTitle(defaultTitle);
     setShowSaveDialog(true);
@@ -990,12 +1369,18 @@ function VideoCreationContent() {
                 <Player
                   component={SampleVideo}
                   inputProps={{
-                    speechText,
+                    speechText: isQuizMode ? (quizAudioSegments.map(seg => seg.text).join(' ')) : speechText,
                     backgroundVideo,
                     audioSrc: generatedAudio,
                     audioDuration,
                     bgMusic: selectedBgMusic !== 'none' ? bgMusicOptions.find(m => m.value === selectedBgMusic)?.path : null,
-                    audioSegments: audioSegments,
+                    audioSegments: isQuizMode ? quizAudioSegments.map(seg => ({
+                      text: seg.text,
+                      audio: seg.audio || '',
+                      chunkIndex: 0,
+                      wordCount: seg.text.split(' ').length,
+                      duration: seg.duration || 0
+                    })) : audioSegments,
                     segmentImages: segmentImages,
                     fontStyle: selectedFont,
                     textColor: selectedColor,
@@ -1005,11 +1390,13 @@ function VideoCreationContent() {
                     textAnimation,
                   }}
                   durationInFrames={
-                    audioSegments && audioSegments.length > 0 
-                      ? Math.floor(audioSegments.reduce((acc, seg) => acc + (seg.duration || 2), 0) * 60)
-                      : audioDuration 
-                        ? Math.floor(Math.max(audioDuration, 5) * 60) 
-                        : 300
+                    isQuizMode && quizAudioSegments.length > 0
+                      ? Math.floor(quizAudioSegments.reduce((acc, seg) => acc + (seg.duration || 2), 0) * 60)
+                      : audioSegments && audioSegments.length > 0 
+                        ? Math.floor(audioSegments.reduce((acc, seg) => acc + (seg.duration || 2), 0) * 60)
+                        : audioDuration 
+                          ? Math.floor(Math.max(audioDuration, 5) * 60) 
+                          : 300
                   }
                   fps={60}
                   compositionWidth={1080}
@@ -1029,7 +1416,11 @@ function VideoCreationContent() {
                 <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30">
                   🚀 AI Powered
                 </Badge>
-                {audioSegments && audioSegments.length > 0 && (
+                {isQuizMode && quizAudioSegments.length > 0 ? (
+                  <Badge className="bg-purple-500/20 text-purple-300 border-purple-500/30">
+                    🧠 {quizAudioSegments.length} Quiz Segments
+                  </Badge>
+                ) : audioSegments && audioSegments.length > 0 && (
                   <Badge className="bg-green-500/20 text-green-300 border-green-500/30">
                     🎵 {audioSegments.length} Segments
                   </Badge>
@@ -1055,9 +1446,9 @@ function VideoCreationContent() {
                     </div>
                     <div>
                       <p className="text-sm font-medium text-white">
-                        {speechText ? speechText.split(' ').length : 0}
+                        {isQuizMode ? quizData.filter(item => item.type === 'question').length : (speechText ? speechText.split(' ').length : 0)}
                       </p>
-                      <p className="text-xs text-gray-400">Words</p>
+                      <p className="text-xs text-gray-400">{isQuizMode ? 'Questions' : 'Words'}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -1071,7 +1462,12 @@ function VideoCreationContent() {
                     </div>
                     <div>
                       <p className="text-sm font-medium text-white">
-                        {audioDuration ? `${audioDuration.toFixed(1)}s` : audioSegments ? `${audioSegments.reduce((acc, seg) => acc + (seg.duration || 2), 0).toFixed(1)}s` : '0s'}
+                        {isQuizMode && quizAudioSegments.length > 0 
+                          ? `${quizAudioSegments.reduce((acc, seg) => acc + (seg.duration || 2), 0).toFixed(1)}s`
+                          : audioDuration ? `${audioDuration.toFixed(1)}s` 
+                          : audioSegments ? `${audioSegments.reduce((acc, seg) => acc + (seg.duration || 2), 0).toFixed(1)}s` 
+                          : '0s'
+                        }
                       </p>
                       <p className="text-xs text-gray-400">Duration</p>
                     </div>
@@ -1087,9 +1483,9 @@ function VideoCreationContent() {
                     </div>
                     <div>
                       <p className="text-sm font-medium text-white">
-                        {audioSegments?.length || 0}
+                        {isQuizMode ? quizAudioSegments?.length || 0 : audioSegments?.length || 0}
                       </p>
-                      <p className="text-xs text-gray-400">Segments</p>
+                      <p className="text-xs text-gray-400">{isQuizMode ? 'Quiz Parts' : 'Segments'}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -1322,17 +1718,21 @@ function VideoCreationContent() {
 
 
 
-            {/* Text-to-Speech */}
+            {/* Text-to-Speech or Quiz Generation */}
             <Card className="bg-white/5 border-white/10 backdrop-blur-sm">
               <CardHeader>
                 <CardTitle className="flex items-center justify-between text-white">
                   <div className="flex items-center gap-2">
                     <div className="w-6 h-6 bg-gradient-to-r from-blue-500 to-cyan-500 rounded flex items-center justify-center">
-                      <Mic className="h-3 w-3 text-white" />
+                      {isQuizMode ? (
+                        <Brain className="h-3 w-3 text-white" />
+                      ) : (
+                        <Mic className="h-3 w-3 text-white" />
+                      )}
                     </div>
-                    🎤 AI Voice Synthesis
+                    {isQuizMode ? '🧠 Quiz Generation' : '🎤 AI Voice Synthesis'}
                   </div>
-                  {(generatedAudio || audioSegments) && (
+                  {((generatedAudio || audioSegments) && !isQuizMode) || (quizAudioSegments && quizAudioSegments.length > 0) && (
                     <div className="flex items-center gap-2">
                       <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
                       <span className="text-xs text-green-400 font-medium">Ready</span>
@@ -1340,270 +1740,664 @@ function VideoCreationContent() {
                   )}
                 </CardTitle>
                 <CardDescription className="text-gray-400">
-                  Generate premium AI voice with intelligent text segmentation
+                  {isQuizMode 
+                    ? 'Generate interactive quiz videos with questions and answers'
+                    : 'Generate premium AI voice with intelligent text segmentation'
+                  }
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="speech-text">Speech Text</Label>
-                  <Textarea
-                    id="speech-text"
-                    value={speechText}
-                    onChange={(e) => setSpeechText(e.target.value)}
-                    placeholder="Enter text to convert to speech..."
-                    rows={3}
-                    className="resize-none"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label>Voice Selection</Label>
-                  <Select value={selectedVoice} onValueChange={setSelectedVoice}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Choose a voice" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {voiceOptions.map((voice) => (
-                        <SelectItem key={voice.value} value={voice.value}>
-                          {voice.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Font Style</Label>
-                  <Select value={selectedFont} onValueChange={setSelectedFont}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Choose a font style" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {fontOptions.map((font) => (
-                        <SelectItem key={font.value} value={font.value}>
-                          <span style={{ fontFamily: font.font, fontWeight: font.weight }}>
-                            {font.label}
-                          </span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">
-                    ✨ Choose font style for your video text
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Text Color</Label>
-                  <Select value={selectedColor} onValueChange={setSelectedColor}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Choose text color" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {colorOptions.map((colorOption) => (
-                        <SelectItem key={colorOption.value} value={colorOption.value}>
-                          <div className="flex items-center gap-2">
-                            <div 
-                              className="w-4 h-4 rounded-full border border-white/20" 
-                              style={{ backgroundColor: colorOption.color }}
-                            />
-                            <span>{colorOption.label}</span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">
-                    🎨 Choose color for your video text
-                  </p>
-                </div>
-
-                {/* Text Styling & Effects */}
-                <div className="space-y-4 p-4 bg-white/5 border border-white/10 rounded-lg">
-                  <Label className="text-sm font-medium text-white flex items-center gap-2">
-                    <div className="w-4 h-4 bg-gradient-to-r from-purple-500 to-pink-500 rounded">
-                      <Zap className="h-3 w-3 text-white p-0.5" />
-                    </div>
-                    Text Styling & Effects
-                  </Label>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    {/* Font Size */}
-                    <div className="space-y-2">
-                      <Label className="text-xs">Font Size</Label>
-                      <Select value={fontSize.toString()} onValueChange={(value) => setFontSize(Number(value))}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="60">📱 Small (60px)</SelectItem>
-                          <SelectItem value="80">📺 Medium (80px)</SelectItem>
-                          <SelectItem value="100">🎬 Large (100px)</SelectItem>
-                          <SelectItem value="120">🎪 Extra Large (120px)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {/* Text Alignment */}
-                    <div className="space-y-2">
-                      <Label className="text-xs">Text Alignment</Label>
-                      <Select value={textAlignment} onValueChange={(value: 'left' | 'center' | 'right') => setTextAlignment(value)}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="left">⬅️ Left</SelectItem>
-                          <SelectItem value="center">🎯 Center</SelectItem>
-                          <SelectItem value="right">➡️ Right</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {/* Background Blur */}
-                    <div className="space-y-2">
-                      <Label className="text-xs">Background Blur</Label>
-                      <Select value={backgroundBlur.toString()} onValueChange={(value) => setBackgroundBlur(value === 'true')}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="false">🚫 No Blur</SelectItem>
-                          <SelectItem value="true">🌫️ With Blur</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {/* Text Animation */}
-                    <div className="space-y-2">
-                      <Label className="text-xs">Text Animation</Label>
-                      <Select value={textAnimation} onValueChange={(value: 'none' | 'typewriter' | 'fade-in') => setTextAnimation(value)}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">🚫 None</SelectItem>
-                          <SelectItem value="fade-in">✨ Fade In</SelectItem>
-                          <SelectItem value="typewriter">⌨️ Typewriter</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  
-                  <p className="text-xs text-muted-foreground">
-                    🎨 Customize text appearance and animations
-                  </p>
-                </div>
-
-                {/* Add Pictures Toggle */}
-                <div className="space-y-3 p-4 bg-white/5 border border-white/10 rounded-lg">
-                  <Label className="text-sm font-medium text-white flex items-center gap-2">
-                    <div className="w-4 h-4 bg-gradient-to-r from-green-500 to-emerald-500 rounded">
-                      <div className="h-3 w-3 text-white p-0.5">🖼️</div>
-                    </div>
-                    Generate AI Images
-                  </Label>
-                  
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="add-pictures-toggle"
-                      checked={addPictures}
-                      onChange={(e) => setAddPictures(e.target.checked)}
-                      className="rounded border-gray-300 text-primary focus:ring-primary"
-                    />
-                    <Label htmlFor="add-pictures-toggle" className="text-sm cursor-pointer">
-                      Generate custom AI images for each text segment
-                    </Label>
-                  </div>
-                  
-                  {addPictures && (
-                    <div className="text-xs text-gray-400 bg-blue-500/10 border border-blue-500/30 rounded p-2">
-                      🎨 AI will analyze each segment and generate unique, custom images tailored to your content
-                    </div>
-                  )}
-
-                  {segmentImages && segmentImages.length > 0 && (
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-xs text-gray-400">
-                        <span>AI Images ready: {segmentImages.length}</span>
-                        {isGeneratingImages && <span className="animate-pulse">🎨 Generating AI images...</span>}
+                {isQuizMode ? (
+                  /* Enhanced Quiz Generation UI */
+                  <>
+                    {/* Basic Quiz Settings */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="quiz-topic">Quiz Topic *</Label>
+                        <Textarea
+                          id="quiz-topic"
+                          value={quizTopic}
+                          onChange={(e) => setQuizTopic(e.target.value)}
+                          placeholder="e.g., JavaScript Fundamentals, Machine Learning, History..."
+                          rows={2}
+                          className="resize-none"
+                        />
                       </div>
-                      <div className="grid grid-cols-3 gap-2">
-                        {segmentImages.slice(0, 6).map((img, index) => (
-                          <div
-                            key={index}
-                            className="aspect-square bg-gray-700 rounded overflow-hidden"
-                            title={img.description}
-                          >
-                            <img
-                              src={img.imageUrl}
-                              alt={img.description || 'Segment image'}
-                              className="w-full h-full object-cover"
-                              loading="lazy"
-                            />
-                          </div>
-                        ))}
-                        {segmentImages.length > 6 && (
-                          <div className="aspect-square bg-gray-700 rounded flex items-center justify-center text-xs text-gray-400">
-                            +{segmentImages.length - 6} more
-                          </div>
-                        )}
+
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label>Number of Questions</Label>
+                          <Select value={questionCount.toString()} onValueChange={(value) => setQuestionCount(parseInt(value))}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="3">3 Questions</SelectItem>
+                              <SelectItem value="5">5 Questions</SelectItem>
+                              <SelectItem value="7">7 Questions</SelectItem>
+                              <SelectItem value="10">10 Questions</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label>Difficulty Level</Label>
+                          <Select value={quizDifficulty} onValueChange={(value: 'beginner' | 'intermediate' | 'advanced') => setQuizDifficulty(value)}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="beginner">🌱 Beginner</SelectItem>
+                              <SelectItem value="intermediate">📚 Intermediate</SelectItem>
+                              <SelectItem value="advanced">🎓 Advanced</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </div>
                     </div>
-                  )}
-                  
-                  <p className="text-xs text-muted-foreground">
-                    🎨 AI analyzes your text and creates unique, custom images for each segment
-                  </p>
-                </div>
 
-                <Button 
-                  onClick={generateSpeech}
-                  disabled={isGeneratingSpeech || !speechText.trim()}
-                  className="w-full"
-                >
-                  {isGeneratingSpeech ? (
-                    <>
-                      <Upload className="mr-2 h-4 w-4 animate-spin" />
-                      Generating Speech...
-                    </>
-                  ) : (
-                    <>
-                      <Volume2 className="mr-2 h-4 w-4" />
-                      Generate Speech
-                    </>
-                  )}
-                </Button>
+                    {/* File Upload Section */}
+                    <div className="space-y-4">
+                      <Label>Upload Reference Files (Optional)</Label>
+                      <div className="border-2 border-dashed border-gray-600 rounded-lg p-6 text-center">
+                        <UploadButton<OurFileRouter, "quizContentUploader">
+                          endpoint="quizContentUploader"
+                          onClientUploadComplete={(res) => {
+                            console.log('📎 Files uploaded:', res);
+                            if (res) handleQuizFileUpload(res);
+                          }}
+                          onUploadError={(error: Error) => {
+                            console.error('❌ Upload error:', error);
+                            alert(`Upload failed: ${error.message}`);
+                          }}
+                          appearance={{
+                            button: "bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md",
+                            allowedContent: "text-gray-400 text-sm"
+                          }}
+                        />
+                        <p className="text-gray-400 text-sm mt-2">
+                          PDFs, text files, and documents (up to 32MB each)
+                        </p>
+                      </div>
 
-                {generatedAudio && (
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Generated Audio:</Label>
-                    <audio
-                      src={generatedAudio}
-                      controls
-                      className="w-full"
-                      preload="metadata"
-                    />
-                    
-                    <div className="flex items-center justify-between">
-                      <Badge variant="outline" className="w-fit">
-                        ✅ Audio ready
-                      </Badge>
-                      {audioDuration && (
-                        <Badge variant="secondary" className="w-fit">
-                          {audioDuration.toFixed(1)}s duration
-                        </Badge>
+                      {/* Uploaded Files List */}
+                      {uploadedQuizFiles.length > 0 && (
+                        <div className="space-y-2">
+                          <Label>Uploaded Files ({uploadedQuizFiles.length})</Label>
+                          <div className="space-y-2">
+                            {uploadedQuizFiles.map((file) => (
+                              <div key={file.key} className="flex items-center justify-between bg-white/5 p-3 rounded-lg border border-white/10">
+                                <div className="flex items-center space-x-3">
+                                  <FileIcon className="h-4 w-4 text-gray-400" />
+                                  <div>
+                                    <p className="text-sm font-medium">{file.name}</p>
+                                    <p className="text-xs text-gray-400">
+                                      {file.type} • {formatFileSize(file.size)}
+                                    </p>
+                                  </div>
+                                </div>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => removeQuizFile(file.key)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
                       )}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={clearGeneratedAudio}
-                        title="Clear generated audio"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                </div>
-                  </div>
+                    </div>
+
+                    {/* Additional Content */}
+                    <div className="space-y-2">
+                      <Label htmlFor="additionalContent">Additional Context (Optional)</Label>
+                      <Textarea
+                        id="additionalContent"
+                        placeholder="Enter any additional context, instructions, or specific requirements for the quiz..."
+                        value={additionalContent}
+                        onChange={(e) => setAdditionalContent(e.target.value)}
+                        rows={3}
+                        className="resize-none"
+                      />
+                    </div>
+
+                    {/* Generate Quiz Button */}
+                    <Button
+                      onClick={generateQuizContent}
+                      disabled={isGeneratingQuiz || !quizTopic.trim()}
+                      className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
+                    >
+                      {isGeneratingQuiz ? (
+                        <>
+                          <Zap className="mr-2 h-4 w-4 animate-spin" />
+                          Generating Quiz...
+                        </>
+                      ) : (
+                        <>
+                          <Brain className="mr-2 h-4 w-4" />
+                          Generate Quiz Content
+                        </>
+                      )}
+                    </Button>
+
+                    {/* Generated Quiz Content with Reordering */}
+                    {quizData.length > 0 && (
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-sm font-medium">Quiz Content ({quizData.length} items):</Label>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setQuizData([])}
+                            className="text-xs"
+                          >
+                            <Trash2 className="mr-1 h-3 w-3" />
+                            Clear All
+                          </Button>
+                        </div>
+                        
+                        <div className="space-y-2 max-h-96 overflow-y-auto border border-white/10 rounded-lg p-3 bg-white/5">
+                          {quizData.map((item, index) => (
+                            <div key={item.id} className="group relative p-3 bg-white/10 rounded-lg border border-white/10 hover:bg-white/15 transition-colors">
+                              {/* Reorder Controls */}
+                              <div className="absolute left-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <div className="flex flex-col gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => index > 0 && moveQuizItem(index, index - 1)}
+                                    disabled={index === 0}
+                                    className="h-6 w-6 p-0"
+                                  >
+                                    <GripVertical className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              </div>
+
+                              {/* Delete Button */}
+                              <div className="absolute right-1 top-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => removeQuizItem(index)}
+                                  className="h-6 w-6 p-0 text-red-400 hover:text-red-300"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
+
+                              {/* Content */}
+                              <div className="ml-8 mr-8">
+                                {item.type === 'question' ? (
+                                  <div className="space-y-2">
+                                    <div className="flex items-center gap-2">
+                                      <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30">
+                                        Q{index + 1}
+                                      </Badge>
+                                      <span className="text-sm font-medium">{item.question_text}</span>
+                                    </div>
+                                    {item.choices && (
+                                      <div className="grid grid-cols-2 gap-1 text-xs text-gray-300">
+                                        {Object.entries(item.choices).map(([key, value]) => (
+                                          <div 
+                                            key={key}
+                                            className={`p-1 rounded ${
+                                              item.answer === key 
+                                                ? 'bg-green-500/20 text-green-300' 
+                                                : 'bg-gray-800/50'
+                                            }`}
+                                          >
+                                            <span className="font-bold">{key}:</span> {value}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                    <div className="flex items-center gap-2 text-xs">
+                                      <Badge className="bg-green-500/20 text-green-300 border-green-500/30">
+                                        Answer: {item.answer}
+                                      </Badge>
+                                      <Badge className="bg-orange-500/20 text-orange-300 border-orange-500/30">
+                                        Wait: {item.wait_time}s
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-2">
+                                    <Badge className="bg-purple-500/20 text-purple-300 border-purple-500/30">
+                                      Text
+                                    </Badge>
+                                    <span className="text-sm">{item.content}</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Image Generation Toggle */}
+                        <div className="flex items-center space-x-2 p-3 bg-white/5 border border-white/10 rounded-lg">
+                          <input
+                            type="checkbox"
+                            id="generate-quiz-images"
+                            checked={generateQuizImages}
+                            onChange={(e) => setGenerateQuizImages(e.target.checked)}
+                            className="rounded border-gray-300 text-primary focus:ring-primary"
+                          />
+                          <Label htmlFor="generate-quiz-images" className="text-sm cursor-pointer flex items-center gap-2">
+                            <Image className="h-4 w-4" />
+                            Generate AI images for questions
+                          </Label>
+                        </div>
+                        
+                        {/* Quiz Styling Controls */}
+                        <div className="space-y-4 p-4 bg-white/5 border border-white/10 rounded-lg">
+                          <Label className="text-sm font-medium text-white flex items-center gap-2">
+                            <div className="w-4 h-4 bg-gradient-to-r from-purple-500 to-pink-500 rounded">
+                              <Zap className="h-3 w-3 text-white p-0.5" />
+                            </div>
+                            Quiz Styling & Effects
+                          </Label>
+
+                          <div className="grid grid-cols-2 gap-4">
+                            {/* Voice Selection */}
+                            <div className="space-y-2">
+                              <Label className="text-xs">Voice</Label>
+                              <Select value={selectedVoice} onValueChange={setSelectedVoice}>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {voiceOptions.map((voice) => (
+                                    <SelectItem key={voice.value} value={voice.value}>
+                                      {voice.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                            {/* Font Style */}
+                            <div className="space-y-2">
+                              <Label className="text-xs">Font Style</Label>
+                              <Select value={selectedFont} onValueChange={setSelectedFont}>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {fontOptions.map((font) => (
+                                    <SelectItem key={font.value} value={font.value}>
+                                      <span style={{ fontFamily: font.font, fontWeight: font.weight }}>
+                                        {font.label}
+                                      </span>
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                            {/* Text Color */}
+                            <div className="space-y-2">
+                              <Label className="text-xs">Text Color</Label>
+                              <Select value={selectedColor} onValueChange={setSelectedColor}>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {colorOptions.map((colorOption) => (
+                                    <SelectItem key={colorOption.value} value={colorOption.value}>
+                                      <div className="flex items-center gap-2">
+                                        <div 
+                                          className="w-4 h-4 rounded-full border border-white/20" 
+                                          style={{ backgroundColor: colorOption.color }}
+                                        />
+                                        <span>{colorOption.label}</span>
+                                      </div>
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                            {/* Font Size */}
+                            <div className="space-y-2">
+                              <Label className="text-xs">Font Size</Label>
+                              <Select value={fontSize.toString()} onValueChange={(value) => setFontSize(Number(value))}>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="60">📱 Small (60px)</SelectItem>
+                                  <SelectItem value="80">📺 Medium (80px)</SelectItem>
+                                  <SelectItem value="100">🎬 Large (100px)</SelectItem>
+                                  <SelectItem value="120">🎪 Extra Large (120px)</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                            {/* Text Alignment */}
+                            <div className="space-y-2">
+                              <Label className="text-xs">Text Alignment</Label>
+                              <Select value={textAlignment} onValueChange={(value: 'left' | 'center' | 'right') => setTextAlignment(value)}>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="left">⬅️ Left</SelectItem>
+                                  <SelectItem value="center">🎯 Center</SelectItem>
+                                  <SelectItem value="right">➡️ Right</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                            {/* Text Animation */}
+                            <div className="space-y-2">
+                              <Label className="text-xs">Text Animation</Label>
+                              <Select value={textAnimation} onValueChange={(value: 'none' | 'typewriter' | 'fade-in') => setTextAnimation(value)}>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="none">🚫 None</SelectItem>
+                                  <SelectItem value="fade-in">✨ Fade In</SelectItem>
+                                  <SelectItem value="typewriter">⌨️ Typewriter</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                          
+                          <p className="text-xs text-muted-foreground">
+                            🎨 Customize quiz video appearance and animations
+                          </p>
+                        </div>
+
+                        {/* Generate Audio Button */}
+                        <Button
+                          onClick={generateQuizAudio}
+                          disabled={isGeneratingSpeech}
+                          className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white"
+                        >
+                          {isGeneratingSpeech ? (
+                            <>
+                              <Zap className="mr-2 h-4 w-4 animate-spin" />
+                              Generating Audio...
+                            </>
+                          ) : (
+                            <>
+                              <Volume2 className="mr-2 h-4 w-4" />
+                              Generate Audio for Quiz
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  /* Regular Text-to-Speech UI */
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="speech-text">Speech Text</Label>
+                      <Textarea
+                        id="speech-text"
+                        value={speechText}
+                        onChange={(e) => setSpeechText(e.target.value)}
+                        placeholder="Enter text to convert to speech..."
+                        rows={3}
+                        className="resize-none"
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label>Voice Selection</Label>
+                      <Select value={selectedVoice} onValueChange={setSelectedVoice}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Choose a voice" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {voiceOptions.map((voice) => (
+                            <SelectItem key={voice.value} value={voice.value}>
+                              {voice.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Font Style</Label>
+                      <Select value={selectedFont} onValueChange={setSelectedFont}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Choose a font style" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {fontOptions.map((font) => (
+                            <SelectItem key={font.value} value={font.value}>
+                              <span style={{ fontFamily: font.font, fontWeight: font.weight }}>
+                                {font.label}
+                              </span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        ✨ Choose font style for your video text
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Text Color</Label>
+                      <Select value={selectedColor} onValueChange={setSelectedColor}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Choose text color" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {colorOptions.map((colorOption) => (
+                            <SelectItem key={colorOption.value} value={colorOption.value}>
+                              <div className="flex items-center gap-2">
+                                <div 
+                                  className="w-4 h-4 rounded-full border border-white/20" 
+                                  style={{ backgroundColor: colorOption.color }}
+                                />
+                                <span>{colorOption.label}</span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        🎨 Choose color for your video text
+                      </p>
+                    </div>
+
+                    {/* Text Styling & Effects */}
+                    <div className="space-y-4 p-4 bg-white/5 border border-white/10 rounded-lg">
+                      <Label className="text-sm font-medium text-white flex items-center gap-2">
+                        <div className="w-4 h-4 bg-gradient-to-r from-purple-500 to-pink-500 rounded">
+                          <Zap className="h-3 w-3 text-white p-0.5" />
+                        </div>
+                        Text Styling & Effects
+                      </Label>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        {/* Font Size */}
+                        <div className="space-y-2">
+                          <Label className="text-xs">Font Size</Label>
+                          <Select value={fontSize.toString()} onValueChange={(value) => setFontSize(Number(value))}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="60">📱 Small (60px)</SelectItem>
+                              <SelectItem value="80">📺 Medium (80px)</SelectItem>
+                              <SelectItem value="100">🎬 Large (100px)</SelectItem>
+                              <SelectItem value="120">🎪 Extra Large (120px)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {/* Text Alignment */}
+                        <div className="space-y-2">
+                          <Label className="text-xs">Text Alignment</Label>
+                          <Select value={textAlignment} onValueChange={(value: 'left' | 'center' | 'right') => setTextAlignment(value)}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="left">⬅️ Left</SelectItem>
+                              <SelectItem value="center">🎯 Center</SelectItem>
+                              <SelectItem value="right">➡️ Right</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {/* Background Blur */}
+                        <div className="space-y-2">
+                          <Label className="text-xs">Background Blur</Label>
+                          <Select value={backgroundBlur.toString()} onValueChange={(value) => setBackgroundBlur(value === 'true')}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="false">🚫 No Blur</SelectItem>
+                              <SelectItem value="true">✨ Blur Effect</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {/* Text Animation */}
+                        <div className="space-y-2">
+                          <Label className="text-xs">Text Animation</Label>
+                          <Select value={textAnimation} onValueChange={(value: 'none' | 'typewriter' | 'fade-in') => setTextAnimation(value)}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">🚫 None</SelectItem>
+                              <SelectItem value="fade-in">✨ Fade In</SelectItem>
+                              <SelectItem value="typewriter">⌨️ Typewriter</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      
+                      <p className="text-xs text-muted-foreground">
+                        🎨 Customize text appearance and animations
+                      </p>
+                    </div>
+
+                    {/* Add Pictures Toggle */}
+                    <div className="space-y-3 p-4 bg-white/5 border border-white/10 rounded-lg">
+                      <Label className="text-sm font-medium text-white flex items-center gap-2">
+                        <div className="w-4 h-4 bg-gradient-to-r from-green-500 to-emerald-500 rounded">
+                          <div className="h-3 w-3 text-white p-0.5">🖼️</div>
+                        </div>
+                        Generate AI Images
+                      </Label>
+                      
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id="add-pictures-toggle"
+                          checked={addPictures}
+                          onChange={(e) => setAddPictures(e.target.checked)}
+                          className="rounded border-gray-300 text-primary focus:ring-primary"
+                        />
+                        <Label htmlFor="add-pictures-toggle" className="text-sm cursor-pointer">
+                          Generate custom AI images for each text segment
+                        </Label>
+                      </div>
+                      
+                      {addPictures && (
+                        <div className="text-xs text-gray-400 bg-blue-500/10 border border-blue-500/30 rounded p-2">
+                          🎨 AI will analyze each segment and generate unique, custom images tailored to your content
+                        </div>
+                      )}
+
+                      {segmentImages && segmentImages.length > 0 && (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-xs text-gray-400">
+                            <span>AI Images ready: {segmentImages.length}</span>
+                            {isGeneratingImages && <span className="animate-pulse">🎨 Generating AI images...</span>}
+                          </div>
+                          <div className="grid grid-cols-3 gap-2">
+                            {segmentImages.slice(0, 6).map((img, index) => (
+                              <div
+                                key={index}
+                                className="aspect-square bg-gray-700 rounded overflow-hidden"
+                                title={img.description}
+                              >
+                                <img
+                                  src={img.imageUrl}
+                                  alt={img.description || 'Segment image'}
+                                  className="w-full h-full object-cover"
+                                  loading="lazy"
+                                />
+                              </div>
+                            ))}
+                            {segmentImages.length > 6 && (
+                              <div className="aspect-square bg-gray-700 rounded flex items-center justify-center text-xs text-gray-400">
+                                +{segmentImages.length - 6} more
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      
+                      <p className="text-xs text-muted-foreground">
+                        🎨 AI analyzes your text and creates unique, custom images for each segment
+                      </p>
+                    </div>
+
+                    <Button 
+                      onClick={generateSpeech}
+                      disabled={isGeneratingSpeech || !speechText.trim()}
+                      className="w-full"
+                    >
+                      {isGeneratingSpeech ? (
+                        <>
+                          <Upload className="mr-2 h-4 w-4 animate-spin" />
+                          Generating Speech...
+                        </>
+                      ) : (
+                        <>
+                          <Volume2 className="mr-2 h-4 w-4" />
+                          Generate Speech
+                        </>
+                      )}
+                    </Button>
+
+                    {generatedAudio && (
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">Generated Audio:</Label>
+                        <audio
+                          src={generatedAudio}
+                          controls
+                          className="w-full"
+                          preload="metadata"
+                        />
+                        
+                        <div className="flex items-center justify-between">
+                          <Badge variant="outline" className="w-fit">
+                            ✅ Audio ready
+                          </Badge>
+                          {audioDuration && (
+                            <Badge variant="secondary" className="w-fit">
+                              {audioDuration.toFixed(1)}s duration
+                            </Badge>
+                          )}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={clearGeneratedAudio}
+                            title="Clear generated audio"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </CardContent>
             </Card>
@@ -1807,7 +2601,7 @@ function VideoCreationContent() {
                     </div>
                     🚀 Generate & Export
                   </div>
-                  {speechText.trim() && (
+                  {(isQuizMode ? (quizData && quizData.length > 0) : speechText.trim()) && (
                     <div className="flex items-center gap-2">
                       <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
                       <span className="text-xs text-green-400 font-medium">Ready to Generate</span>
@@ -1824,19 +2618,41 @@ function VideoCreationContent() {
                   <h4 className="text-sm font-medium text-white mb-2">📋 Generation Checklist</h4>
                   <div className="space-y-2">
                     <div className="flex items-center gap-3">
-                      <div className={`w-4 h-4 rounded-full flex items-center justify-center ${speechText.trim() ? 'bg-green-500' : 'bg-gray-600'}`}>
-                        {speechText.trim() ? '✓' : '○'}
+                      <div className={`w-4 h-4 rounded-full flex items-center justify-center ${
+                        isQuizMode 
+                          ? (quizData && quizData.length > 0 ? 'bg-green-500' : 'bg-gray-600')
+                          : (speechText.trim() ? 'bg-green-500' : 'bg-gray-600')
+                      }`}>
+                        {(isQuizMode ? (quizData && quizData.length > 0) : speechText.trim()) ? '✓' : '○'}
                       </div>
-                      <span className={`text-sm ${speechText.trim() ? 'text-green-300' : 'text-gray-400'}`}>
-                        Text Content ({speechText.split(' ').length} words)
+                      <span className={`text-sm ${
+                        (isQuizMode ? (quizData && quizData.length > 0) : speechText.trim()) 
+                          ? 'text-green-300' 
+                          : 'text-gray-400'
+                      }`}>
+                        Text Content {isQuizMode 
+                          ? (quizData ? `(${quizData.length} quiz items)` : '(0 quiz items)')
+                          : `(${speechText.split(' ').length} words)`
+                        }
                       </span>
                     </div>
                     <div className="flex items-center gap-3">
-                      <div className={`w-4 h-4 rounded-full flex items-center justify-center ${(generatedAudio || audioSegments) ? 'bg-green-500' : 'bg-gray-600'}`}>
-                        {(generatedAudio || audioSegments) ? '✓' : '○'}
+                      <div className={`w-4 h-4 rounded-full flex items-center justify-center ${
+                        isQuizMode 
+                          ? (quizAudioSegments && quizAudioSegments.length > 0 ? 'bg-green-500' : 'bg-gray-600')
+                          : ((generatedAudio || audioSegments) ? 'bg-green-500' : 'bg-gray-600')
+                      }`}>
+                        {(isQuizMode ? (quizAudioSegments && quizAudioSegments.length > 0) : (generatedAudio || audioSegments)) ? '✓' : '○'}
                       </div>
-                      <span className={`text-sm ${(generatedAudio || audioSegments) ? 'text-green-300' : 'text-gray-400'}`}>
-                        AI Voice Generated {audioSegments && `(${audioSegments.length} segments)`}
+                      <span className={`text-sm ${
+                        (isQuizMode ? (quizAudioSegments && quizAudioSegments.length > 0) : (generatedAudio || audioSegments)) 
+                          ? 'text-green-300' 
+                          : 'text-gray-400'
+                      }`}>
+                        AI Voice Generated {isQuizMode 
+                          ? (quizAudioSegments ? `(${quizAudioSegments.length} segments)` : '')
+                          : (audioSegments ? `(${audioSegments.length} segments)` : '')
+                        }
                       </span>
                     </div>
                     <div className="flex items-center gap-3">
@@ -1859,37 +2675,66 @@ function VideoCreationContent() {
                 </div>
 
                 {/* Audio Segments Info */}
-                {audioSegments && audioSegments.length > 0 && (
+                {((isQuizMode && quizAudioSegments && quizAudioSegments.length > 0) || 
+                  (!isQuizMode && audioSegments && audioSegments.length > 0)) && (
                   <div className="p-4 bg-purple-500/10 rounded-lg border border-purple-500/20">
                     <div className="flex items-center gap-2 mb-2">
                       <div className="w-4 h-4 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"></div>
                       <span className="text-sm font-medium text-purple-300">
-                        🎵 Audio Segments Ready
+                        {isQuizMode ? '🧠 Quiz Audio Ready' : '🎵 Audio Segments Ready'}
                       </span>
                     </div>
                     <div className="space-y-2">
-                      <div className="flex items-center justify-between text-xs text-gray-400">
-                        <span>Segments: {audioSegments.length}</span>
-                        <span>Total Duration: {audioSegments.reduce((acc, seg) => acc + (seg.duration || 2), 0).toFixed(1)}s</span>
-                      </div>
-                      <div className="flex flex-wrap gap-1">
-                        {audioSegments.map((segment, index) => (
-                          <div
-                            key={index}
-                            className="px-2 py-1 bg-purple-500/20 rounded text-xs text-purple-200 border border-purple-500/30"
-                            title={`Segment ${index + 1}: "${segment.text}" (${segment.duration?.toFixed(1) || '2.0'}s)`}
-                          >
-                            #{index + 1} ({segment.duration?.toFixed(1) || '2.0'}s)
+                      {isQuizMode && quizAudioSegments ? (
+                        <>
+                          <div className="flex items-center justify-between text-xs text-gray-400">
+                            <span>Quiz Segments: {quizAudioSegments.length}</span>
+                            <span>Total Duration: {quizAudioSegments.reduce((acc, seg) => acc + (seg.duration || 2), 0).toFixed(1)}s</span>
                           </div>
-                        ))}
-                      </div>
+                          <div className="flex flex-wrap gap-1">
+                            {quizAudioSegments.map((segment, index) => (
+                              <div
+                                key={index}
+                                className={`px-2 py-1 rounded text-xs border ${
+                                  segment.type === 'question' ? 'bg-blue-500/20 text-blue-200 border-blue-500/30' :
+                                  segment.type === 'choices' ? 'bg-green-500/20 text-green-200 border-green-500/30' :
+                                  segment.type === 'wait' ? 'bg-yellow-500/20 text-yellow-200 border-yellow-500/30' :
+                                  segment.type === 'answer' ? 'bg-purple-500/20 text-purple-200 border-purple-500/30' :
+                                  'bg-gray-500/20 text-gray-200 border-gray-500/30'
+                                }`}
+                                title={`${segment.type}: "${segment.text}" (${segment.duration?.toFixed(1) || '2.0'}s)`}
+                              >
+                                {segment.type.charAt(0).toUpperCase()}#{index + 1} ({segment.duration?.toFixed(1) || '2.0'}s)
+                              </div>
+                            ))}
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="flex items-center justify-between text-xs text-gray-400">
+                            <span>Segments: {audioSegments?.length || 0}</span>
+                            <span>Total Duration: {audioSegments?.reduce((acc, seg) => acc + (seg.duration || 2), 0).toFixed(1) || '0.0'}s</span>
+                          </div>
+                          <div className="flex flex-wrap gap-1">
+                            {audioSegments?.map((segment, index) => (
+                              <div
+                                key={index}
+                                className="px-2 py-1 bg-purple-500/20 rounded text-xs text-purple-200 border border-purple-500/30"
+                                title={`Segment ${index + 1}: "${segment.text}" (${segment.duration?.toFixed(1) || '2.0'}s)`}
+                              >
+                                #{index + 1} ({segment.duration?.toFixed(1) || '2.0'}s)
+                              </div>
+                            ))}
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
                 )}
 
                 <Button 
                   onClick={handleRenderVideo}
-                  disabled={isSaving || !speechText.trim()}
+                  disabled={isSaving || (isQuizMode ? (!quizData || quizData.length === 0) : !speechText.trim())}
                   className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg shadow-purple-500/25 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
                   size="lg"
                 >
@@ -1899,7 +2744,7 @@ function VideoCreationContent() {
                 </Button>
                 
                 <p className="text-xs text-center text-gray-400">
-                  📧 Video will be processed in background. You'll receive an email when ready!
+                  📧 Video will be processed in background. You&apos;ll receive an email when ready!
                 </p>
               </CardContent>
             </Card>

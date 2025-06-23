@@ -221,7 +221,8 @@ export const SampleVideo: React.FC<SampleVideoProps> = ({
                 from={startFrame}
                 durationInFrames={segmentFrames}
               >
-                <Audio src={segment.audio} />
+                {/* Only play audio if the segment has an audio source (skip wait segments) */}
+                {segment.audio && <Audio src={segment.audio} />}
               </Sequence>
             );
           });
