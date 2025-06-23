@@ -6,6 +6,7 @@ import { useParams } from 'next/navigation';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { Player } from '@remotion/player';
 import { SampleVideo } from '@/remotion/SampleVideo';
+import { QuizVideo } from '@/remotion/QuizVideo';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -1451,48 +1452,70 @@ function VideoCreationContent() {
             </CardHeader>
             <CardContent>
               <div className="mx-auto bg-black rounded-xl overflow-hidden border border-white/20 shadow-2xl" style={{ aspectRatio: '9/16', maxHeight: '600px' }}>
-                <Player
-                  component={SampleVideo}
-                  inputProps={{
-                    speechText: isQuizMode ? (quizAudioSegments.map(seg => seg.text).join(' ')) : speechText,
-                    backgroundVideo,
-                    audioSrc: generatedAudio,
-                    audioDuration,
-                    bgMusic: selectedBgMusic !== 'none' ? bgMusicOptions.find(m => m.value === selectedBgMusic)?.path : null,
-                    audioSegments: isQuizMode ? quizAudioSegments.map(seg => ({
-                      text: seg.text,
-                      audio: seg.audio || '',
-                      chunkIndex: 0,
-                      wordCount: seg.text.split(' ').length,
-                      duration: seg.duration || 0
-                    })) : audioSegments,
-                    segmentImages: segmentImages,
-                    fontStyle: selectedFont,
-                    textColor: selectedColor,
-                    fontSize,
-                    textAlignment,
-                    backgroundBlur,
-                    textAnimation,
-                  }}
-                  durationInFrames={
-                    isQuizMode && quizAudioSegments.length > 0
-                      ? Math.floor(quizAudioSegments.reduce((acc, seg) => acc + (seg.duration || 2), 0) * 60)
-                      : audioSegments && audioSegments.length > 0 
+                {isQuizMode ? (
+                  <Player
+                    component={QuizVideo}
+                    inputProps={{
+                      segments: quizAudioSegments || [],
+                      font: selectedFont,
+                      fontSize,
+                      textColor: selectedColor,
+                      textAlignment,
+                      backgroundBlur,
+                      backgroundVideo: backgroundVideo || undefined,
+                      voice: selectedVoice,
+                    }}
+                    durationInFrames={
+                      quizAudioSegments.length > 0
+                        ? Math.floor(quizAudioSegments.reduce((acc, seg) => acc + (seg.duration || 2), 0) * 60)
+                        : 300
+                    }
+                    fps={60}
+                    compositionWidth={1080}
+                    compositionHeight={1920}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                    }}
+                    controls
+                    loop
+                  />
+                ) : (
+                  <Player
+                    component={SampleVideo}
+                    inputProps={{
+                      speechText,
+                      backgroundVideo,
+                      audioSrc: generatedAudio,
+                      audioDuration,
+                      bgMusic: selectedBgMusic !== 'none' ? bgMusicOptions.find(m => m.value === selectedBgMusic)?.path : null,
+                      audioSegments,
+                      segmentImages,
+                      fontStyle: selectedFont,
+                      textColor: selectedColor,
+                      fontSize,
+                      textAlignment,
+                      backgroundBlur,
+                      textAnimation,
+                    }}
+                    durationInFrames={
+                      audioSegments && audioSegments.length > 0 
                         ? Math.floor(audioSegments.reduce((acc, seg) => acc + (seg.duration || 2), 0) * 60)
                         : audioDuration 
                           ? Math.floor(Math.max(audioDuration, 5) * 60) 
                           : 300
-                  }
-                  fps={60}
-                  compositionWidth={1080}
-                  compositionHeight={1920}
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                  }}
-                  controls
-                  loop
-                />
+                    }
+                    fps={60}
+                    compositionWidth={1080}
+                    compositionHeight={1920}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                    }}
+                    controls
+                    loop
+                  />
+                )}
               </div>
               <div className="flex items-center justify-center gap-3 mt-4">
                 <Badge className="bg-purple-500/20 text-purple-300 border-purple-500/30">

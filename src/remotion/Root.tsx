@@ -1,5 +1,6 @@
 import {Composition, registerRoot} from 'remotion';
 import {SampleVideo} from './SampleVideo';
+import {QuizVideo} from './QuizVideo';
 
 // Placeholder DialogueVideo component
 const DialogueVideo: React.FC<{
@@ -62,6 +63,54 @@ export const RemotionRoot: React.FC = () => {
           images: [],
           bgVideo: '/assets/bg.mp4',
           bgMusic: '/assets/music.mp3'
+        }}
+      />
+      <Composition
+        id="QuizVideo"
+        component={QuizVideo as unknown as React.ComponentType<Record<string, unknown>>}
+        durationInFrames={1800} // 30 seconds at 60fps
+        fps={60}
+        width={1080}
+        height={1920}
+        defaultProps={{
+          segments: [
+            {
+              id: 'intro',
+              type: 'text' as const,
+              text: 'Welcome to our quiz!',
+              duration: 3,
+            },
+            {
+              id: 'q1',
+              type: 'question' as const,
+              text: 'What is the capital of France?',
+              duration: 3,
+            },
+            {
+              id: 'choices1',
+              type: 'choices' as const,
+              text: 'A: Paris. B: London. C: Madrid. D: Berlin',
+              duration: 4,
+            },
+            {
+              id: 'wait1',
+              type: 'wait' as const,
+              text: '5, 4, 3, 2, 1',
+              duration: 5,
+            },
+            {
+              id: 'answer1',
+              type: 'answer' as const,
+              text: 'The correct answer is A: Paris',
+              duration: 3,
+            },
+          ],
+          font: 'montserrat',
+          fontSize: 85,
+          textColor: 'white',
+          textAlignment: 'center',
+          backgroundBlur: false,
+          backgroundVideo: null,
         }}
       />
     </>
