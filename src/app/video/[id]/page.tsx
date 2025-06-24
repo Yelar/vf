@@ -1208,20 +1208,10 @@ function VideoCreationContent() {
         
         if (result.success) {
           alert(`🧠 Quiz video "${videoTitle}" is being processed!\n\n${result.message}\n\nEstimated time: ${result.estimatedTime}\n\nYou'll receive an email notification when it's ready.`);
-          
-          // If this is a new video and we got a video ID back, navigate to edit mode
-          if (isNew && result.videoId) {
-            // Clear the save dialog first
-            setShowSaveDialog(false);
-            
-            // Navigate to the edit page for this video
-            window.location.href = `/video/${result.videoId}`;
-          } else {
-            // If editing existing video, just clear the dialog
-            setShowSaveDialog(false);
-            setVideoTitle('');
-            setVideoDescription('');
-          }
+          // If this is a new video and we got a video ID back, do NOT navigate away, just close dialog
+          setShowSaveDialog(false);
+          setVideoTitle('');
+          setVideoDescription('');
         } else {
           throw new Error(result.error || 'Failed to start quiz video processing');
         }
@@ -1279,25 +1269,13 @@ function VideoCreationContent() {
         
         if (result.success) {
           alert(`🎬 Video "${videoTitle}" is being processed!\n\n${result.message}\n\nEstimated time: ${result.estimatedTime}\n\nYou'll receive an email notification when it's ready.`);
-          
-          // If this is a new video and we got a video ID back, navigate to edit mode
-          if (isNew && result.videoId) {
-            // Clear the save dialog first
-            setShowSaveDialog(false);
-            
-            // Navigate to the edit page for this video
-            window.location.href = `/video/${result.videoId}`;
-          } else {
-            // If editing existing video and we got a video URL back, update it
-            if (result.videoUrl) {
-              setVideoUrl(result.videoUrl);
-            }
-            
-            // Clear the save dialog
-            setShowSaveDialog(false);
-            setVideoTitle('');
-            setVideoDescription('');
+          // If this is a new video and we got a video ID back, do NOT navigate away, just close dialog
+          if (result.videoUrl) {
+            setVideoUrl(result.videoUrl);
           }
+          setShowSaveDialog(false);
+          setVideoTitle('');
+          setVideoDescription('');
         } else {
           throw new Error(result.error || 'Failed to start video processing');
         }

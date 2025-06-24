@@ -8,6 +8,23 @@ import path from 'path';
 import { v4 as uuid } from 'uuid';
 import fs from 'fs/promises';
 
+// Define types for segments and segmentImages
+interface QuizSegment {
+  id?: string;
+  type: 'question' | 'choices' | 'wait' | 'answer' | 'text';
+  text: string;
+  audio?: string;
+  duration?: number;
+  image?: string;
+  originalIndex?: number;
+}
+
+interface SegmentImage {
+  segmentIndex: number;
+  imageUrl: string;
+  description?: string;
+}
+
 // Function to combine audio segments into a single audio file
 async function combineAudioSegments(segments: Array<{text: string; audio: string; chunkIndex: number; wordCount: number; duration?: number}>): Promise<{audioPath: string; totalDuration: number}> {
   if (!segments || segments.length === 0) {
@@ -191,23 +208,23 @@ export async function POST(request: NextRequest) {
 
     // Filter audio segments to only include those with actual audio data
     // (excludes 'wait' segments which have duration but no audio)
-    const audioSegments = segments.map((seg: any, index: number) => ({
+    const audioSegments = segments.map((seg: QuizSegment, index: number) => ({
       text: seg.text,
       audio: seg.audio || '',
       chunkIndex: index,
       wordCount: seg.text.split(' ').length,
       duration: seg.duration || 2
-    })).filter((seg: any) => seg.audio && seg.audio.trim() !== '');
+    })).filter((seg) => seg.audio && seg.audio.trim() !== '');
 
     console.log(`🎵 Audio segments (with actual audio): ${audioSegments.length}/${segments.length}`);
-    console.log(`📋 Segments breakdown:`, segments.map((seg: any) => ({
+    console.log(`📋 Segments breakdown:`, segments.map((seg: QuizSegment) => ({
       type: seg.type,
       hasAudio: !!(seg.audio && seg.audio.trim()),
       duration: seg.duration || 2
     })));
 
     // Calculate total duration (includes ALL segments, even those without audio)
-    const totalDuration = segments.reduce((acc: number, seg: any) => {
+    const totalDuration = segments.reduce((acc: number, seg: QuizSegment) => {
       return acc + (seg.duration || 2);
     }, 0);
 
@@ -215,7 +232,7 @@ export async function POST(request: NextRequest) {
 
     // Create video record immediately with placeholder URL
     const videoMetadata = {
-      speechText: segments.map((seg: any) => seg.text).join(' '),
+      speechText: segments.map((seg: QuizSegment) => seg.text).join(' '),
       backgroundVideo,
       audioSrc: audioSegments.length > 0, // Only true if we have actual audio segments
       audioDuration: totalDuration, // Use total duration, not just audio duration
@@ -252,10 +269,9 @@ export async function POST(request: NextRequest) {
     processQuizVideoAsync({
       processingId,
       videoId: savedVideo.id,
-      userId: parseInt(session.user.id),
       userEmail: session.user.email!,
       userName,
-      segments,
+      segments: segments as QuizSegment[],
       font,
       fontSize,
       textColor,
@@ -263,9 +279,8 @@ export async function POST(request: NextRequest) {
       backgroundBlur,
       backgroundVideo,
       bgMusic,
-      segmentImages,
+      segmentImages: segmentImages as SegmentImage[],
       videoTitle,
-      videoDescription,
       audioSegments
     }).catch(error => {
       console.error(`❌ Async quiz video processing failed for ${processingId}:`, error);
@@ -297,7 +312,6 @@ export async function POST(request: NextRequest) {
 async function processQuizVideoAsync({
   processingId,
   videoId,
-  userId,
   userEmail,
   userName,
   segments,
@@ -310,15 +324,13 @@ async function processQuizVideoAsync({
   bgMusic,
   segmentImages,
   videoTitle,
-  videoDescription,
   audioSegments
 }: {
   processingId: string;
   videoId: number;
-  userId: number;
   userEmail: string;
   userName: string;
-  segments: any[];
+  segments: QuizSegment[];
   font: string;
   fontSize: number;
   textColor: string;
@@ -326,9 +338,8 @@ async function processQuizVideoAsync({
   backgroundBlur: boolean;
   backgroundVideo?: string;
   bgMusic?: string | null;
-  segmentImages?: any;
+  segmentImages?: SegmentImage[];
   videoTitle: string;
-  videoDescription?: string;
   audioSegments: Array<{text: string; audio: string; chunkIndex: number; wordCount: number; duration?: number}>;
 }) {
   try {
@@ -379,7 +390,7 @@ async function processQuizVideoAsync({
 
     // Prepare input props for QuizVideo
     const inputProps = {
-      segments: segments.map((seg: any) => ({
+      segments: segments.map((seg: QuizSegment) => ({
         id: seg.id || uuid(),
         type: seg.type,
         text: seg.text,
@@ -413,7 +424,7 @@ async function processQuizVideoAsync({
 
     // Calculate duration based on segments - INCLUDE ALL SEGMENTS
     // Don't rely solely on audio duration since wait segments have no audio but still take time
-    const totalSegmentDuration = segments.reduce((acc: number, seg: any) => {
+    const totalSegmentDuration = segments.reduce((acc: number, seg: QuizSegment) => {
       return acc + (seg.duration || 2);
     }, 0);
     

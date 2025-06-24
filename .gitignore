@@ -41,8 +41,8 @@ yarn-error.log*
 next-env.d.ts
 
 # User uploads and database
-/public/bg-videos
-/public/bg-music
+/public/bg-videos/*
+/public/bg-music/*
 users.db
 users.db-shm
 users.db-wal
