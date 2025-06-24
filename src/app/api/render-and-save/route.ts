@@ -223,7 +223,6 @@ export async function POST(req: NextRequest) {
 async function processVideoAsync({
   processingId,
   videoId,
-  userId,
   userEmail,
   userName,
   speechText,
@@ -240,7 +239,6 @@ async function processVideoAsync({
   audioSegments,
   segmentImages,
   videoTitle,
-  videoDescription
 }: {
   processingId: string;
   videoId: number;

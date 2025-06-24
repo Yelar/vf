@@ -1,12 +1,12 @@
 import React from 'react';
 import {
+  AbsoluteFill,
   useCurrentFrame,
   useVideoConfig,
   Img,
   Audio,
-  interpolate,
-  spring,
   Sequence,
+  Video,
 } from 'remotion';
 
 export interface QuizVideoProps {
@@ -27,6 +27,7 @@ export interface QuizVideoProps {
   textAnimation?: 'none' | 'typewriter' | 'fade-in';
   backgroundVideo?: string;
   voice?: string;
+  bgMusic?: string;
 }
 
 export const QuizVideo: React.FC<QuizVideoProps> = ({
@@ -37,9 +38,10 @@ export const QuizVideo: React.FC<QuizVideoProps> = ({
   textAlignment = 'center',
   backgroundBlur = false,
   backgroundVideo,
+  bgMusic,
 }) => {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
+  const { fps, durationInFrames } = useVideoConfig();
 
   // Calculate segment timing
   let currentTime = 0;
@@ -75,12 +77,11 @@ export const QuizVideo: React.FC<QuizVideoProps> = ({
   const currentWordIndex = Math.floor(segmentProgress * words.length);
 
   return (
-    <div
+    <AbsoluteFill
       style={{
-        width: '100%',
-        height: '100%',
-        position: 'relative',
-        backgroundColor: '#000',
+        background: backgroundVideo 
+          ? 'transparent' 
+          : 'linear-gradient(135deg, rgba(59, 130, 246, 0.8), rgba(147, 51, 234, 0.8))',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'center',
@@ -88,9 +89,41 @@ export const QuizVideo: React.FC<QuizVideoProps> = ({
         fontFamily: getFontFamily(font),
       }}
     >
-      {/* Background Video */}
+      {/* Audio Segments - IDENTICAL to SampleVideo */}
+      {(() => {
+        let accumulatedFrames = 0;
+        return segments.map((segment, index) => {
+          const segmentDuration = segment.duration || estimateDuration(segment.text);
+          const segmentFrames = Math.floor(segmentDuration * fps);
+          const startFrame = accumulatedFrames;
+          
+          accumulatedFrames += segmentFrames;
+          
+          return (
+            <Sequence
+              key={`segment-${index}`}
+              from={startFrame}
+              durationInFrames={segmentFrames}
+            >
+              {/* Only play audio if the segment has an audio source (skip wait segments) */}
+              {segment.audio && <Audio src={segment.audio} />}
+            </Sequence>
+          );
+        });
+      })()}
+
+      {/* Background Music - IDENTICAL to SampleVideo */}
+      {bgMusic && (
+        <Audio 
+          src={bgMusic} 
+          volume={0.3} // Lower volume so it doesn't overpower the speech
+          loop
+        />
+      )}
+
+      {/* Background Video - IDENTICAL to SampleVideo */}
       {backgroundVideo && (
-        <video
+        <Video
           src={backgroundVideo}
           style={{
             position: 'absolute',
@@ -99,27 +132,22 @@ export const QuizVideo: React.FC<QuizVideoProps> = ({
             width: '100%',
             height: '100%',
             objectFit: 'cover',
-            zIndex: 1,
-            filter: backgroundBlur ? 'blur(8px)' : 'none',
+            objectPosition: 'center',
+            zIndex: -1,
+            transform: 'scale(1.02)', // Minimal zoom to avoid performance issues
+            filter: backgroundBlur ? 'blur(8px) brightness(0.85)' : 'brightness(0.85)', // Slightly darken for text readability
+            willChange: 'auto',
           }}
           muted
+          playbackRate={1.0} // Exactly 1.0 for perfect sync
           loop
-          autoPlay
+          // Remotion-specific optimizations for smooth playback
+          startFrom={0}
+          endAt={durationInFrames}
+          // Enable hardware acceleration and smooth rendering
+          playsInline
         />
       )}
-
-      {/* Background Overlay */}
-      <div
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          width: '100%',
-          height: '100%',
-          backgroundColor: 'rgba(0, 0, 0, 0.4)',
-          zIndex: 2,
-        }}
-      />
 
       {/* Quiz Content */}
       <div
@@ -156,19 +184,21 @@ export const QuizVideo: React.FC<QuizVideoProps> = ({
           </div>
         </div>
 
-        {/* Main Text with Word Highlighting */}
-        <div
-          style={{
-            fontSize: `${fontSize}px`,
-            lineHeight: 1.2,
-            fontWeight: 'bold',
-            color: textColor,
-            textShadow: '2px 2px 4px rgba(0, 0, 0, 0.8)',
-            marginBottom: '20px',
-          }}
-        >
-          {renderHighlightedText(words, currentWordIndex, textColor)}
-        </div>
+        {/* Main Text with Word Highlighting - HIDDEN during choice segments */}
+        {currentSegment.type !== 'choices' && (
+          <div
+            style={{
+              fontSize: `${fontSize}px`,
+              lineHeight: 1.2,
+              fontWeight: 'bold',
+              color: textColor,
+              textShadow: '2px 2px 4px rgba(0, 0, 0, 0.8)',
+              marginBottom: '20px',
+            }}
+          >
+            {renderHighlightedText(words, currentWordIndex, textColor)}
+          </div>
+        )}
 
         {/* Question Choices (for choice segments) */}
         {currentSegment.type === 'choices' && (
@@ -257,14 +287,7 @@ export const QuizVideo: React.FC<QuizVideoProps> = ({
           }}
         />
       )}
-
-      {/* Audio */}
-      {currentSegment.audio && (
-        <Sequence from={currentSegment.startFrame} durationInFrames={currentSegment.endFrame - currentSegment.startFrame}>
-          <Audio src={currentSegment.audio} />
-        </Sequence>
-      )}
-    </div>
+    </AbsoluteFill>
   );
 };
 
