@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Use standalone output for Azure Static Web Apps
+  output: 'standalone',
+  
   // Add trailing slash handling
   trailingSlash: false,
   
