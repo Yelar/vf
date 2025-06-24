@@ -1,12 +1,6 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Use standalone output for Azure Static Web Apps
-  output: 'standalone',
-  
-  // Add trailing slash handling
-  trailingSlash: false,
-  
   webpack: (config, { isServer }) => {
     // Exclude TypeScript declaration files from being processed
     config.module.rules.push({
@@ -61,8 +55,53 @@ const nextConfig: NextConfig = {
     '@remotion/renderer',
     'esbuild',
     'sharp',
-    'canvas'
+    'canvas',
+    'mongoose'
   ],
+  // Azure Static Web Apps specific configuration
+  output: process.env.BUILD_STATIC === 'true' ? 'export' : undefined,
+  trailingSlash: false,
+  generateBuildId: async () => {
+    // Use commit hash or timestamp for consistent builds
+    return process.env.GITHUB_SHA?.slice(0, 7) || Date.now().toString();
+  },
+  // API routes configuration for Azure
+  async rewrites() {
+    return {
+      beforeFiles: [
+        {
+          source: '/((?!.swa).*)/api/auth/:path*',
+          destination: '/api/auth/:path*',
+        },
+      ]
+    };
+  },
+  // Headers for CORS and security
+  async headers() {
+    return [
+      {
+        source: '/api/auth/:path*',
+        headers: [
+          {
+            key: 'Access-Control-Allow-Origin',
+            value: process.env.NEXTAUTH_URL || '*',
+          },
+          {
+            key: 'Access-Control-Allow-Methods',
+            value: 'GET,OPTIONS,PATCH,DELETE,POST,PUT',
+          },
+          {
+            key: 'Access-Control-Allow-Headers',
+            value: 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization',
+          },
+          {
+            key: 'Access-Control-Allow-Credentials',
+            value: 'true',
+          },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

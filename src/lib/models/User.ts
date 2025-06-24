@@ -51,8 +51,8 @@ const UserSchema = new Schema<IUser>({
 UserSchema.index({ verification_token: 1 });
 
 // Force clear the model cache to ensure schema updates take effect
-if (mongoose.models.User) {
+if (mongoose.models && mongoose.models.User) {
   delete mongoose.models.User;
 }
 
-export default mongoose.model<IUser>('User', UserSchema); 
+export default mongoose.models?.User || mongoose.model<IUser>('User', UserSchema); 

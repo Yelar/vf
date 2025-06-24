@@ -35,11 +35,19 @@ async function connectToDatabase() {
     const opts = {
       bufferCommands: false,
       dbName: 'vf', // Database name as requested
+      serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
+      socketTimeoutMS: 45000, // Close sockets after 45s of inactivity
+      maxPoolSize: 10, // Maintain up to 10 socket connections
+      minPoolSize: 1, // Maintain at least 1 socket connection
     };
 
     cached.promise = mongoose.connect(MONGODB_URI!, opts).then((mongoose) => {
       console.log('🗃️ Connected to MongoDB Atlas - Database: vf');
       return mongoose;
+    }).catch((error) => {
+      console.error('❌ MongoDB connection error:', error);
+      cached.promise = null;
+      throw error;
     });
   }
 

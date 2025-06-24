@@ -1,28 +1,6 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
-
-// Dynamic import type for auth functions
-type AuthDbModule = {
-  verifyPassword: (email: string, password: string) => Promise<{ id: string; email: string; name: string } | null>;
-};
-
-// Only import MongoDB functions when not in Edge Runtime
-let authDbModule: AuthDbModule | null = null;
-
-async function getAuthModule(): Promise<AuthDbModule | null> {
-  if (typeof window === 'undefined' && process.env.NEXT_RUNTIME !== 'edge') {
-    if (!authDbModule) {
-      try {
-        authDbModule = await import("./auth-db-mongo");
-      } catch (error) {
-        console.error("Failed to load auth-db-mongo:", error);
-        return null;
-      }
-    }
-    return authDbModule;
-  }
-  return null;
-}
+import { verifyPassword } from "./auth-db-mongo";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
@@ -33,23 +11,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
-        // Skip auth logic in Edge Runtime (middleware will handle auth differently)
-        if (process.env.NEXT_RUNTIME === 'edge') {
-          return null;
-        }
-
         if (!credentials?.email || !credentials?.password) {
           return null;
         }
 
         try {
-          const authModule = await getAuthModule();
-          if (!authModule) {
-            console.error("Auth module not available");
-            return null;
-          }
-
-          const user = await authModule.verifyPassword(
+          const user = await verifyPassword(
             credentials.email as string,
             credentials.password as string
           );
@@ -96,8 +63,23 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
   session: {
     strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   secret: process.env.NEXTAUTH_SECRET,
-  trustHost: true,
-  debug: process.env.NODE_ENV === 'development',
+  trustHost: true, // Required for Azure Static Web Apps
+  debug: process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'production', // Enable debug logs for troubleshooting
+  // Azure Static Web Apps specific configuration
+  useSecureCookies: process.env.NODE_ENV === 'production',
+  cookies: {
+    sessionToken: {
+      name: process.env.NODE_ENV === 'production' ? '__Secure-next-auth.session-token' : 'next-auth.session-token',
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: process.env.NODE_ENV === 'production',
+        domain: process.env.NODE_ENV === 'production' ? '.azurestaticapps.net' : undefined
+      }
+    }
+  }
 }); 

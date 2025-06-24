@@ -75,8 +75,8 @@ VideoSchema.index({ is_shared: 1 });
 VideoSchema.index({ created_at: -1 });
 
 // Force clear the model cache to ensure schema updates take effect
-if (mongoose.models.Video) {
+if (mongoose.models && mongoose.models.Video) {
   delete mongoose.models.Video;
 }
 
-export default mongoose.model<IVideo>('Video', VideoSchema); 
+export default mongoose.models?.Video || mongoose.model<IVideo>('Video', VideoSchema); 
