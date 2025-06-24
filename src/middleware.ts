@@ -1,5 +1,7 @@
-import { auth } from "@/lib/auth";
+import { auth } from "@/lib/auth-edge";
 import { NextResponse } from "next/server";
+
+// Middleware runs in Edge Runtime by default
 
 export default auth((req) => {
   // Add debug logging for production
