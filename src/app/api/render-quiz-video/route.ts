@@ -1,0 +1,483 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { bundle } from '@remotion/bundler';
+import { getCompositions, renderMedia } from '@remotion/renderer';
+import { auth } from '@/lib/auth';
+import { createVideo, updateVideo } from '@/lib/auth-db';
+import { sendVideoCompletionEmail } from '@/lib/email';
+import path from 'path';
+import { v4 as uuid } from 'uuid';
+import fs from 'fs/promises';
+
+// Function to combine audio segments into a single audio file
+async function combineAudioSegments(segments: Array<{text: string; audio: string; chunkIndex: number; wordCount: number; duration?: number}>): Promise<{audioPath: string; totalDuration: number}> {
+  if (!segments || segments.length === 0) {
+    throw new Error('No audio segments provided');
+  }
+
+  if (segments.length === 1) {
+    // Single segment - just convert to file
+    const segment = segments[0];
+    if (segment.audio.startsWith('data:audio/')) {
+      const base64Data = segment.audio.split(',')[1];
+      const audioBuffer = Buffer.from(base64Data, 'base64');
+      const tempFileName = `audio-${uuid()}.mp3`;
+      const tempFilePath = path.join('/tmp', tempFileName);
+      await fs.writeFile(tempFilePath, audioBuffer);
+      
+      // Calculate duration (rough estimate: ~150 words per minute)
+      const estimatedDuration = segment.duration || (segment.wordCount * 0.4); // 0.4 seconds per word
+      
+      return {
+        audioPath: `http://localhost:3000/api/temp-audio/${tempFileName}`,
+        totalDuration: estimatedDuration
+      };
+    }
+  }
+
+  // Multiple segments - combine them
+  const audioBuffers: Buffer[] = [];
+  let totalDuration = 0;
+
+  for (const segment of segments) {
+    if (segment.audio.startsWith('data:audio/')) {
+      const base64Data = segment.audio.split(',')[1];
+      const audioBuffer = Buffer.from(base64Data, 'base64');
+      audioBuffers.push(audioBuffer);
+      
+      // Add estimated duration for this segment
+      const segmentDuration = segment.duration || (segment.wordCount * 0.4); // 0.4 seconds per word
+      totalDuration += segmentDuration;
+    }
+  }
+
+  // Combine all audio buffers
+  const combinedBuffer = Buffer.concat(audioBuffers);
+  const tempFileName = `combined-audio-${uuid()}.mp3`;
+  const tempFilePath = path.join('/tmp', tempFileName);
+  await fs.writeFile(tempFilePath, combinedBuffer);
+
+  console.log(`🎵 Combined ${segments.length} audio segments into single file: ${tempFilePath}`);
+  console.log(`⏱️ Total estimated duration: ${totalDuration.toFixed(2)} seconds`);
+
+  return {
+    audioPath: `http://localhost:3000/api/temp-audio/${tempFileName}`,
+    totalDuration
+  };
+}
+
+// Function to upload video to UploadThing
+async function uploadToUploadThing(videoBuffer: Buffer, filename: string): Promise<{ url: string; key: string } | null> {
+  try {
+    // Use UploadThing SDK for server-side upload
+    const { UTApi, UTFile } = await import("uploadthing/server");
+    const utapi = new UTApi();
+
+    // Create a UTFile object which works in Node.js environment
+    const fileObject = new UTFile([videoBuffer], filename, { type: 'video/mp4' });
+    
+    // Upload to UploadThing
+    const uploadResult = await utapi.uploadFiles([fileObject]);
+    
+    if (uploadResult && uploadResult[0] && uploadResult[0].data) {
+      console.log('✅ UploadThing upload successful:', uploadResult[0].data.url);
+      return {
+        url: uploadResult[0].data.url,
+        key: uploadResult[0].data.key
+      };
+    }
+
+    console.error('UploadThing upload failed - no data returned:', uploadResult);
+    return null;
+  } catch (error) {
+    console.error('Error uploading to UploadThing:', error);
+    return null;
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    // Check for required environment variables
+    if (!process.env.UPLOADTHING_TOKEN) {
+      console.error('Missing UPLOADTHING_TOKEN environment variable');
+      return NextResponse.json({ error: 'Server configuration error - missing upload token' }, { status: 500 });
+    }
+
+    if (!process.env.RESEND_API_KEY) {
+      console.error('Missing RESEND_API_KEY environment variable');
+      return NextResponse.json({ error: 'Server configuration error - missing email service' }, { status: 500 });
+    }
+
+    // Check authentication
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const {
+      segments,
+      font = 'montserrat',
+      fontSize = 85,
+      textColor = 'white',
+      textAlignment = 'center',
+      backgroundBlur = false,
+      backgroundVideo,
+      bgMusic,
+      segmentImages,
+      videoTitle = 'Quiz Video',
+      videoDescription
+    } = body;
+
+    if (!segments || !Array.isArray(segments) || segments.length === 0) {
+      return NextResponse.json({ error: 'No quiz segments provided' }, { status: 400 });
+    }
+
+    if (!videoTitle) {
+      return NextResponse.json({ error: 'Video title is required' }, { status: 400 });
+    }
+
+    const userEmail = session.user.email || 'unknown';
+    const userName = session.user.name || 'User';
+    console.log(`🧠 User ${userEmail} starting quiz video render and save to UploadThing`);
+
+    // Convert quiz segments to audio segments format for database
+    const audioSegments = segments.map((seg: any, index: number) => ({
+      text: seg.text,
+      audio: seg.audio || '',
+      chunkIndex: index,
+      wordCount: seg.text.split(' ').length,
+      duration: seg.duration || 2
+    }));
+
+    // Calculate total duration
+    const totalDuration = segments.reduce((acc: number, seg: any) => {
+      return acc + (seg.duration || 2);
+    }, 0);
+
+    // Create video record immediately with placeholder URL
+    const videoMetadata = {
+      speechText: segments.map((seg: any) => seg.text).join(' '),
+      backgroundVideo,
+      audioSrc: true, // Quiz videos have audio
+      audioDuration: totalDuration,
+      bgMusic,
+      fontStyle: font,
+      textColor,
+      fontSize,
+      textAlignment,
+      backgroundBlur,
+      textAnimation: 'none',
+      segmentCount: segments.length,
+      isQuizMode: true, // Mark as quiz video
+    };
+
+    const savedVideo = await createVideo(
+      parseInt(session.user.id),
+      videoTitle,
+      '', // Placeholder URL - will be updated after processing
+      '', // Placeholder key - will be updated after processing
+      0, // Placeholder size - will be updated after processing
+      videoMetadata,
+      videoDescription,
+      totalDuration
+    );
+
+    if (!savedVideo) {
+      return NextResponse.json({ error: 'Failed to create video record' }, { status: 500 });
+    }
+
+    // Return immediately with processing status and video ID
+    const processingId = uuid();
+    
+    // Start async quiz video processing
+    processQuizVideoAsync({
+      processingId,
+      videoId: savedVideo.id,
+      userId: parseInt(session.user.id),
+      userEmail: session.user.email!,
+      userName,
+      segments,
+      font,
+      fontSize,
+      textColor,
+      textAlignment,
+      backgroundBlur,
+      backgroundVideo,
+      bgMusic,
+      segmentImages,
+      videoTitle,
+      videoDescription,
+      audioSegments
+    }).catch(error => {
+      console.error(`❌ Async quiz video processing failed for ${processingId}:`, error);
+    });
+
+    console.log(`✅ Quiz video processing started with ID: ${processingId}`);
+
+    return NextResponse.json({ 
+      success: true,
+      processingId,
+      videoId: savedVideo.id,
+      message: 'Quiz video is being processed. You will receive an email notification when it\'s ready!',
+      estimatedTime: '2-5 minutes'
+    });
+
+  } catch (error) {
+    console.error('❌ Quiz video render error:', error);
+    return NextResponse.json(
+      { 
+        error: 'Failed to render quiz video',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      }, 
+      { status: 500 }
+    );
+  }
+}
+
+// Async function to process quiz video in the background
+async function processQuizVideoAsync({
+  processingId,
+  videoId,
+  userId,
+  userEmail,
+  userName,
+  segments,
+  font,
+  fontSize,
+  textColor,
+  textAlignment,
+  backgroundBlur,
+  backgroundVideo,
+  bgMusic,
+  segmentImages,
+  videoTitle,
+  videoDescription,
+  audioSegments
+}: {
+  processingId: string;
+  videoId: number;
+  userId: number;
+  userEmail: string;
+  userName: string;
+  segments: any[];
+  font: string;
+  fontSize: number;
+  textColor: string;
+  textAlignment: string;
+  backgroundBlur: boolean;
+  backgroundVideo?: string;
+  bgMusic?: string | null;
+  segmentImages?: any;
+  videoTitle: string;
+  videoDescription?: string;
+  audioSegments: Array<{text: string; audio: string; chunkIndex: number; wordCount: number; duration?: number}>;
+}) {
+  try {
+    console.log(`🧠 Starting async quiz video processing for ${processingId}`);
+
+    // Handle audio segments
+    let audioFilePath: string | null = null;
+    let finalAudioDuration = 0;
+
+    if (audioSegments && audioSegments.length > 0) {
+      console.log(`🎵 Processing ${audioSegments.length} quiz audio segments for rendering...`);
+      try {
+        const combinedAudio = await combineAudioSegments(audioSegments);
+        audioFilePath = combinedAudio.audioPath;
+        finalAudioDuration = combinedAudio.totalDuration;
+        console.log(`✅ Quiz audio segments combined successfully: ${audioFilePath}`);
+      } catch (error) {
+        console.error('❌ Failed to combine quiz audio segments:', error);
+        throw new Error('Failed to process quiz audio segments');
+      }
+    }
+
+    const entry = path.join(process.cwd(), 'src', 'remotion', 'Root.tsx');
+
+    // Bundle Remotion project
+    const bundleLocation = await bundle({
+      entryPoint: entry,
+      outDir: path.join(process.cwd(), 'out'),
+      onProgress: (p) => console.log(`Bundling quiz ${processingId}: ${p}%`),
+      webpackOverride: (config) => config,
+    });
+
+    // Convert relative paths to absolute URLs for Remotion
+    let resolvedBackgroundVideo = backgroundVideo;
+    if (backgroundVideo && backgroundVideo.startsWith('/')) {
+      resolvedBackgroundVideo = `http://localhost:3000${backgroundVideo}`;
+    }
+
+    let resolvedBgMusic = bgMusic;
+    if (bgMusic && bgMusic.startsWith('/')) {
+      resolvedBgMusic = `http://localhost:3000${bgMusic}`;
+    }
+
+    // Prepare input props for QuizVideo
+    const inputProps = {
+      segments: segments.map((seg: any) => ({
+        id: seg.id || uuid(),
+        type: seg.type,
+        text: seg.text,
+        audio: seg.audio,
+        duration: seg.duration || 2,
+        image: seg.image,
+        originalIndex: seg.originalIndex
+      })),
+      font,
+      fontSize,
+      textColor,
+      textAlignment,
+      backgroundBlur,
+      backgroundVideo: resolvedBackgroundVideo,
+      bgMusic: resolvedBgMusic,
+      segmentImages
+    };
+
+    console.log('🎨 Input props prepared for QuizVideo');
+
+    // Get compositions
+    const comps = await getCompositions(bundleLocation, {
+      inputProps,
+    });
+
+    // Find the QuizVideo composition
+    let comp = comps.find((c) => c.id === 'QuizVideo');
+    if (!comp) {
+      throw new Error('QuizVideo composition not found');
+    }
+
+    // Calculate duration based on segments
+    const videoDuration = finalAudioDuration || segments.reduce((acc: number, seg: any) => acc + (seg.duration || 2), 0);
+    const durationInFrames = Math.floor(videoDuration * 60); // 60 FPS
+
+    // Override composition duration
+    comp = {
+      ...comp,
+      durationInFrames,
+    };
+
+    // Create temporary output file
+    const outputPath = path.join('/tmp', `quiz-video-${processingId}.mp4`);
+
+    console.log(`🎬 Starting QuizVideo render for ${processingId}:`, {
+      composition: comp.id,
+      duration: videoDuration,
+      frames: durationInFrames,
+      title: videoTitle,
+    });
+
+    try {
+      // Render the quiz video with high quality settings
+      await renderMedia({
+        serveUrl: bundleLocation,
+        composition: comp,
+        codec: 'h264',
+        outputLocation: outputPath,
+        inputProps,
+        crf: 18, // Good quality
+        pixelFormat: 'yuv420p',
+        audioBitrate: '192k',
+        enforceAudioTrack: false,
+        muted: false,
+        overwrite: true,
+        chromiumOptions: {
+          ignoreCertificateErrors: false,
+          disableWebSecurity: false,
+          gl: 'swiftshader',
+        },
+        everyNthFrame: 1,
+        concurrency: 1,
+        jpegQuality: 90,
+        scale: 1,
+      });
+
+      // Read the rendered video file
+      const fileBuffer = await fs.readFile(outputPath);
+      const fileSize = fileBuffer.length;
+      
+      console.log(`✅ Quiz video ${processingId} rendered successfully, size: ${(fileSize / 1024 / 1024).toFixed(2)} MB`);
+
+      // Upload to UploadThing
+      const uploadResult = await uploadToUploadThing(fileBuffer, `quiz-${videoTitle.replace(/[^a-z0-9]/gi, '-').toLowerCase()}-${Date.now()}.mp4`);
+      
+      if (!uploadResult) {
+        throw new Error('Failed to upload quiz video to UploadThing');
+      }
+
+      console.log(`✅ Quiz video ${processingId} uploaded to UploadThing: ${uploadResult.url}`);
+
+      // Update video record with actual URL and file info
+      const updateSuccess = updateVideo(
+        videoId,
+        uploadResult.url,
+        uploadResult.key,
+        fileSize,
+        videoDuration
+      );
+
+      if (!updateSuccess) {
+        throw new Error('Failed to update quiz video record');
+      }
+
+      // Send completion email
+      const libraryUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/library`;
+      
+      try {
+        await sendVideoCompletionEmail({
+          to: userEmail,
+          name: userName,
+          videoTitle,
+          videoDuration,
+          libraryUrl,
+          videoUrl: uploadResult.url
+        });
+        console.log(`📧 Quiz video completion email sent for ${processingId}`);
+      } catch (emailError) {
+        console.error(`❌ Failed to send quiz video completion email for ${processingId}:`, emailError);
+        // Don't throw here - video is still successfully created
+      }
+
+      // Clean up temporary files
+      await fs.unlink(outputPath).catch(() => {});
+      if (audioFilePath && audioFilePath.startsWith('http://localhost:3000/api/temp-audio/')) {
+        const tempFileName = audioFilePath.split('/').pop();
+        if (tempFileName) {
+          const tempFilePath = path.join('/tmp', tempFileName);
+          await fs.unlink(tempFilePath).catch(() => {});
+          console.log(`🧹 Cleaned up temporary quiz audio file: ${tempFilePath}`);
+        }
+      }
+
+      console.log(`✅ Quiz video ${processingId} successfully rendered, uploaded, and saved to library`);
+
+    } catch (renderError) {
+      // Clean up temporary files in case of error
+      await fs.unlink(outputPath).catch(() => {});
+      if (audioFilePath && audioFilePath.startsWith('http://localhost:3000/api/temp-audio/')) {
+        const tempFileName = audioFilePath.split('/').pop();
+        if (tempFileName) {
+          const tempFilePath = path.join('/tmp', tempFileName);
+          await fs.unlink(tempFilePath).catch(() => {});
+          console.log(`🧹 Cleaned up temporary quiz audio file after error: ${tempFilePath}`);
+        }
+      }
+      throw renderError;
+    }
+  } catch (error) {
+    console.error(`❌ Error processing quiz video ${processingId}:`, error);
+    
+    // Send error notification email
+    try {
+      await sendVideoCompletionEmail({
+        to: userEmail,
+        name: userName,
+        videoTitle: `${videoTitle} (Failed)`,
+        videoDuration: 0,
+        libraryUrl: `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/library`,
+      });
+    } catch (emailError) {
+      console.error(`❌ Failed to send quiz error notification email for ${processingId}:`, emailError);
+    }
+  }
+} 

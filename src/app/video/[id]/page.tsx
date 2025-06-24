@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
 import { useParams } from 'next/navigation';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { Player } from '@remotion/player';
@@ -34,9 +33,7 @@ import {
   Copy,
   Check,
   Brain,
-  FileText,
   FileIcon,
-  UploadCloud,
   GripVertical,
   Image,
   Edit3,
@@ -48,7 +45,6 @@ import { UploadButton } from '@uploadthing/react';
 import type { OurFileRouter } from '@/lib/uploadthing';
 
 function VideoCreationContent() {
-  const { data: session } = useSession();
   const params = useParams();
   const videoId = params.id as string;
   const isNew = videoId === 'new';
@@ -1170,88 +1166,141 @@ function VideoCreationContent() {
     setIsSaving(true);
 
     try {
-      console.log('🚀 Starting YouTube Shorts video generation and save...');
+      console.log('🚀 Starting video generation and save...');
       
-      // Determine which video source to use
-      let videoSource: File | string | null = null;
-      if (backgroundVideoFile) {
-        videoSource = backgroundVideoFile; // Custom uploaded file
-      } else if (selectedPresetVideo && selectedPresetVideo !== 'none') {
-        const preset = presetVideos.find(v => v.value === selectedPresetVideo);
-        videoSource = preset?.path || null; // Preset video path
-      }
-      
-      // Determine which background music to use
-      let bgMusicSource: string | null = null;
-      if (selectedBgMusic && selectedBgMusic !== 'none') {
-        const musicOption = bgMusicOptions.find(m => m.value === selectedBgMusic);
-        bgMusicSource = musicOption?.path || null;
-      }
-
-      const response = await fetch('/api/render-and-save', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          speechText: isQuizMode ? (quizAudioSegments.map(seg => seg.text).join(' ')) : speechText,
-          backgroundVideo: typeof videoSource === 'string' ? videoSource : null,
-          audioSrc: generatedAudio,
-          audioDuration,
-          bgMusic: bgMusicSource,
-          audioSegments: isQuizMode ? quizAudioSegments.map(seg => ({
-            text: seg.text,
-            audio: seg.audio || '',
-            chunkIndex: 0,
-            wordCount: seg.text.split(' ').length,
-            duration: seg.duration || 0
-          })) : audioSegments,
-          segmentImages,
-          fontStyle: selectedFont,
-          textColor: selectedColor,
-          fontSize,
-          textAlignment,
-          backgroundBlur,
-          textAnimation,
-          videoTitle,
-          videoDescription,
-          // Quiz mode metadata
-          isQuizMode,
-          quizTopic: isQuizMode ? quizTopic : null,
-          quizData: isQuizMode ? quizData : null,
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to generate and save video');
-      }
-
-      const result = await response.json();
-      
-      if (result.success) {
-        alert(`🎬 Video "${videoTitle}" is being processed!\n\n${result.message}\n\nEstimated time: ${result.estimatedTime}\n\nYou'll receive an email notification when it's ready.`);
+      if (isQuizMode && selectedTemplate === 'quiz') {
+        // Interactive Quiz template: Use dedicated quiz video endpoint for cloud processing
+        console.log('🧠 Using quiz video rendering endpoint...');
         
-        // If this is a new video and we got a video ID back, navigate to edit mode
-        if (isNew && result.videoId) {
-          // Clear the save dialog first
-          setShowSaveDialog(false);
-          
-          // Navigate to the edit page for this video
-          window.location.href = `/video/${result.videoId}`;
-        } else {
-          // If editing existing video and we got a video URL back, update it
-          if (result.videoUrl) {
-            setVideoUrl(result.videoUrl);
-          }
-          
-          // Clear the save dialog
-          setShowSaveDialog(false);
-          setVideoTitle('');
-          setVideoDescription('');
+        // Determine which background music to use
+        let bgMusicSource: string | null = null;
+        if (selectedBgMusic && selectedBgMusic !== 'none') {
+          const musicOption = bgMusicOptions.find(m => m.value === selectedBgMusic);
+          bgMusicSource = musicOption?.path || null;
         }
+        
+        const response = await fetch('/api/render-quiz-video', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            segments: quizAudioSegments,
+            font: selectedFont,
+            fontSize,
+            textColor: selectedColor,
+            textAlignment,
+            backgroundBlur,
+            backgroundVideo: backgroundVideo || undefined,
+            bgMusic: bgMusicSource,
+            segmentImages,
+            videoTitle,
+            videoDescription,
+          }),
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.details || error.error || 'Failed to render quiz video');
+        }
+
+        const result = await response.json();
+        
+        if (result.success) {
+          alert(`🧠 Quiz video "${videoTitle}" is being processed!\n\n${result.message}\n\nEstimated time: ${result.estimatedTime}\n\nYou'll receive an email notification when it's ready.`);
+          
+          // If this is a new video and we got a video ID back, navigate to edit mode
+          if (isNew && result.videoId) {
+            // Clear the save dialog first
+            setShowSaveDialog(false);
+            
+            // Navigate to the edit page for this video
+            window.location.href = `/video/${result.videoId}`;
+          } else {
+            // If editing existing video, just clear the dialog
+            setShowSaveDialog(false);
+            setVideoTitle('');
+            setVideoDescription('');
+          }
+        } else {
+          throw new Error(result.error || 'Failed to start quiz video processing');
+        }
+        
       } else {
-        throw new Error(result.error || 'Failed to start video processing');
+        // Regular mode OR quiz mode with other templates: Use cloud processing endpoint
+        console.log('📹 Using regular video processing endpoint...');
+        
+        // Determine which video source to use
+        let videoSource: File | string | null = null;
+        if (backgroundVideoFile) {
+          videoSource = backgroundVideoFile; // Custom uploaded file
+        } else if (selectedPresetVideo && selectedPresetVideo !== 'none') {
+          const preset = presetVideos.find(v => v.value === selectedPresetVideo);
+          videoSource = preset?.path || null; // Preset video path
+        }
+        
+        // Determine which background music to use
+        let bgMusicSource: string | null = null;
+        if (selectedBgMusic && selectedBgMusic !== 'none') {
+          const musicOption = bgMusicOptions.find(m => m.value === selectedBgMusic);
+          bgMusicSource = musicOption?.path || null;
+        }
+
+        const response = await fetch('/api/render-and-save', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            speechText,
+            backgroundVideo: typeof videoSource === 'string' ? videoSource : null,
+            audioSrc: generatedAudio,
+            audioDuration,
+            bgMusic: bgMusicSource,
+            audioSegments,
+            segmentImages,
+            fontStyle: selectedFont,
+            textColor: selectedColor,
+            fontSize,
+            textAlignment,
+            backgroundBlur,
+            textAnimation,
+            videoTitle,
+            videoDescription,
+          }),
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Failed to generate and save video');
+        }
+
+        const result = await response.json();
+        
+        if (result.success) {
+          alert(`🎬 Video "${videoTitle}" is being processed!\n\n${result.message}\n\nEstimated time: ${result.estimatedTime}\n\nYou'll receive an email notification when it's ready.`);
+          
+          // If this is a new video and we got a video ID back, navigate to edit mode
+          if (isNew && result.videoId) {
+            // Clear the save dialog first
+            setShowSaveDialog(false);
+            
+            // Navigate to the edit page for this video
+            window.location.href = `/video/${result.videoId}`;
+          } else {
+            // If editing existing video and we got a video URL back, update it
+            if (result.videoUrl) {
+              setVideoUrl(result.videoUrl);
+            }
+            
+            // Clear the save dialog
+            setShowSaveDialog(false);
+            setVideoTitle('');
+            setVideoDescription('');
+          }
+        } else {
+          throw new Error(result.error || 'Failed to start video processing');
+        }
       }
       
     } catch (error) {
@@ -1463,6 +1512,8 @@ function VideoCreationContent() {
                       textAlignment,
                       backgroundBlur,
                       backgroundVideo: backgroundVideo || undefined,
+                      bgMusic: selectedBgMusic !== 'none' ? bgMusicOptions.find(m => m.value === selectedBgMusic)?.path : null,
+                      segmentImages,
                       voice: selectedVoice,
                     }}
                     durationInFrames={

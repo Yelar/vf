@@ -27,7 +27,12 @@ export interface QuizVideoProps {
   textAnimation?: 'none' | 'typewriter' | 'fade-in';
   backgroundVideo?: string;
   voice?: string;
-  bgMusic?: string;
+  bgMusic?: string | null;
+  segmentImages?: Array<{
+    segmentIndex: number;
+    imageUrl: string;
+    description?: string;
+  }> | null;
 }
 
 export const QuizVideo: React.FC<QuizVideoProps> = ({
@@ -39,6 +44,7 @@ export const QuizVideo: React.FC<QuizVideoProps> = ({
   backgroundBlur = false,
   backgroundVideo,
   bgMusic,
+  segmentImages,
 }) => {
   const frame = useCurrentFrame();
   const { fps, durationInFrames } = useVideoConfig();
@@ -148,6 +154,74 @@ export const QuizVideo: React.FC<QuizVideoProps> = ({
           playsInline
         />
       )}
+
+      {/* Segment Images Overlay - IDENTICAL to SampleVideo */}
+      {segmentImages && segments && segments.length > 0 && (() => {
+        let accumulatedFrames = 0;
+        let currentSegmentIndex = -1;
+        
+        // Find which segment we're currently in
+        for (let i = 0; i < segments.length; i++) {
+          const segment = segments[i];
+          const segmentDuration = segment.duration || estimateDuration(segment.text);
+          const segmentFrames = Math.floor(segmentDuration * fps);
+          
+          if (frame >= accumulatedFrames && frame < accumulatedFrames + segmentFrames) {
+            currentSegmentIndex = i;
+            break;
+          }
+          
+          accumulatedFrames += segmentFrames;
+        }
+        
+        // Find the image for the current segment
+        const currentImage = segmentImages.find(img => img.segmentIndex === currentSegmentIndex);
+        
+        if (currentImage && currentImage.imageUrl) {
+          return (
+            <div
+              style={{
+                position: 'absolute',
+                top: '8%',
+                left: '50%',
+                width: '95%',
+                height: '30%',
+                borderRadius: '8px',
+                overflow: 'hidden',
+                opacity: 0.8,
+                zIndex: 5,
+                border: 'none',
+                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
+                transform: 'translateX(-50%) translateZ(0)', // Center horizontally + hardware acceleration
+              }}
+            >
+              <img
+                src={currentImage.imageUrl}
+                alt={currentImage.description || 'Segment image'}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  objectPosition: 'center',
+                }}
+              />
+              {/* Gradient overlay for better text readability */}
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  background: 'linear-gradient(180deg, rgba(0,0,0,0.0) 0%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.4) 100%)',
+                }}
+              />
+            </div>
+          );
+        }
+        
+        return null;
+      })()}
 
       {/* Quiz Content */}
       <div
