@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Separator } from "@/components/ui/separator";
 import { CheckCircle, XCircle, VideoIcon, ArrowRight, Mail, RefreshCw, AlertCircle, Loader2 } from "lucide-react";
 
-export default function VerifyEmailPage() {
+// Separate component that uses useSearchParams
+function VerifyEmailContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [verificationStatus, setVerificationStatus] = useState<'loading' | 'success' | 'error'>('loading');
@@ -232,6 +233,37 @@ export default function VerifyEmailPage() {
     );
   };
 
+  return renderContent();
+}
+
+// Loading component for Suspense fallback
+function VerifyEmailLoading() {
+  return (
+    <Card className="w-full max-w-md bg-white/5 border-white/10 backdrop-blur-xl">
+      <CardContent className="pt-8">
+        <div className="text-center space-y-6">
+          <div className="mx-auto w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+            <Loader2 className="h-10 w-10 text-white animate-spin" />
+          </div>
+          <div>
+            <h2 className="text-3xl font-bold text-white">Loading...</h2>
+            <p className="text-gray-300 mt-3 text-lg">
+              Preparing email verification
+            </p>
+          </div>
+          <div className="flex items-center justify-center gap-2">
+            <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+            <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse delay-75"></div>
+            <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse delay-150"></div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Main page component
+export default function VerifyEmailPage() {
   return (
     <div className="min-h-screen bg-black text-white overflow-hidden">
       {/* Animated Background */}
@@ -261,8 +293,10 @@ export default function VerifyEmailPage() {
             </div>
           </div>
 
-          {/* Content */}
-          {renderContent()}
+          {/* Content wrapped in Suspense */}
+          <Suspense fallback={<VerifyEmailLoading />}>
+            <VerifyEmailContent />
+          </Suspense>
 
           {/* Footer */}
           <div className="text-center">
