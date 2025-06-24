@@ -45,7 +45,28 @@ const nextConfig: NextConfig = {
       // Prevent webpack from trying to bundle server-only packages on client
       '@remotion/bundler': isServer ? '@remotion/bundler' : false,
       '@remotion/renderer': isServer ? '@remotion/renderer' : false,
+      // Exclude heavy packages from client bundle
+      'better-sqlite3': isServer ? 'better-sqlite3' : false,
+      'sqlite3': isServer ? 'sqlite3' : false,
+      'aws-sdk': isServer ? 'aws-sdk' : false,
     };
+
+    // Optimize bundle size
+    if (!isServer) {
+      config.optimization = {
+        ...config.optimization,
+        splitChunks: {
+          chunks: 'all',
+          cacheGroups: {
+            vendor: {
+              test: /[\\/]node_modules[\\/]/,
+              name: 'vendors',
+              chunks: 'all',
+            },
+          },
+        },
+      };
+    }
 
     return config;
   },
@@ -56,10 +77,13 @@ const nextConfig: NextConfig = {
     'esbuild',
     'sharp',
     'canvas',
-    'mongoose'
+    'mongoose',
+    'better-sqlite3',
+    'sqlite3',
+    'aws-sdk'
   ],
   // Azure Static Web Apps specific configuration
-  output: process.env.BUILD_STATIC === 'true' ? 'export' : undefined,
+  output: process.env.BUILD_STATIC === 'true' ? 'export' : 'standalone',
   trailingSlash: false,
   generateBuildId: async () => {
     // Use commit hash or timestamp for consistent builds

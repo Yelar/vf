@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "prebuild": "npm rebuild",
-    "build": "next build",
+    "build": "next build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/",
     "postinstall": "npm rebuild better-sqlite3 --silent || true",
     "start": "next start",
     "lint": "next lint",
