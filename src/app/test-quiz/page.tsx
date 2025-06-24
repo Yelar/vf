@@ -10,19 +10,15 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { 
   Brain, 
-  Upload, 
   FileText, 
   Trash2, 
   Loader2, 
   CheckCircle, 
   XCircle,
   Clock,
-  Play,
-  FileIcon,
-  UploadCloud
+  FileIcon
 } from "lucide-react";
 import { UploadButton } from '@uploadthing/react';
 import type { OurFileRouter } from '@/lib/uploadthing';
@@ -67,7 +63,13 @@ function QuizTestContent() {
   const [quizResult, setQuizResult] = useState<QuizResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const handleFileUpload = (files: any[]) => {
+  const handleFileUpload = (files: Array<{
+    key: string;
+    url: string;
+    name: string;
+    type?: string;
+    size: number;
+  }>) => {
     const newFiles = files.map(file => ({
       key: file.key,
       url: file.url,
@@ -328,7 +330,7 @@ function QuizTestContent() {
                 </div>
 
                 {/* Metadata */}
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="bg-gray-800 p-3 rounded-lg text-center">
                     <p className="text-2xl font-bold text-blue-400">{quizResult.metadata.totalSegments}</p>
                     <p className="text-xs text-gray-400">Total Segments</p>
@@ -344,10 +346,6 @@ function QuizTestContent() {
                   <div className="bg-gray-800 p-3 rounded-lg text-center">
                     <p className="text-xl font-bold text-orange-400 capitalize">{quizResult.metadata.difficulty}</p>
                     <p className="text-xs text-gray-400">Difficulty</p>
-                  </div>
-                  <div className="bg-gray-800 p-3 rounded-lg text-center">
-                    <p className="text-lg font-bold text-cyan-400">{quizResult.metadata.estimatedDuration}</p>
-                    <p className="text-xs text-gray-400">Est. Duration</p>
                   </div>
                 </div>
 

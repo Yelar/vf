@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from "@/components/ui/button";
@@ -19,17 +19,7 @@ export default function VerifyEmailPage() {
 
   const token = searchParams.get('token');
 
-  useEffect(() => {
-    if (!token) {
-      setVerificationStatus('error');
-      setMessage('Invalid verification link. No token provided.');
-      return;
-    }
-
-    verifyEmail(token);
-  }, [token]);
-
-  const verifyEmail = async (verificationToken: string) => {
+  const verifyEmail = useCallback(async (verificationToken: string) => {
     try {
       const response = await fetch(`/api/auth/verify-email?token=${verificationToken}`);
       const data = await response.json();
@@ -52,7 +42,17 @@ export default function VerifyEmailPage() {
       setVerificationStatus('error');
       setMessage('An unexpected error occurred during verification');
     }
-  };
+  }, [router]);
+
+  useEffect(() => {
+    if (!token) {
+      setVerificationStatus('error');
+      setMessage('Invalid verification link. No token provided.');
+      return;
+    }
+
+    verifyEmail(token);
+  }, [token, verifyEmail]);
 
   const handleResendVerification = async () => {
     if (!userEmail) {

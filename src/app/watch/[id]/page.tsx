@@ -1,8 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { useSession } from 'next-auth/react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useParams } from 'next/navigation';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { NavigationHeader } from '@/components/ui/navigation-header';
 import { ModernCard, ModernCardContent } from '@/components/ui/modern-card';
@@ -12,44 +11,30 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { 
   ArrowLeft, 
   Download, 
-  Share2, 
-  Edit3,
   Globe,
   Lock,
   Calendar,
-  HardDrive,
   Clock,
   Copy,
-  Check,
-  Play,
-  Pause,
-  Volume2,
-  VolumeX,
-  Maximize,
-  Settings
+  Check
 } from "lucide-react";
 import Link from 'next/link';
 
 interface VideoData {
-  id: number;
-  user_id: number;
+  id: string;
   title: string;
   description?: string;
   uploadthing_url: string;
-  uploadthing_key: string;
-  file_size: number;
-  duration?: number;
   thumbnail_url?: string;
-  metadata: string;
-  is_shared: number;
+  duration?: number;
   created_at: string;
-  user_name?: string;
+  is_public: boolean;
+  user_id: string;
+  user_email?: string;
 }
 
 function WatchVideoContent() {
-  const { data: session } = useSession();
   const params = useParams();
-  const router = useRouter();
   const videoId = params.id as string;
   
   const [video, setVideo] = useState<VideoData | null>(null);
@@ -57,52 +42,34 @@ function WatchVideoContent() {
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  // Video player states
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
-  const [volume, setVolume] = useState(1);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-
-  useEffect(() => {
-    if (videoId) {
-      fetchVideo();
-    }
-  }, [videoId]);
-
-  const fetchVideo = async () => {
+  const fetchVideo = useCallback(async () => {
+    if (!videoId) return;
+    
     try {
       setLoading(true);
-      const response = await fetch(`/api/videos/${videoId}`);
-      
-      if (!response.ok) {
-        if (response.status === 404) {
-          setError('Video not found');
-        } else {
-          setError('Failed to load video');
-        }
-        return;
-      }
-      
-      const data = await response.json();
-      setVideo(data.video);
       setError(null);
+      
+      const response = await fetch(`/api/videos/shared/${videoId}`);
+      const data = await response.json();
+      
+      if (response.ok) {
+        setVideo(data.video);
+      } else {
+        setError(data.error || 'Failed to load video');
+      }
     } catch (err) {
       console.error('Error fetching video:', err);
       setError('Failed to load video');
     } finally {
       setLoading(false);
     }
-  };
+  }, [videoId]);
 
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-  };
+  useEffect(() => {
+    fetchVideo();
+  }, [fetchVideo]);
+
+
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -131,93 +98,30 @@ function WatchVideoContent() {
     }
   };
 
-  const downloadVideo = async () => {
+  const handleDownload = async () => {
     if (!video) return;
     
     try {
       const response = await fetch(`/api/videos/download/${video.id}`);
+      
       if (response.ok) {
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
+        a.style.display = 'none';
         a.href = url;
         a.download = `${video.title}.mp4`;
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
-      }
-    } catch (error) {
-      console.error('Download failed:', error);
-    }
-  };
-
-  const togglePlayPause = () => {
-    const videoElement = document.getElementById('main-video') as HTMLVideoElement;
-    if (videoElement) {
-      if (isPlaying) {
-        videoElement.pause();
       } else {
-        videoElement.play();
+        const errorData = await response.json();
+        alert(`Download failed: ${errorData.error}`);
       }
-      setIsPlaying(!isPlaying);
-    }
-  };
-
-  const toggleMute = () => {
-    const videoElement = document.getElementById('main-video') as HTMLVideoElement;
-    if (videoElement) {
-      videoElement.muted = !isMuted;
-      setIsMuted(!isMuted);
-    }
-  };
-
-  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newVolume = parseFloat(e.target.value);
-    const videoElement = document.getElementById('main-video') as HTMLVideoElement;
-    if (videoElement) {
-      videoElement.volume = newVolume;
-      setVolume(newVolume);
-      setIsMuted(newVolume === 0);
-    }
-  };
-
-  const handleTimeUpdate = () => {
-    const videoElement = document.getElementById('main-video') as HTMLVideoElement;
-    if (videoElement) {
-      setCurrentTime(videoElement.currentTime);
-    }
-  };
-
-  const handleLoadedMetadata = () => {
-    const videoElement = document.getElementById('main-video') as HTMLVideoElement;
-    if (videoElement) {
-      setDuration(videoElement.duration);
-    }
-  };
-
-  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newTime = parseFloat(e.target.value);
-    const videoElement = document.getElementById('main-video') as HTMLVideoElement;
-    if (videoElement) {
-      videoElement.currentTime = newTime;
-      setCurrentTime(newTime);
-    }
-  };
-
-  const toggleFullscreen = () => {
-    const videoElement = document.getElementById('main-video') as HTMLVideoElement;
-    if (videoElement) {
-      if (!isFullscreen) {
-        if (videoElement.requestFullscreen) {
-          videoElement.requestFullscreen();
-        }
-      } else {
-        if (document.exitFullscreen) {
-          document.exitFullscreen();
-        }
-      }
-      setIsFullscreen(!isFullscreen);
+    } catch (err) {
+      console.error('Download error:', err);
+      alert('Download failed. Please try again.');
     }
   };
 
@@ -295,17 +199,6 @@ function WatchVideoContent() {
                   id="main-video"
                   className="w-full aspect-video bg-black"
                   controls
-                  onPlay={() => setIsPlaying(true)}
-                  onPause={() => setIsPlaying(false)}
-                  onTimeUpdate={handleTimeUpdate}
-                  onLoadedMetadata={handleLoadedMetadata}
-                  onVolumeChange={() => {
-                    const videoElement = document.getElementById('main-video') as HTMLVideoElement;
-                    if (videoElement) {
-                      setVolume(videoElement.volume);
-                      setIsMuted(videoElement.muted);
-                    }
-                  }}
                 >
                   <source src={video.uploadthing_url} type="video/mp4" />
                   Your browser does not support the video tag.
@@ -330,10 +223,7 @@ function WatchVideoContent() {
                             <Calendar className="w-4 h-4" />
                             <span>{formatDate(video.created_at)}</span>
                           </div>
-                          <div className="flex items-center space-x-1">
-                            <HardDrive className="w-4 h-4" />
-                            <span>{formatFileSize(video.file_size)}</span>
-                          </div>
+
                           {video.duration && (
                             <div className="flex items-center space-x-1">
                               <Clock className="w-4 h-4" />
@@ -343,8 +233,8 @@ function WatchVideoContent() {
                         </div>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <Badge className={video.is_shared === 1 ? "bg-green-500/20 text-green-300 border-green-500/30" : "bg-gray-500/20 text-gray-300 border-gray-500/30"}>
-                          {video.is_shared === 1 ? (
+                        <Badge className={video.is_public ? "bg-green-500/20 text-green-300 border-green-500/30" : "bg-gray-500/20 text-gray-300 border-gray-500/30"}>
+                          {video.is_public ? (
                             <>
                               <Globe className="w-3 h-3 mr-1" />
                               Public
@@ -377,19 +267,11 @@ function WatchVideoContent() {
                 <ModernCardContent className="p-6">
                   <h3 className="text-lg font-semibold text-white mb-4">Actions</h3>
                   <div className="space-y-3">
-                    {/* Edit Video - Only show if user owns the video */}
-                    {session?.user?.email && video.user_id === session.user.id && (
-                      <Link href={`/video/${video.id}`} className="w-full">
-                        <Button className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700">
-                          <Edit3 className="w-4 h-4 mr-2" />
-                          Edit Video
-                        </Button>
-                      </Link>
-                    )}
+                    {/* Edit Video - Removed since we don't have session context */}
 
                     {/* Download */}
                     <Button 
-                      onClick={downloadVideo}
+                      onClick={handleDownload}
                       variant="outline" 
                       className="w-full border-blue-500/50 text-blue-300 hover:bg-blue-500/10"
                     >
@@ -419,10 +301,7 @@ function WatchVideoContent() {
                 <ModernCardContent className="p-6">
                   <h3 className="text-lg font-semibold text-white mb-4">Video Details</h3>
                   <div className="space-y-3 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">File Size:</span>
-                      <span className="text-white">{formatFileSize(video.file_size)}</span>
-                    </div>
+
                     {video.duration && (
                       <div className="flex justify-between">
                         <span className="text-gray-400">Duration:</span>
@@ -435,8 +314,8 @@ function WatchVideoContent() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-400">Visibility:</span>
-                      <span className={video.is_shared === 1 ? "text-green-300" : "text-gray-300"}>
-                        {video.is_shared === 1 ? 'Public' : 'Private'}
+                      <span className={video.is_public ? "text-green-300" : "text-gray-300"}>
+                        {video.is_public ? 'Public' : 'Private'}
                       </span>
                     </div>
                   </div>

@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     console.log('\n🧪 === UPLOADTHING CONNECTION TEST ===');
     
@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
       if (!tokenData.apiKey || !tokenData.appId) {
         throw new Error('Token missing required fields');
       }
-    } catch (decodeError) {
+    } catch {
       console.error('❌ Invalid token format - not a valid V7 token');
       return NextResponse.json({ 
         error: 'Invalid UPLOADTHING_TOKEN format',
@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
     let utapiTest = false;
     try {
       const { UTApi } = await import("uploadthing/server");
-      const utapi = new UTApi({ logLevel: 'Info' });
+      new UTApi({ logLevel: 'Info' });
       console.log(`✅ UTApi initialized successfully`);
       utapiTest = true;
     } catch (error) {

@@ -115,12 +115,12 @@ export const SpeechToText: React.FC<SpeechToTextProps> = ({
     }
   }, [isRecording]);
 
-  const transcribeAudio = async (audioBlob: Blob) => {
+  const transcribeAudio = useCallback(async (audioBlob: Blob) => {
     setIsTranscribing(true);
     setError(null);
     
     try {
-              console.log('🧠 Starting transcription with Azure Speech Service...');
+      console.log('🧠 Starting transcription with Azure Speech Service...');
       
       const formData = new FormData();
       formData.append('audio', audioBlob, 'recording.webm');
@@ -150,7 +150,7 @@ export const SpeechToText: React.FC<SpeechToTextProps> = ({
     } finally {
       setIsTranscribing(false);
     }
-  };
+  }, [onTranscriptionComplete]);
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);

@@ -87,7 +87,7 @@ export default function TestUploadThing() {
                 </CardTitle>
                 <CardDescription>
                   This diagnostic tool checks your UploadThing configuration and connectivity. 
-                  Run this test if you're experiencing upload timeouts, download issues, or configuration errors.
+                  Run this test if you&apos;re experiencing upload timeouts, download issues, or configuration errors.
                 </CardDescription>
               </CardHeader>
               <CardContent>

@@ -194,7 +194,7 @@ async function handleRequest(
     let videoResponse: Response;
     try {
       videoResponse = await fetchWithRetry(video.uploadthing_url);
-    } catch (fetchError) {
+    } catch {
       console.error(`💥 All fetch attempts failed, falling back to redirect`);
       
       // Final fallback - direct redirect with download parameters

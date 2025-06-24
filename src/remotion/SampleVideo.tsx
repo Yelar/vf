@@ -170,9 +170,13 @@ export const SampleVideo: React.FC<SampleVideoProps> = ({
     extrapolateRight: 'clamp',
   });
 
+  // Ensure input ranges are strictly monotonically increasing
+  const endTransition = Math.max(30, durationInFrames - 30);
+  const safeDuration = Math.max(endTransition + 1, durationInFrames);
+
   const scale = interpolate(
     frame,
-    [0, 30, durationInFrames - 30, durationInFrames],
+    [0, 30, endTransition, safeDuration],
     [0.8, 1, 1, 1.1],
     {
       extrapolateLeft: 'clamp',
@@ -182,7 +186,7 @@ export const SampleVideo: React.FC<SampleVideoProps> = ({
 
   const backgroundOpacity = interpolate(
     frame,
-    [0, 30, durationInFrames - 30, durationInFrames],
+    [0, 30, endTransition, safeDuration],
     [0.2, 0.8, 0.8, 1],
     {
       extrapolateLeft: 'clamp',
