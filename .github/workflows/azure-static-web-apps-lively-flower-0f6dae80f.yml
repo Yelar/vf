@@ -22,6 +22,26 @@ jobs:
         with:
           submodules: true
           lfs: false
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci --only=production
+      - name: Clean up unnecessary files
+        run: |
+          # Remove old SQLite files that might cause issues
+          rm -f *.db *.db-wal *.db-shm
+          # Remove any large files that shouldn't be deployed
+          find . -name "*.mp4" -delete
+          find . -name "*.avi" -delete
+          find . -name "*.mov" -delete
+          find . -name "*.wmv" -delete
+          # Remove test files
+          find . -name "*.test.*" -delete
+          find . -name "*.spec.*" -delete
+          echo "Cleanup completed"
       - name: Install OIDC Client from Core Package
         run: npm install @actions/core@1.6.0 @actions/http-client
       - name: Get Id Token
@@ -55,16 +75,45 @@ jobs:
           echo "GITHUB_SHA=${{ github.sha }}" >> .env
       - name: Optimize for deployment
         run: |
+          # Build the application
+          npm run build
           # Remove unnecessary files from standalone build
           rm -rf .next/standalone/node_modules/.cache
           rm -rf .next/standalone/.git
+          rm -rf .next/standalone/node_modules/.bin
           # Remove dev dependencies from standalone
           cd .next/standalone && npm prune --production --silent || true
+          # Remove unnecessary files to reduce size
+          find . -name "*.map" -delete
+          find . -name "*.d.ts" -delete
+          find . -name "*.test.*" -delete
+          find . -name "*.spec.*" -delete
           # Create health check file for faster startup
           echo '{"status":"ready","timestamp":"$(date -u +%Y-%m-%dT%H:%M:%SZ)"}' > public/health.json
+          # Check deployment size
+          du -sh .next/standalone
+          echo "Deployment size check completed"
+      - name: Check deployment size
+        run: |
+          echo "=== DEPLOYMENT SIZE ANALYSIS ==="
+          du -sh .next/standalone
+          echo "Largest directories:"
+          du -sh .next/standalone/* | sort -hr | head -10
+          echo "Total file count:"
+          find .next/standalone -type f | wc -l
+          echo "=== END ANALYSIS ==="
+          
+          # Check if size is reasonable (should be under 250MB for Azure Static Web Apps)
+          SIZE=$(du -sm .next/standalone | cut -f1)
+          if [ "$SIZE" -gt 200 ]; then
+            echo "⚠️  WARNING: Deployment size is ${SIZE}MB, which is close to Azure Static Web Apps limit"
+          else
+            echo "✅ Deployment size is ${SIZE}MB, which is acceptable"
+          fi
       - name: Build And Deploy
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1
+        timeout-minutes: 30
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_LIVELY_FLOWER_0F6DAE80F }}
           action: "upload"
@@ -75,6 +124,7 @@ jobs:
           output_location: ".next/standalone" # Built app content directory - optional
           github_id_token: ${{ steps.idtoken.outputs.result }}
           ###### End of Repository/Build Configurations ######
+        continue-on-error: false
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'

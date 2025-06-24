@@ -61,6 +61,19 @@ const nextConfig: NextConfig = {
             },
           },
         },
+        // Reduce bundle size
+        minimize: true,
+        minimizer: config.optimization.minimizer || [],
+      };
+    }
+
+    // Server-side optimizations for faster startup
+    if (isServer) {
+      config.optimization = {
+        ...config.optimization,
+        // Reduce server bundle size
+        minimize: false, // Don't minimize server code for faster startup
+        splitChunks: false, // Don't split server chunks
       };
     }
 
@@ -123,6 +136,14 @@ const nextConfig: NextConfig = {
   experimental: {
     // Optimize for serverless
     serverMinification: true,
+  },
+  // Optimize for serverless
+  poweredByHeader: false,
+  // Reduce bundle size
+  compress: true,
+  // Optimize images
+  images: {
+    unoptimized: true, // Faster startup, no image optimization overhead
   },
 };
 

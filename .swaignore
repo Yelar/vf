@@ -1,0 +1,59 @@
+# Development files
+.git
+.gitignore
+README.md
+*.log
+.env.local
+.env.development
+
+# Build artifacts
+.next/cache
+.next/trace
+.next/server/chunks
+.next/server/pages-manifest.json
+.next/server/middleware-manifest.json
+
+# Node modules (already handled by standalone)
+node_modules
+
+# Development dependencies
+.eslintrc*
+.prettierrc*
+tsconfig.json
+postcss.config.*
+tailwind.config.*
+
+# Test files
+**/*.test.*
+**/*.spec.*
+**/__tests__/
+**/test/
+**/tests/
+
+# Documentation
+docs/
+*.md
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Large media files (if any)
+*.mp4
+*.avi
+*.mov
+*.wmv
+
+# Source maps (for production)
+**/*.map 
