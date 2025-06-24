@@ -37,8 +37,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 interface SharedVideo {
-  id: number;
-  user_id: number;
+  id: string;
+  user_id: string;
   title: string;
   description?: string;
   uploadthing_url: string;
@@ -47,7 +47,7 @@ interface SharedVideo {
   duration?: number;
   thumbnail_url?: string;
   metadata: string;
-  is_shared: number;
+  is_shared: boolean;
   created_at: string;
   creator_name: string;
 }
@@ -69,11 +69,11 @@ const VideoCard = React.memo(({
 }: {
   video: SharedVideo;
   viewMode: ViewMode;
-  copyingVideoId: number | null;
+  copyingVideoId: string | null;
   formatDuration: (seconds: number) => string;
   formatDateFull: (dateString: string) => string;
   formatFileSize: (bytes: number) => string;
-  copyVideoUrl: (url: string, videoId: number) => void;
+  copyVideoUrl: (url: string, videoId: string) => void;
   downloadVideo: (video: SharedVideo) => void;
 }) => {
   if (viewMode === 'grid') {
@@ -232,7 +232,7 @@ export default function SharedLibraryPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [copyingVideoId, setCopyingVideoId] = useState<number | null>(null);
+  const [copyingVideoId, setCopyingVideoId] = useState<string | null>(null);
   
   // Modern UX state
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
@@ -369,7 +369,7 @@ export default function SharedLibraryPage() {
       });
   }, []);
 
-  const copyVideoUrl = useCallback(async (url: string, videoId: number) => {
+  const copyVideoUrl = useCallback(async (url: string, videoId: string) => {
     try {
       await navigator.clipboard.writeText(url);
       setCopyingVideoId(videoId);

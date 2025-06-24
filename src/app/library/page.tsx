@@ -44,8 +44,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 interface UserVideo {
-  id: number;
-  user_id: number;
+  id: string;
+  user_id: string;
   title: string;
   description?: string;
   uploadthing_url: string;
@@ -54,7 +54,7 @@ interface UserVideo {
   duration?: number;
   thumbnail_url?: string;
   metadata: string;
-  is_shared: number;
+  is_shared: boolean;
   created_at: string;
 }
 
@@ -68,9 +68,9 @@ function LibraryContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [editingVideoId, setEditingVideoId] = useState<number | null>(null);
+  const [editingVideoId, setEditingVideoId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
-  const [copyingVideoId, setCopyingVideoId] = useState<number | null>(null);
+  const [copyingVideoId, setCopyingVideoId] = useState<string | null>(null);
   
   // Modern UX state
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
@@ -121,8 +121,8 @@ function LibraryContent() {
       
       // Sharing filter
       const shareMatch = selectedFilter === 'all' || 
-        (selectedFilter === 'shared' && video.is_shared === 1) ||
-        (selectedFilter === 'private' && video.is_shared === 0);
+        (selectedFilter === 'shared' && video.is_shared) ||
+        (selectedFilter === 'private' && !video.is_shared);
       
       return searchMatch && shareMatch;
     });
@@ -199,7 +199,7 @@ function LibraryContent() {
     });
   }, []);
 
-  const copyVideoUrl = useCallback(async (url: string, videoId: number) => {
+  const copyVideoUrl = useCallback(async (url: string, videoId: string) => {
     try {
       await navigator.clipboard.writeText(url);
       setCopyingVideoId(videoId);
@@ -209,7 +209,7 @@ function LibraryContent() {
     }
   }, []);
 
-  const deleteVideo = async (videoId: number) => {
+  const deleteVideo = async (videoId: string) => {
     if (!confirm('Are you sure you want to delete this video?')) return;
 
     try {
@@ -230,10 +230,10 @@ function LibraryContent() {
     setEditingTitle(video.title);
   };
 
-  const saveTitle = async (videoId: number) => {
+  const saveTitle = async (videoId: string) => {
     try {
       const response = await fetch(`/api/videos/${videoId}`, {
-        method: 'PATCH',
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: editingTitle }),
       });
@@ -272,13 +272,11 @@ function LibraryContent() {
     try {
       const response = await fetch(`/api/videos/${video.id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ is_shared: video.is_shared === 1 ? 0 : 1 }),
       });
 
       if (response.ok) {
       setVideos(videos.map(v =>
-          v.id === video.id ? { ...v, is_shared: video.is_shared === 1 ? 0 : 1 } : v
+          v.id === video.id ? { ...v, is_shared: !v.is_shared } : v
       ));
       }
     } catch (error) {
@@ -459,7 +457,7 @@ function LibraryContent() {
                           )}
                           
                           {/* Shared Badge */}
-                          {video.is_shared === 1 && (
+                          {video.is_shared && (
                             <div className="absolute top-2 left-2">
                               <Badge className="bg-green-500/80 text-white border-0">
                                 <Globe className="w-3 h-3 mr-1" />
@@ -553,7 +551,7 @@ function LibraryContent() {
                             Download
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => toggleSharing(video)} className="text-gray-300 hover:text-white hover:bg-white/10">
-                                  {video.is_shared === 1 ? (
+                                  {video.is_shared ? (
                                     <>
                                       <EyeOff className="mr-2 h-4 w-4" />
                                       Make Private
@@ -611,7 +609,7 @@ function LibraryContent() {
                                   <span>{formatDateFull(video.created_at)}</span>
                                   <span>{formatFileSize(video.file_size)}</span>
                                   {video.duration && <span>{formatDuration(video.duration)}</span>}
-                                  {video.is_shared === 1 && (
+                                  {video.is_shared && (
                               <Badge className="bg-green-500/20 text-green-300 border-green-500/30 text-xs">
                                 <Globe className="w-2 h-2 mr-1" />
                                       Shared
@@ -659,7 +657,7 @@ function LibraryContent() {
                                 Download
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => toggleSharing(video)} className="text-gray-300 hover:text-white hover:bg-white/10">
-                                {video.is_shared === 1 ? (
+                                {video.is_shared ? (
                                   <>
                                     <EyeOff className="mr-2 h-4 w-4" />
                                     Make Private

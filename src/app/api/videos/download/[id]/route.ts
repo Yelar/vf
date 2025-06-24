@@ -164,8 +164,8 @@ async function handleRequest(
     }
 
     const resolvedParams = await params;
-    const videoId = parseInt(resolvedParams.id);
-    if (isNaN(videoId)) {
+    const videoId = resolvedParams.id;
+    if (!videoId) {
       console.log(`❌ Invalid video ID: ${resolvedParams.id}`);
       return NextResponse.json({ error: 'Invalid video ID' }, { status: 400 });
     }
@@ -190,6 +190,12 @@ async function handleRequest(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    // Check if video has uploaded URL
+    if (!video.uploadthing_url) {
+      console.log(`❌ Video not yet uploaded: ${videoId}`);
+      return NextResponse.json({ error: 'Video not yet processed' }, { status: 404 });
+    }
+
     // Fetch video with enhanced retry mechanism
     let videoResponse: Response;
     try {
@@ -202,7 +208,8 @@ async function handleRequest(
       const filename = `${safeTitle}.mp4`;
       
       try {
-        const downloadUrl = new URL(video.uploadthing_url);
+        // video.uploadthing_url is guaranteed to exist due to check above
+        const downloadUrl = new URL(video.uploadthing_url!);
         downloadUrl.searchParams.set('response-content-disposition', `attachment; filename="${filename}"`);
         downloadUrl.searchParams.set('response-content-type', 'video/mp4');
         downloadUrl.searchParams.set('download', '1');

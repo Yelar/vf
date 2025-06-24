@@ -15,8 +15,8 @@ export async function GET(
     }
 
     const resolvedParams = await params;
-    const videoId = parseInt(resolvedParams.id);
-    if (isNaN(videoId)) {
+    const videoId = resolvedParams.id;
+    if (!videoId) {
       return NextResponse.json({ error: 'Invalid video ID' }, { status: 400 });
     }
 
@@ -51,8 +51,8 @@ export async function PUT(
     }
 
     const resolvedParams = await params;
-    const videoId = parseInt(resolvedParams.id);
-    if (isNaN(videoId)) {
+    const videoId = resolvedParams.id;
+    if (!videoId) {
       return NextResponse.json({ error: 'Invalid video ID' }, { status: 400 });
     }
 
@@ -88,8 +88,8 @@ export async function DELETE(
     }
 
     const resolvedParams = await params;
-    const videoId = parseInt(resolvedParams.id);
-    if (isNaN(videoId)) {
+    const videoId = resolvedParams.id;
+    if (!videoId) {
       return NextResponse.json({ error: 'Invalid video ID' }, { status: 400 });
     }
 
@@ -119,8 +119,8 @@ export async function PATCH(
     }
 
     const resolvedParams = await params;
-    const videoId = parseInt(resolvedParams.id);
-    if (isNaN(videoId)) {
+    const videoId = resolvedParams.id;
+    if (!videoId) {
       return NextResponse.json({ error: 'Invalid video ID' }, { status: 400 });
     }
 

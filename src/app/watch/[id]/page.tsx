@@ -49,11 +49,27 @@ function WatchVideoContent() {
       setLoading(true);
       setError(null);
       
-      const response = await fetch(`/api/videos/shared/${videoId}`);
-      const data = await response.json();
+      // First try to fetch from user's own videos (requires auth)
+      let response = await fetch(`/api/videos/${videoId}`);
+      let data = await response.json();
       
       if (response.ok) {
-        setVideo(data.video);
+        setVideo({
+          ...data.video,
+          is_public: data.video.is_shared // Map is_shared to is_public for compatibility
+        });
+        return;
+      }
+      
+      // If that fails (either not found or not authorized), try shared videos
+      response = await fetch(`/api/videos/shared/${videoId}`);
+      data = await response.json();
+      
+      if (response.ok) {
+        setVideo({
+          ...data.video,
+          is_public: true // Shared videos are public
+        });
       } else {
         setError(data.error || 'Failed to load video');
       }

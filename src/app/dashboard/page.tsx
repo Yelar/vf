@@ -31,10 +31,10 @@ interface DashboardStats {
   sharedVideos: number;
   totalDuration: number;
   recentVideos: Array<{
-    id: number;
+    id: string;
     title: string;
     created_at: string;
-    is_shared: number;
+    is_shared: boolean;
     duration?: number;
     url: string;
   }>;
@@ -44,10 +44,10 @@ function DashboardContent() {
   const { data: session } = useSession();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [copiedVideoId, setCopiedVideoId] = useState<number | null>(null);
+  const [copiedVideoId, setCopiedVideoId] = useState<string | null>(null);
 
   // Copy video URL to clipboard - optimized with useCallback
-  const copyVideoUrl = useCallback(async (url: string, videoId: number) => {
+  const copyVideoUrl = useCallback(async (url: string, videoId: string) => {
     try {
       await navigator.clipboard.writeText(url);
       setCopiedVideoId(videoId);
@@ -240,7 +240,7 @@ function DashboardContent() {
                 )}
 
                       {/* Shared Badge */}
-                      {video.is_shared === 1 && (
+                      {video.is_shared === true && (
                         <div className="absolute top-2 left-2">
                           <Badge className="bg-green-500/80 text-white border-0">
                             <Globe className="w-3 h-3 mr-1" />

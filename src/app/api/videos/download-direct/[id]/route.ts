@@ -13,8 +13,8 @@ async function handleRequest(
     }
 
     const resolvedParams = await params;
-    const videoId = parseInt(resolvedParams.id);
-    if (isNaN(videoId)) {
+    const videoId = resolvedParams.id;
+    if (!videoId) {
       return NextResponse.json({ error: 'Invalid video ID' }, { status: 400 });
     }
 
@@ -27,6 +27,11 @@ async function handleRequest(
     // Check if user owns the video
     if (video.user_id !== session.user.id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    // Check if video has uploaded URL
+    if (!video.uploadthing_url) {
+      return NextResponse.json({ error: 'Video not yet processed' }, { status: 404 });
     }
 
     // Since server-side fetch keeps timing out, let's create a download-forcing redirect

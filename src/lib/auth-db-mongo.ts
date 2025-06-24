@@ -325,7 +325,7 @@ export async function getSharedVideos(): Promise<(MongoUserVideo & { creator_nam
     
     return videos.map(video => ({
       ...mongoVideoToInterface(video),
-      creator_name: (video.user_id as IUser).name
+      creator_name: (video.user_id as unknown as IUser).name
     }));
   } catch (error) {
     console.error('Error getting shared videos:', error);
@@ -348,7 +348,7 @@ export async function getSharedVideoById(id: string): Promise<(MongoUserVideo & 
     
     return {
       ...mongoVideoToInterface(video),
-      creator_name: (video.user_id as IUser).name
+      creator_name: (video.user_id as unknown as IUser).name
     };
   } catch (error) {
     console.error('Error getting shared video by ID:', error);
