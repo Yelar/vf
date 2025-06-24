@@ -1,59 +1,33 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
-import { getToken } from 'next-auth/jwt';
+import { auth } from "@/lib/auth";
+import { NextResponse } from "next/server";
 
-export async function middleware(request: NextRequest) {
-  // Only protect API routes (except auth routes)
-  if (request.nextUrl.pathname.startsWith('/api/')) {
-    // Allow auth routes, temp-audio routes, and uploadthing routes to pass through
-    if (request.nextUrl.pathname.startsWith('/api/auth/') || 
-        request.nextUrl.pathname.startsWith('/api/temp-audio/') ||
-        request.nextUrl.pathname.startsWith('/api/uploadthing')) {
+export default auth((req) => {
+  // Add debug logging for production
+  if (process.env.NODE_ENV === 'production') {
+    console.log('Middleware - Path:', req.nextUrl.pathname);
+    console.log('Middleware - User:', req.auth?.user?.email || 'Not authenticated');
+  }
+
+  // Protect API routes
+  if (req.nextUrl.pathname.startsWith('/api/')) {
+    // Allow auth routes and public endpoints
+    if (req.nextUrl.pathname.startsWith('/api/auth/') || 
+        req.nextUrl.pathname.startsWith('/api/videos/shared/')) {
       return NextResponse.next();
     }
-
-    try {
-      // Check authentication using NextAuth JWT token (Edge Runtime compatible)
-      const token = await getToken({ 
-        req: request,
-        secret: process.env.NEXTAUTH_SECRET || "your-secret-key-change-this-in-production"
-      });
-      
-      if (!token) {
-        return NextResponse.json(
-          { 
-            error: 'Unauthorized', 
-            message: 'You must be authenticated to access this API endpoint',
-            code: 'AUTHENTICATION_REQUIRED'
-          },
-          { status: 401 }
-        );
-      }
-
-      // Add user info to request headers for debugging
-      const response = NextResponse.next();
-      response.headers.set('x-user-email', token.email || '');
-      response.headers.set('x-user-id', token.id?.toString() || '');
-      
-      return response;
-    } catch (error) {
-      console.error('Middleware auth error:', error);
+    
+    // Require auth for other API routes
+    if (!req.auth) {
       return NextResponse.json(
-        { 
-          error: 'Authentication Error', 
-          message: 'Failed to verify authentication' 
-        },
-        { status: 500 }
+        { error: 'Unauthorized', message: 'You must be authenticated to access this API endpoint', code: 'AUTHENTICATION_REQUIRED' },
+        { status: 401 }
       );
     }
   }
 
   return NextResponse.next();
-}
+});
 
 export const config = {
-  // Match all API routes except static files and specific exclusions
-  matcher: [
-    '/api/((?!auth/|_next/static|_next/image|favicon.ico).*)' 
-  ]
+  matcher: ['/api/:path*', '/dashboard/:path*', '/library/:path*', '/video/:path*']
 };
