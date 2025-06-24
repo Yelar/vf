@@ -67,31 +67,80 @@ async function combineAudioSegments(segments: Array<{text: string; audio: string
 
 // Function to upload video to UploadThing
 async function uploadToUploadThing(videoBuffer: Buffer, filename: string): Promise<{ url: string; key: string } | null> {
-  try {
-    // Use UploadThing SDK for server-side upload
-    const { UTApi, UTFile } = await import("uploadthing/server");
-    const utapi = new UTApi();
+  const maxRetries = 3;
+  const timeoutMs = 300000; // 5 minutes for upload
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`📤 UploadThing upload attempt ${attempt}/${maxRetries}`);
+      console.log(`📁 File: ${filename}`);
+      console.log(`📏 Size: ${(videoBuffer.length / 1024 / 1024).toFixed(2)}MB`);
+      
+      // Use UploadThing SDK for server-side upload with timeout
+      const { UTApi, UTFile } = await import("uploadthing/server");
+      
+      // Initialize UTApi with timeout configuration
+      const utapi = new UTApi({
+        logLevel: 'Info'
+      });
 
-    // Create a UTFile object which works in Node.js environment
-    const fileObject = new UTFile([videoBuffer], filename, { type: 'video/mp4' });
-    
-    // Upload to UploadThing
-    const uploadResult = await utapi.uploadFiles([fileObject]);
-    
-    if (uploadResult && uploadResult[0] && uploadResult[0].data) {
-      console.log('✅ UploadThing upload successful:', uploadResult[0].data.url);
-      return {
-        url: uploadResult[0].data.url,
-        key: uploadResult[0].data.key
-      };
+      // Create a UTFile object with proper metadata
+      const fileObject = new UTFile([videoBuffer], filename, { 
+        type: 'video/mp4',
+        lastModified: Date.now()
+      });
+      
+      console.log(`⏳ Starting upload to UploadThing...`);
+      const uploadStartTime = Date.now();
+      
+      // Create a timeout promise
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => {
+          reject(new Error(`Upload timeout after ${timeoutMs}ms`));
+        }, timeoutMs);
+      });
+      
+      // Race the upload against the timeout
+      const uploadResult = await Promise.race([
+        utapi.uploadFiles([fileObject]),
+        timeoutPromise
+      ]);
+      
+      const uploadDuration = Date.now() - uploadStartTime;
+      console.log(`⏱️ Upload completed in ${uploadDuration}ms`);
+      
+      if (uploadResult && uploadResult[0] && uploadResult[0].data) {
+        const result = uploadResult[0].data;
+        console.log(`✅ UploadThing upload successful:`);
+        console.log(`🔗 URL: ${result.url}`);
+        console.log(`🔑 Key: ${result.key}`);
+        console.log(`📊 Final size: ${(result.size / 1024 / 1024).toFixed(2)}MB`);
+        
+        return {
+          url: result.url,
+          key: result.key
+        };
+      }
+
+      throw new Error('UploadThing upload failed - no data returned');
+      
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error(`❌ UploadThing upload attempt ${attempt} failed:`, errorMessage);
+      
+      if (attempt === maxRetries) {
+        console.error(`💥 All ${maxRetries} upload attempts failed`);
+        return null;
+      }
+      
+      // Wait before retry (exponential backoff)
+      const delay = Math.min(1000 * Math.pow(2, attempt - 1), 10000);
+      console.log(`⏳ Waiting ${delay}ms before retry...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
     }
-
-    console.error('UploadThing upload failed - no data returned:', uploadResult);
-    return null;
-  } catch (error) {
-    console.error('Error uploading to UploadThing:', error);
-    return null;
   }
+  
+  return null;
 }
 
 export async function POST(request: NextRequest) {
@@ -140,26 +189,36 @@ export async function POST(request: NextRequest) {
     const userName = session.user.name || 'User';
     console.log(`🧠 User ${userEmail} starting quiz video render and save to UploadThing`);
 
-    // Convert quiz segments to audio segments format for database
+    // Filter audio segments to only include those with actual audio data
+    // (excludes 'wait' segments which have duration but no audio)
     const audioSegments = segments.map((seg: any, index: number) => ({
       text: seg.text,
       audio: seg.audio || '',
       chunkIndex: index,
       wordCount: seg.text.split(' ').length,
       duration: seg.duration || 2
-    }));
+    })).filter((seg: any) => seg.audio && seg.audio.trim() !== '');
 
-    // Calculate total duration
+    console.log(`🎵 Audio segments (with actual audio): ${audioSegments.length}/${segments.length}`);
+    console.log(`📋 Segments breakdown:`, segments.map((seg: any) => ({
+      type: seg.type,
+      hasAudio: !!(seg.audio && seg.audio.trim()),
+      duration: seg.duration || 2
+    })));
+
+    // Calculate total duration (includes ALL segments, even those without audio)
     const totalDuration = segments.reduce((acc: number, seg: any) => {
       return acc + (seg.duration || 2);
     }, 0);
+
+    console.log(`⏱️ Total video duration: ${totalDuration}s (includes wait segments without audio)`);
 
     // Create video record immediately with placeholder URL
     const videoMetadata = {
       speechText: segments.map((seg: any) => seg.text).join(' '),
       backgroundVideo,
-      audioSrc: true, // Quiz videos have audio
-      audioDuration: totalDuration,
+      audioSrc: audioSegments.length > 0, // Only true if we have actual audio segments
+      audioDuration: totalDuration, // Use total duration, not just audio duration
       bgMusic,
       fontStyle: font,
       textColor,
@@ -278,18 +337,23 @@ async function processQuizVideoAsync({
     // Handle audio segments
     let audioFilePath: string | null = null;
     let finalAudioDuration = 0;
-
-    if (audioSegments && audioSegments.length > 0) {
-      console.log(`🎵 Processing ${audioSegments.length} quiz audio segments for rendering...`);
+    
+    if (audioSegments.length > 0) {
+      console.log(`🎤 Processing ${audioSegments.length} audio segments for combination...`);
       try {
         const combinedAudio = await combineAudioSegments(audioSegments);
         audioFilePath = combinedAudio.audioPath;
         finalAudioDuration = combinedAudio.totalDuration;
         console.log(`✅ Quiz audio segments combined successfully: ${audioFilePath}`);
+        console.log(`🎵 Combined audio duration: ${finalAudioDuration}s`);
       } catch (error) {
         console.error('❌ Failed to combine quiz audio segments:', error);
         throw new Error('Failed to process quiz audio segments');
       }
+    } else {
+      console.log(`⚠️ No audio segments to combine (quiz may contain only wait segments)`);
+      // Set final audio duration to 0 since there's no actual audio
+      finalAudioDuration = 0;
     }
 
     const entry = path.join(process.cwd(), 'src', 'remotion', 'Root.tsx');
@@ -347,9 +411,23 @@ async function processQuizVideoAsync({
       throw new Error('QuizVideo composition not found');
     }
 
-    // Calculate duration based on segments
-    const videoDuration = finalAudioDuration || segments.reduce((acc: number, seg: any) => acc + (seg.duration || 2), 0);
+    // Calculate duration based on segments - INCLUDE ALL SEGMENTS
+    // Don't rely solely on audio duration since wait segments have no audio but still take time
+    const totalSegmentDuration = segments.reduce((acc: number, seg: any) => {
+      return acc + (seg.duration || 2);
+    }, 0);
+    
+    console.log(`📊 Duration calculations:`, {
+      audioOnlyDuration: finalAudioDuration,
+      totalSegmentDuration,
+      segments: segments.length
+    });
+    
+    // Use the longer of the two durations to ensure we capture all content
+    const videoDuration = Math.max(finalAudioDuration || 0, totalSegmentDuration);
     const durationInFrames = Math.floor(videoDuration * 60); // 60 FPS
+
+    console.log(`⏱️ Final video duration: ${videoDuration}s (${durationInFrames} frames)`);
 
     // Override composition duration
     comp = {

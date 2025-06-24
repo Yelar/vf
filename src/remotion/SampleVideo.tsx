@@ -325,11 +325,11 @@ export const SampleVideo: React.FC<SampleVideoProps> = ({
                 }}
               />
               {/* Gradient overlay for better text readability */}
-              <div
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
                   right: 0,
                   bottom: 0,
                   background: 'linear-gradient(180deg, rgba(0,0,0,0.0) 0%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.4) 100%)',

@@ -72,7 +72,7 @@ function DashboardContent() {
       const data = await response.json();
         setStats(data);
       }
-    } catch (error) {
+      } catch (error) {
       console.error('Error fetching dashboard stats:', error);
     } finally {
       setLoading(false);
@@ -130,7 +130,7 @@ function DashboardContent() {
           <p className="text-xl md:text-2xl text-gray-400 max-w-4xl mx-auto leading-relaxed">
             Ready to create your next viral video? Let&apos;s turn your ideas into engaging content with AI.
           </p>
-                    </div>
+        </div>
 
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -147,8 +147,8 @@ function DashboardContent() {
                     <div className="flex items-center space-x-1 mt-2">
                       <Zap className="w-3 h-3 text-yellow-400" />
                       <span className="text-xs text-yellow-400 font-medium">AI Powered</span>
-                    </div>
-                  </div>
+              </div>
+              </div>
                   <ChevronRight className="w-5 h-5 text-purple-300 group-hover:translate-x-1 transition-transform" />
                 </div>
               </ModernCardContent>
@@ -161,14 +161,14 @@ function DashboardContent() {
                 <div className="flex items-center space-x-4">
                   <div className="w-14 h-14 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
                     <Library className="w-7 h-7 text-white" />
-                    </div>
+                </div>
                   <div className="flex-1">
                     <h3 className="text-xl font-bold text-white mb-1">My Library</h3>
                     <p className="text-blue-200 text-sm">Manage and organize your videos</p>
                     <div className="flex items-center space-x-1 mt-2">
                       <Video className="w-3 h-3 text-blue-400" />
                       <span className="text-xs text-blue-400 font-medium">{stats?.totalVideos || 0} Videos</span>
-                    </div>
+                </div>
                   </div>
                   <ChevronRight className="w-5 h-5 text-blue-300 group-hover:translate-x-1 transition-transform" />
                 </div>
@@ -236,16 +236,16 @@ function DashboardContent() {
                       {video.duration && (
                         <div className="absolute bottom-2 right-2 px-2 py-1 bg-black/70 rounded text-xs text-white font-medium">
                           {formatDuration(video.duration)}
-                        </div>
-                      )}
-                      
+                  </div>
+                )}
+
                       {/* Shared Badge */}
                       {video.is_shared === 1 && (
                         <div className="absolute top-2 left-2">
                           <Badge className="bg-green-500/80 text-white border-0">
                             <Globe className="w-3 h-3 mr-1" />
                             Shared
-                          </Badge>
+                      </Badge>
                         </div>
                       )}
                       </div>
@@ -262,7 +262,7 @@ function DashboardContent() {
                             {formatDateFull(video.created_at)}
                       </span>
                     </div>
-                      </div>
+                  </div>
                       
                       <div className="flex items-center justify-between">
                         <div className="flex space-x-2">
@@ -273,7 +273,7 @@ function DashboardContent() {
                             </Button>
                           </Link>
                           
-                        <Button 
+                <Button 
                             size="sm"
                           variant="ghost" 
                           onClick={() => copyVideoUrl(video.url, video.id)}
@@ -283,19 +283,19 @@ function DashboardContent() {
                               <Check className="w-3 h-3" />
                             ) : (
                               <Copy className="w-3 h-3" />
-                            )}
-                        </Button>
-                        </div>
-                        
+                  )}
+                </Button>
+        </div>
+
                         <Button size="sm" variant="ghost" className="text-gray-400 hover:text-white">
                           <Download className="w-3 h-3" />
                         </Button>
-                      </div>
-                    </div>
+              </div>
+            </div>
                   </ModernCardContent>
                 </ModernCard>
                         ))}
-                      </div>
+              </div>
           ) : (
             <ModernCard className="text-center py-12">
               <ModernCardContent>
@@ -311,7 +311,7 @@ function DashboardContent() {
               </ModernCardContent>
             </ModernCard>
         )}
-        </div>
+              </div>
       </main>
     </div>
   );
@@ -323,4 +323,4 @@ export default function Dashboard() {
       <DashboardContent />
     </AuthGuard>
   );
-}
+} 

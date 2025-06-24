@@ -5,7 +5,7 @@ import { getVideoById, updateVideoTitle, deleteVideo, toggleVideoSharing } from 
 // GET /api/videos/[id] - Get specific video data
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -14,7 +14,8 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const videoId = parseInt(params.id);
+    const resolvedParams = await params;
+    const videoId = parseInt(resolvedParams.id);
     if (isNaN(videoId)) {
       return NextResponse.json({ error: 'Invalid video ID' }, { status: 400 });
     }
@@ -40,7 +41,7 @@ export async function GET(
 // PUT /api/videos/[id] - Update video
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -49,7 +50,8 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const videoId = parseInt(params.id);
+    const resolvedParams = await params;
+    const videoId = parseInt(resolvedParams.id);
     if (isNaN(videoId)) {
       return NextResponse.json({ error: 'Invalid video ID' }, { status: 400 });
     }
@@ -76,7 +78,7 @@ export async function PUT(
 // DELETE /api/videos/[id] - Delete video
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -85,7 +87,8 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const videoId = parseInt(params.id);
+    const resolvedParams = await params;
+    const videoId = parseInt(resolvedParams.id);
     if (isNaN(videoId)) {
       return NextResponse.json({ error: 'Invalid video ID' }, { status: 400 });
     }
@@ -106,7 +109,7 @@ export async function DELETE(
 // PATCH /api/videos/[id] - Update video sharing status
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -115,7 +118,8 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const videoId = parseInt(params.id);
+    const resolvedParams = await params;
+    const videoId = parseInt(resolvedParams.id);
     if (isNaN(videoId)) {
       return NextResponse.json({ error: 'Invalid video ID' }, { status: 400 });
     }

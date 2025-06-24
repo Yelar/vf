@@ -67,31 +67,80 @@ async function combineAudioSegments(segments: Array<{text: string; audio: string
 
 // Function to upload video to UploadThing
 async function uploadToUploadThing(videoBuffer: Buffer, filename: string): Promise<{ url: string; key: string } | null> {
-  try {
-    // Use UploadThing SDK for server-side upload
-    const { UTApi, UTFile } = await import("uploadthing/server");
-    const utapi = new UTApi();
+  const maxRetries = 3;
+  const timeoutMs = 300000; // 5 minutes for upload
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`📤 UploadThing upload attempt ${attempt}/${maxRetries}`);
+      console.log(`📁 File: ${filename}`);
+      console.log(`📏 Size: ${(videoBuffer.length / 1024 / 1024).toFixed(2)}MB`);
+      
+      // Use UploadThing SDK for server-side upload with timeout
+      const { UTApi, UTFile } = await import("uploadthing/server");
+      
+      // Initialize UTApi with timeout configuration
+      const utapi = new UTApi({
+        logLevel: 'Info'
+      });
 
-    // Create a UTFile object which works in Node.js environment
-    const fileObject = new UTFile([videoBuffer], filename, { type: 'video/mp4' });
-    
-    // Upload to UploadThing
-    const uploadResult = await utapi.uploadFiles([fileObject]);
-    
-    if (uploadResult && uploadResult[0] && uploadResult[0].data) {
-      console.log('✅ UploadThing upload successful:', uploadResult[0].data.url);
-      return {
-        url: uploadResult[0].data.url,
-        key: uploadResult[0].data.key
-      };
+      // Create a UTFile object with proper metadata
+      const fileObject = new UTFile([videoBuffer], filename, { 
+        type: 'video/mp4',
+        lastModified: Date.now()
+      });
+      
+      console.log(`⏳ Starting upload to UploadThing...`);
+      const uploadStartTime = Date.now();
+      
+      // Create a timeout promise
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => {
+          reject(new Error(`Upload timeout after ${timeoutMs}ms`));
+        }, timeoutMs);
+      });
+      
+      // Race the upload against the timeout
+      const uploadResult = await Promise.race([
+        utapi.uploadFiles([fileObject]),
+        timeoutPromise
+      ]);
+      
+      const uploadDuration = Date.now() - uploadStartTime;
+      console.log(`⏱️ Upload completed in ${uploadDuration}ms`);
+      
+      if (uploadResult && uploadResult[0] && uploadResult[0].data) {
+        const result = uploadResult[0].data;
+        console.log(`✅ UploadThing upload successful:`);
+        console.log(`🔗 URL: ${result.url}`);
+        console.log(`🔑 Key: ${result.key}`);
+        console.log(`📊 Final size: ${(result.size / 1024 / 1024).toFixed(2)}MB`);
+        
+        return {
+          url: result.url,
+          key: result.key
+        };
+      }
+
+      throw new Error('UploadThing upload failed - no data returned');
+      
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error(`❌ UploadThing upload attempt ${attempt} failed:`, errorMessage);
+      
+      if (attempt === maxRetries) {
+        console.error(`💥 All ${maxRetries} upload attempts failed`);
+        return null;
+      }
+      
+      // Wait before retry (exponential backoff)
+      const delay = Math.min(1000 * Math.pow(2, attempt - 1), 10000);
+      console.log(`⏳ Waiting ${delay}ms before retry...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
     }
-
-    console.error('UploadThing upload failed - no data returned:', uploadResult);
-    return null;
-  } catch (error) {
-    console.error('Error uploading to UploadThing:', error);
-    return null;
   }
+  
+  return null;
 }
 
 export async function POST(req: NextRequest) {

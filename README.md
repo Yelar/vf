@@ -34,12 +34,12 @@ A Next.js application that generates vertical videos perfect for YouTube Shorts,
 
 3. **Set up API Keys**
    - Get an API key from [Eleven Labs](https://elevenlabs.io/docs/api-reference/authentication)
-   - Get an UploadThing token from [UploadThing](https://uploadthing.com)
+   - Get an UploadThing **V7 Token** from [UploadThing Dashboard](https://uploadthing.com/dashboard) → API Keys → V7 tab
    - Get a Resend API key from [Resend](https://resend.com) for email notifications
    - Create a `.env.local` file in the root directory:
    ```env
    ELEVEN_LABS_API_KEY=your_eleven_labs_api_key_here
-   UPLOADTHING_TOKEN=your_uploadthing_token_here
+   UPLOADTHING_TOKEN=your_uploadthing_v7_token_here
    RESEND_API_KEY=your_resend_api_key_here
    NEXTAUTH_SECRET=your_secret_key_here
    # Azure OpenAI Configuration
@@ -48,6 +48,8 @@ A Next.js application that generates vertical videos perfect for YouTube Shorts,
    AZURE_OPENAI_DEPLOYMENT_NAME=gpt-4o
    AZURE_OPENAI_API_VERSION=2024-04-01-preview
    ```
+
+   **⚠️ Important**: Use UploadThing **V7 Token** (not the old V6 secret). The V7 token is a base64 encoded JSON that includes app ID, region, and API key all in one.
 
 4. **Run the development server**
    ```bash
@@ -118,17 +120,67 @@ A Next.js application that generates vertical videos perfect for YouTube Shorts,
 
 ## 🛠 Tech Stack
 
-- **Framework**: Next.js 15 with React 19
-- **Video**: Remotion for video composition
-- **UI**: Tailwind CSS with shadcn/ui components
-- **Speech**: Eleven Labs API
-- **Audio**: Web Audio API for mixing
-- **Recording**: MediaRecorder API with canvas streams
-- **Authentication**: NextAuth.js for secure user management
-- **Database**: SQLite with Better-SQLite3 for video metadata
-- **Storage**: UploadThing for cloud video storage
-- **Email**: Resend for beautiful async video completion notifications
-- **AI**: Azure OpenAI GPT-4o for content generation and Azure Speech Service for transcription
+- **Frontend**: Next.js 15, React 19, TypeScript, Tailwind CSS
+- **Backend**: Next.js API Routes, SQLite Database
+- **Video**: Remotion for rendering, MediaRecorder for generation
+- **AI Services**: Azure OpenAI (GPT-4), Eleven Labs (Text-to-Speech)
+- **File Storage**: UploadThing (v7)
+- **Email**: Resend
+- **Authentication**: NextAuth.js v5
+- **UI Components**: Radix UI, Lucide React Icons
+
+## 🔧 Troubleshooting
+
+### UploadThing Issues
+
+**Problem**: "Request timed out" or "Connection timeout" errors
+**Solutions**:
+1. Ensure you're using the **V7 Token** (not V6 secret) from UploadThing Dashboard → API Keys → V7 tab
+2. Check your internet connection and try again
+3. For large files, the system will automatically retry with exponential backoff
+4. If downloads fail, the system will fallback to direct UploadThing redirect
+
+**Problem**: "UPLOADTHING_TOKEN is missing" error
+**Solution**: Make sure your `.env.local` file contains the V7 token:
+```env
+UPLOADTHING_TOKEN=your_v7_token_here
+```
+
+### Video Generation Issues
+
+**Problem**: Videos are processing but not appearing in library
+**Solutions**:
+1. Check the server logs for upload errors
+2. Ensure sufficient storage space
+3. Verify email notifications are working (check spam folder)
+4. Videos process asynchronously - wait 2-5 minutes for completion
+
+**Problem**: Audio not included in downloaded videos
+**Solution**: This is typically a browser permission issue. Try:
+1. Refresh the page and regenerate the video
+2. Ensure microphone permissions are granted
+3. Use the "Generate & Save to Library" option instead of direct download
+
+### Environment Variables
+
+**Required Variables**:
+```env
+# Core functionality
+UPLOADTHING_TOKEN=your_v7_token_here
+ELEVEN_LABS_API_KEY=your_api_key_here
+NEXTAUTH_SECRET=your_secret_here
+
+# AI Features (Azure OpenAI)
+AZURE_OPENAI_API_KEY=your_key_here
+AZURE_OPENAI_ENDPOINT=your_endpoint_here
+AZURE_OPENAI_DEPLOYMENT_NAME=gpt-4o
+
+# Email notifications
+RESEND_API_KEY=your_resend_key_here
+```
+
+**Testing Configuration**:
+Run the development server and check the console for any missing environment variable warnings.
 
 ## 📁 Project Structure
 
@@ -225,7 +277,7 @@ NEXTAUTH_SECRET=your_secret_key_here
 NEXTAUTH_URL=http://localhost:3000
 
 # Required: File Storage
-UPLOADTHING_TOKEN=your_uploadthing_token_here
+UPLOADTHING_TOKEN=your_uploadthing_v7_token_here
 
 # Required: Email Notifications
 RESEND_API_KEY=your_resend_api_key_here
