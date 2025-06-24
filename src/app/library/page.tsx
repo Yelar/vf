@@ -338,7 +338,7 @@ function LibraryContent() {
             <div className="flex flex-col lg:flex-row gap-4">
               {/* Search */}
               <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                   <Input
                     placeholder="Search videos..."
                     value={searchTerm}
@@ -508,7 +508,7 @@ function LibraryContent() {
                                   <span>{formatFileSize(video.file_size)}</span>
                         </div>
                         </div>
-                            </div>
+                      </div>
                           </div>
                           
                           {/* Actions */}
@@ -526,7 +526,7 @@ function LibraryContent() {
                               <DropdownMenuTrigger asChild>
                                 <Button size="sm" variant="ghost" className="text-gray-400 hover:text-white">
                                   <MoreVertical className="w-4 h-4" />
-                                </Button>
+                          </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent className="bg-gray-900/95 backdrop-blur border-white/10" align="end">
                                 <Link href={`/video/${video.id}`}>
@@ -573,7 +573,7 @@ function LibraryContent() {
                               </DropdownMenuContent>
                             </DropdownMenu>
                         </div>
-                          </div>
+                      </div>
                       </>
                     ) : (
                       // List View
@@ -583,7 +583,7 @@ function LibraryContent() {
                             <Play className="w-6 h-6 text-white/70" />
                           </div>
                         </Link>
-
+                      
                           <div className="flex-1 min-w-0">
                             {editingVideoId === video.id ? (
                             <div className="flex space-x-2">
@@ -663,13 +663,13 @@ function LibraryContent() {
                                   <>
                                     <EyeOff className="mr-2 h-4 w-4" />
                                     Make Private
-                                  </>
-                                ) : (
-                                  <>
+                            </>
+                          ) : (
+                            <>
                                     <Eye className="mr-2 h-4 w-4" />
                                     Make Public
-                                  </>
-                                )}
+                            </>
+                          )}
                               </DropdownMenuItem>
                               <DropdownMenuSeparator className="bg-white/10" />
                               <DropdownMenuItem onClick={() => deleteVideo(video.id)} className="text-red-400 hover:text-red-300 hover:bg-red-500/10">
@@ -719,22 +719,22 @@ function LibraryContent() {
                           </Button>
                         );
                       })}
-                    </div>
-                    
-                    <Button
+      </div>
+
+            <Button
                       variant="outline"
-                      size="sm"
+              size="sm"
                       disabled={currentPage === totalPages}
                   onClick={() => setCurrentPage(currentPage + 1)}
                   className="border-white/10 text-white hover:bg-white/10"
-                    >
+            >
                       Next
                   <ChevronRight className="w-4 h-4" />
-                    </Button>
-                </div>
+            </Button>
+          </div>
               )}
             </>
-          )}
+      )}
       </main>
     </div>
   );

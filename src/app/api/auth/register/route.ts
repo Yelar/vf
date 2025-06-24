@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createUser, getUserByEmail } from '@/lib/auth-db';
+import { createUser, getUserByEmail } from '@/lib/auth-db-mongo';
 import { sendVerificationEmail } from '@/lib/email';
 import crypto from 'crypto';
 
@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Check if user already exists
-    const existingUser = getUserByEmail(email);
+    const existingUser = await getUserByEmail(email);
     if (existingUser) {
       return NextResponse.json(
         { error: 'User with this email already exists' },

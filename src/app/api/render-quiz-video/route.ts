@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { bundle } from '@remotion/bundler';
 import { getCompositions, renderMedia } from '@remotion/renderer';
 import { auth } from '@/lib/auth';
-import { createVideo, updateVideo } from '@/lib/auth-db';
+import { createVideo, updateVideo } from '@/lib/auth-db-mongo';
 import { sendVideoCompletionEmail } from '@/lib/email';
 import path from 'path';
 import { v4 as uuid } from 'uuid';
@@ -248,10 +248,10 @@ export async function POST(request: NextRequest) {
     };
 
     const savedVideo = await createVideo(
-      parseInt(session.user.id),
+      session.user.id,
       videoTitle,
-      '', // Placeholder URL - will be updated after processing
-      '', // Placeholder key - will be updated after processing
+      undefined, // Placeholder URL - will be updated after processing
+      undefined, // Placeholder key - will be updated after processing
       0, // Placeholder size - will be updated after processing
       videoMetadata,
       videoDescription,
@@ -327,7 +327,7 @@ async function processQuizVideoAsync({
   audioSegments
 }: {
   processingId: string;
-  videoId: number;
+  videoId: string;
   userEmail: string;
   userName: string;
   segments: QuizSegment[];
@@ -497,7 +497,7 @@ async function processQuizVideoAsync({
       console.log(`✅ Quiz video ${processingId} uploaded to UploadThing: ${uploadResult.url}`);
 
       // Update video record with actual URL and file info
-      const updateSuccess = updateVideo(
+      const updateSuccess = await updateVideo(
         videoId,
         uploadResult.url,
         uploadResult.key,

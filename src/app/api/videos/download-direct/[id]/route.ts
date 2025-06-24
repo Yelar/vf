@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { getVideoById } from '@/lib/auth-db';
+import { getVideoById } from '@/lib/auth-db-mongo';
 
 async function handleRequest(
   request: NextRequest,
@@ -25,7 +25,7 @@ async function handleRequest(
     }
 
     // Check if user owns the video
-    if (video.user_id !== parseInt(session.user.id)) {
+    if (video.user_id !== session.user.id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

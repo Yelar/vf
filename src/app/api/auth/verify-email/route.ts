@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getUserByVerificationToken, verifyUserEmail } from '@/lib/auth-db';
+import { getUserByVerificationToken, verifyUserEmail } from '@/lib/auth-db-mongo';
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Find user by verification token
-    const user = getUserByVerificationToken(token);
+    const user = await getUserByVerificationToken(token);
     
     if (!user) {
       return NextResponse.json(
@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Verify the user's email
-    const success = verifyUserEmail(user.id);
+    const success = await verifyUserEmail(user.id);
     
     if (!success) {
       return NextResponse.json(

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { getVideosByUserId, createVideo } from '@/lib/auth-db';
+import { getVideosByUserId, createVideo } from '@/lib/auth-db-mongo';
 
 // GET /api/videos - Get user's videos
 export async function GET() {
@@ -11,7 +11,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const videos = getVideosByUserId(parseInt(session.user.id));
+    const videos = await getVideosByUserId(session.user.id);
     return NextResponse.json({ videos });
   } catch (error) {
     console.error('Error fetching videos:', error);
@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
     }
 
     const video = await createVideo(
-      parseInt(session.user.id),
+      session.user.id,
       title,
       uploadthingUrl,
       uploadthingKey,

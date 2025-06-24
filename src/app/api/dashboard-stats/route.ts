@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { getVideosByUserId } from '@/lib/auth-db';
+import { getVideosByUserId } from '@/lib/auth-db-mongo';
 
 export async function GET() {
   try {
@@ -10,11 +10,11 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const videos = getVideosByUserId(parseInt(session.user.id));
+    const videos = await getVideosByUserId(session.user.id);
     
     // Calculate statistics
     const totalVideos = videos.length;
-    const sharedVideos = videos.filter(v => v.is_shared === 1).length;
+    const sharedVideos = videos.filter(v => v.is_shared === true).length;
     const totalDuration = videos.reduce((acc, video) => acc + (video.duration || 0), 0);
     
     // Get recent videos (last 10, sorted by creation date)

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { getVideoById, updateVideoTitle, deleteVideo, toggleVideoSharing } from '@/lib/auth-db';
+import { getVideoById, updateVideoTitle, deleteVideo, toggleVideoSharing } from '@/lib/auth-db-mongo';
 
 // GET /api/videos/[id] - Get specific video data
 export async function GET(
@@ -20,14 +20,14 @@ export async function GET(
       return NextResponse.json({ error: 'Invalid video ID' }, { status: 400 });
     }
 
-    const video = getVideoById(videoId);
+    const video = await getVideoById(videoId);
     
     if (!video) {
       return NextResponse.json({ error: 'Video not found' }, { status: 404 });
     }
 
     // Check if user owns this video
-    if (video.user_id !== parseInt(session.user.id)) {
+    if (video.user_id !== session.user.id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -62,7 +62,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Title is required' }, { status: 400 });
     }
 
-    const success = updateVideoTitle(videoId, parseInt(session.user.id), title.trim());
+    const success = await updateVideoTitle(videoId, session.user.id, title.trim());
     
     if (!success) {
       return NextResponse.json({ error: 'Failed to update video or video not found' }, { status: 404 });
@@ -93,7 +93,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Invalid video ID' }, { status: 400 });
     }
 
-    const success = deleteVideo(videoId, parseInt(session.user.id));
+    const success = await deleteVideo(videoId, session.user.id);
     
     if (!success) {
       return NextResponse.json({ error: 'Failed to delete video or video not found' }, { status: 404 });
@@ -124,7 +124,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Invalid video ID' }, { status: 400 });
     }
 
-    const success = toggleVideoSharing(videoId, parseInt(session.user.id));
+    const success = await toggleVideoSharing(videoId, session.user.id);
     
     if (!success) {
       return NextResponse.json({ error: 'Failed to update sharing status or video not found' }, { status: 404 });

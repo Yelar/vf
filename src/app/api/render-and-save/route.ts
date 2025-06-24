@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { bundle } from '@remotion/bundler';
 import { getCompositions, renderMedia } from '@remotion/renderer';
 import { auth } from '@/lib/auth';
-import { createVideo, updateVideo } from '@/lib/auth-db';
+import { createVideo, updateVideo } from '@/lib/auth-db-mongo';
 import { sendVideoCompletionEmail } from '@/lib/email';
 import path from 'path';
 import { v4 as uuid } from 'uuid';
@@ -209,10 +209,10 @@ export async function POST(req: NextRequest) {
     };
 
     const savedVideo = await createVideo(
-      parseInt(session.user.id),
+      session.user.id,
       videoTitle,
-      '', // Placeholder URL - will be updated after processing
-      '', // Placeholder key - will be updated after processing
+      undefined, // Placeholder URL - will be updated after processing
+      undefined, // Placeholder key - will be updated after processing
       0, // Placeholder size - will be updated after processing
       videoMetadata,
       videoDescription,
@@ -230,7 +230,7 @@ export async function POST(req: NextRequest) {
     processVideoAsync({
       processingId,
       videoId: savedVideo.id, // Pass the created video ID
-      userId: parseInt(session.user.id),
+      userId: session.user.id,
       userEmail: session.user.email!,
       userName,
       speechText,
@@ -290,8 +290,8 @@ async function processVideoAsync({
   videoTitle,
 }: {
   processingId: string;
-  videoId: number;
-  userId: number;
+  videoId: string;
+  userId: string;
   userEmail: string;
   userName: string;
   speechText: string;
@@ -471,7 +471,7 @@ async function processVideoAsync({
       console.log(`✅ Video ${processingId} uploaded to UploadThing: ${uploadResult.url}`);
 
       // Update video record with actual URL and file info
-      const updateSuccess = updateVideo(
+      const updateSuccess = await updateVideo(
         videoId,
         uploadResult.url,
         uploadResult.key,

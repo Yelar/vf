@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getUserByEmail, updateVerificationToken } from '@/lib/auth-db';
+import { getUserByEmail, updateVerificationToken } from '@/lib/auth-db-mongo';
 import { sendVerificationEmail } from '@/lib/email';
 import crypto from 'crypto';
 
@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Find user by email
-    const user = getUserByEmail(email);
+    const user = await getUserByEmail(email);
     
     if (!user) {
       return NextResponse.json(
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
     const verificationToken = crypto.randomBytes(32).toString('hex');
     
     // Update user with new verification token
-    const success = updateVerificationToken(user.id, verificationToken);
+    const success = await updateVerificationToken(user.id, verificationToken);
     
     if (!success) {
       return NextResponse.json(

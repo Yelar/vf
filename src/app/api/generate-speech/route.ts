@@ -238,8 +238,8 @@ export async function POST(request: NextRequest) {
       originalText: text
     });
 
-      } catch (error) {
-      console.error('Speech generation error:', error);
+  } catch (error) {
+    console.error('Speech generation error:', error);
       
       // Provide more helpful error messages to the user
       if (error instanceof Error) {
@@ -260,5 +260,5 @@ export async function POST(request: NextRequest) {
         error: 'An unexpected error occurred during speech generation',
         errorType: 'unknown_error'
       }, { status: 500 });
-    }
+  }
 }

@@ -5,13 +5,15 @@
   "scripts": {
     "dev": "next dev",
     "prebuild": "npm rebuild",
-    "build": "npm rebuild better-sqlite3 && next build",
+    "build": "next build",
     "postinstall": "npm rebuild better-sqlite3 --silent || true",
     "start": "next start",
     "lint": "next lint",
     "render": "ts-node src/render/render-video.ts",
     "remotion:preview": "remotion preview src/remotion/Root.tsx",
-    "remotion:render": "remotion render src/remotion/Root.tsx SampleVideo output.mp4"
+    "remotion:render": "remotion render src/remotion/Root.tsx SampleVideo output.mp4",
+    "migrate": "node scripts/simple-migrate.js",
+    "fix-async": "node scripts/fix-async-routes.js"
   },
   "dependencies": {
     "@radix-ui/react-avatar": "^1.1.10",
@@ -40,8 +42,11 @@
     "better-sqlite3": "^11.10.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "dotenv": "^16.5.0",
     "groq-sdk": "^0.25.0",
     "lucide-react": "^0.516.0",
+    "mongodb": "^6.17.0",
+    "mongoose": "^8.16.0",
     "music-metadata": "^11.3.0",
     "next": "15.3.3",
     "next-auth": "^5.0.0-beta.28",
@@ -67,6 +72,7 @@
     "ignore-loader": "^0.1.2",
     "tailwindcss": "^4",
     "ts-node": "^10.9.2",
+    "tsx": "^4.20.3",
     "tw-animate-css": "^1.3.4",
     "typescript": "^5"
   }

@@ -12,9 +12,9 @@ import {
   Video, 
   Play, 
   Download, 
-  Search,
-  Calendar,
-  HardDrive,
+  Search, 
+  Calendar, 
+  HardDrive, 
   Grid3X3,
   List,
   ChevronLeft,
@@ -22,7 +22,7 @@ import {
   Globe,
   Copy,
   Check,
-  User,
+  User, 
   SortAsc,
   SortDesc,
   X,
@@ -282,7 +282,7 @@ export default function SharedLibraryPage() {
   const filteredAndSortedVideos = useMemo(() => {
     const filtered = videos.filter(video => {
       const matchesSearch = video.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        video.creator_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    video.creator_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (video.description && video.description.toLowerCase().includes(searchTerm.toLowerCase()));
       
       const matchesCreator = creatorFilter === 'all' || video.creator_name === creatorFilter;
@@ -360,13 +360,13 @@ export default function SharedLibraryPage() {
   }, []);
 
   const formatDateFull = useCallback((dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
+      return new Date(dateString).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
-    });
+      });
   }, []);
 
   const copyVideoUrl = useCallback(async (url: string, videoId: number) => {
@@ -394,12 +394,12 @@ export default function SharedLibraryPage() {
         document.body.removeChild(a);
       } else {
         // Fallback to direct link
-        const link = document.createElement('a');
-        link.href = video.uploadthing_url;
+    const link = document.createElement('a');
+    link.href = video.uploadthing_url;
         link.download = `${video.title}.mp4`;
         link.target = '_blank';
         document.body.appendChild(link);
-        link.click();
+    link.click();
         document.body.removeChild(link);
       }
     } catch (error) {
@@ -442,14 +442,14 @@ export default function SharedLibraryPage() {
       <main className="container mx-auto px-4 py-8 space-y-8">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
+                  <div>
             <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
               Shared Videos
-            </h1>
+                    </h1>
             <p className="text-gray-400 mt-1">
               {loading ? 'Loading...' : `${filteredAndSortedVideos.length} video${filteredAndSortedVideos.length !== 1 ? 's' : ''} from the community`}
-            </p>
-          </div>
+                    </p>
+                  </div>
           
           <div className="flex items-center space-x-3">
             <Link href="/video/new">
@@ -458,23 +458,23 @@ export default function SharedLibraryPage() {
                 Create Video
               </Button>
             </Link>
-          </div>
-        </div>
-
+                </div>
+              </div>
+              
         {/* Filters and Controls */}
         <ModernCard gradient="purple">
           <ModernCardContent className="p-6">
             <div className="flex flex-col lg:flex-row gap-4">
               {/* Search */}
               <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <Input
-                  placeholder="Search videos or creators..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Input
+                    placeholder="Search videos or creators..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10 bg-white/5 border-white/10 text-white placeholder-gray-400"
-                />
-              </div>
+                  />
+                </div>
               
               {/* Filter by creator */}
               <Select value={creatorFilter} onValueChange={setCreatorFilter}>
@@ -568,7 +568,7 @@ export default function SharedLibraryPage() {
               )}
             </ModernCardContent>
           </ModernCard>
-        ) : (
+          ) : (
           <>
             {/* Videos Grid/List */}
             <div className={`grid gap-6 ${viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'}`}>
@@ -584,61 +584,61 @@ export default function SharedLibraryPage() {
                       formatFileSize={formatFileSize}
                       copyVideoUrl={copyVideoUrl}
                       downloadVideo={downloadVideo}
-                    />
+                      />
                   </ModernCardContent>
                 </ModernCard>
               ))}
-            </div>
-
+                    </div>
+                    
             {/* Pagination */}
             {totalPages > 1 && (
               <div className="flex items-center justify-center space-x-2">
-                <Button
+                        <Button
                   variant="outline"
-                  size="sm"
+                          size="sm"
                   disabled={currentPage === 1}
                   onClick={() => setCurrentPage(currentPage - 1)}
                   className="border-white/10 text-white hover:bg-white/10"
                 >
                   <ChevronLeft className="w-4 h-4" />
                   Previous
-                </Button>
+                        </Button>
                 
                 <div className="flex space-x-1">
                   {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                     const page = i + 1;
                     return (
-                      <Button
+                        <Button
                         key={page}
                         variant={currentPage === page ? "default" : "outline"}
-                        size="sm"
+                          size="sm"
                         onClick={() => setCurrentPage(page)}
                         className={`border-white/10 ${
                           currentPage === page 
                             ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white' 
                             : 'text-white hover:bg-white/10'
                         }`}
-                      >
+                        >
                         {page}
-                      </Button>
+                        </Button>
                     );
                   })}
-                </div>
-                
-                <Button
+      </div>
+
+            <Button
                   variant="outline"
-                  size="sm"
+              size="sm"
                   disabled={currentPage === totalPages}
                   onClick={() => setCurrentPage(currentPage + 1)}
                   className="border-white/10 text-white hover:bg-white/10"
-                >
+            >
                   Next
                   <ChevronRight className="w-4 h-4" />
-                </Button>
-              </div>
+            </Button>
+          </div>
             )}
           </>
-        )}
+      )}
       </main>
     </div>
   );

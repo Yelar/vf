@@ -67,12 +67,12 @@ function DashboardContent() {
           'Cache-Control': 'no-cache'
         }
       });
-      
+
       if (response.ok) {
       const data = await response.json();
         setStats(data);
       }
-      } catch (error) {
+    } catch (error) {
       console.error('Error fetching dashboard stats:', error);
     } finally {
       setLoading(false);
@@ -125,12 +125,12 @@ function DashboardContent() {
             <span className="bg-gradient-to-r from-purple-400 via-purple-300 to-blue-400 bg-clip-text text-transparent">
               {session?.user?.name?.split(' ')[0] || 'Creator'}!
             </span>
-          </h1>
+                  </h1>
           
           <p className="text-xl md:text-2xl text-gray-400 max-w-4xl mx-auto leading-relaxed">
             Ready to create your next viral video? Let&apos;s turn your ideas into engaging content with AI.
-          </p>
-        </div>
+                      </p>
+                    </div>
 
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -140,17 +140,17 @@ function DashboardContent() {
                 <div className="flex items-center space-x-4">
                   <div className="w-14 h-14 bg-gradient-to-br from-purple-600 to-blue-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
                     <Plus className="w-7 h-7 text-white" />
-                    </div>
+                      </div>
                   <div className="flex-1">
                     <h3 className="text-xl font-bold text-white mb-1">Create Video</h3>
                     <p className="text-purple-200 text-sm">Start with AI-powered content generation</p>
                     <div className="flex items-center space-x-1 mt-2">
                       <Zap className="w-3 h-3 text-yellow-400" />
                       <span className="text-xs text-yellow-400 font-medium">AI Powered</span>
-              </div>
-              </div>
+                         </div>
+                         </div>
                   <ChevronRight className="w-5 h-5 text-purple-300 group-hover:translate-x-1 transition-transform" />
-                </div>
+                       </div>
               </ModernCardContent>
             </ModernCard>
           </Link>
@@ -161,17 +161,17 @@ function DashboardContent() {
                 <div className="flex items-center space-x-4">
                   <div className="w-14 h-14 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
                     <Library className="w-7 h-7 text-white" />
-                </div>
+                       </div>
                   <div className="flex-1">
                     <h3 className="text-xl font-bold text-white mb-1">My Library</h3>
                     <p className="text-blue-200 text-sm">Manage and organize your videos</p>
                     <div className="flex items-center space-x-1 mt-2">
                       <Video className="w-3 h-3 text-blue-400" />
                       <span className="text-xs text-blue-400 font-medium">{stats?.totalVideos || 0} Videos</span>
-                </div>
-                  </div>
+                    </div>
+                        </div>
                   <ChevronRight className="w-5 h-5 text-blue-300 group-hover:translate-x-1 transition-transform" />
-                </div>
+                        </div>
               </ModernCardContent>
             </ModernCard>
           </Link>
@@ -182,21 +182,21 @@ function DashboardContent() {
                 <div className="flex items-center space-x-4">
                   <div className="w-14 h-14 bg-gradient-to-br from-green-600 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
                     <Globe className="w-7 h-7 text-white" />
-                    </div>
+                  </div>
                   <div className="flex-1">
                     <h3 className="text-xl font-bold text-white mb-1">Shared Videos</h3>
                     <p className="text-green-200 text-sm">Explore community content</p>
                     <div className="flex items-center space-x-1 mt-2">
                       <Share2 className="w-3 h-3 text-green-400" />
                       <span className="text-xs text-green-400 font-medium">{stats?.sharedVideos || 0} Shared</span>
-                    </div>
-                  </div>
+                </div>
+                </div>
                   <ChevronRight className="w-5 h-5 text-green-300 group-hover:translate-x-1 transition-transform" />
                 </div>
               </ModernCardContent>
             </ModernCard>
           </Link>
-            </div>
+                </div>
 
 
 
@@ -206,21 +206,21 @@ function DashboardContent() {
                   <div>
               <h2 className="text-2xl font-bold text-white mb-1">Recent Videos</h2>
               <p className="text-gray-400">Your latest AI-generated content</p>
-            </div>
+                    </div>
             <Link href="/library">
               <Button variant="outline" className="border-purple-500/50 text-purple-300 hover:bg-purple-500/10">
                 View All
                 <ChevronRight className="w-4 h-4 ml-1" />
-              </Button>
+                </Button>
             </Link>
-          </div>
+                </div>
 
           {loading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {Array.from({ length: 6 }).map((_, i) => (
                 <Skeleton key={i} className="h-48 bg-white/5" />
-              ))}
-            </div>
+                      ))}
+                </div>
           ) : recentVideos.length ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {recentVideos.map((video) => (
@@ -246,9 +246,9 @@ function DashboardContent() {
                             <Globe className="w-3 h-3 mr-1" />
                             Shared
                       </Badge>
-                        </div>
-                      )}
-                      </div>
+                  </div>
+                )}
+                  </div>
                     </Link>
                     
                     <div className="p-4 space-y-3">
@@ -262,7 +262,7 @@ function DashboardContent() {
                             {formatDateFull(video.created_at)}
                       </span>
                     </div>
-                  </div>
+                      </div>
                       
                       <div className="flex items-center justify-between">
                         <div className="flex space-x-2">
@@ -270,28 +270,28 @@ function DashboardContent() {
                             <Button size="sm" variant="outline" className="border-purple-500/50 text-purple-300 hover:bg-purple-500/10">
                               <Play className="w-3 h-3 mr-1" />
                               Watch
-                            </Button>
+                </Button>
                           </Link>
                           
-                <Button 
+                  <Button
                             size="sm"
-                          variant="ghost" 
+                    variant="ghost"
                           onClick={() => copyVideoUrl(video.url, video.id)}
                             className="text-gray-400 hover:text-white"
-                          >
+                  >
                             {copiedVideoId === video.id ? (
                               <Check className="w-3 h-3" />
-                            ) : (
+                    ) : (
                               <Copy className="w-3 h-3" />
-                  )}
-                </Button>
-        </div>
+                    )}
+                  </Button>
+                </div>
 
                         <Button size="sm" variant="ghost" className="text-gray-400 hover:text-white">
                           <Download className="w-3 h-3" />
                         </Button>
               </div>
-            </div>
+      </div>
                   </ModernCardContent>
                 </ModernCard>
                         ))}
@@ -323,4 +323,4 @@ export default function Dashboard() {
       <DashboardContent />
     </AuthGuard>
   );
-} 
+}
