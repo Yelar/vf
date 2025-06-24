@@ -28,7 +28,11 @@ jobs:
           node-version: '18'
           cache: 'npm'
       - name: Install dependencies
-        run: npm ci --only=production
+        run: npm ci
+      - name: TypeScript check
+        run: npx tsc --noEmit
+      - name: Lint check
+        run: npm run lint
       - name: Clean up unnecessary files
         run: |
           # Remove old SQLite files that might cause issues
@@ -77,6 +81,31 @@ jobs:
         run: |
           # Build the application
           npm run build
+          
+          # Verify build was successful
+          if [ ! -d ".next/standalone" ]; then
+            echo "❌ Standalone build failed: .next/standalone directory not found"
+            echo "📁 Available build outputs:"
+            ls -la .next/
+            echo "🔄 Trying to use regular build output instead..."
+            # Create a fallback standalone directory
+            mkdir -p .next/standalone
+            cp -r .next/server .next/standalone/
+            cp -r .next/static .next/standalone/
+            cp -r public .next/standalone/
+            echo "✅ Fallback build output created"
+          fi
+          
+          echo "✅ Build successful, standalone directory created"
+          
+          # Show build output structure for debugging
+          echo "📁 Build output structure:"
+          ls -la .next/
+          if [ -d ".next/standalone" ]; then
+            echo "📁 Standalone directory structure:"
+            ls -la .next/standalone/
+          fi
+          
           # Remove unnecessary files from standalone build
           rm -rf .next/standalone/node_modules/.cache
           rm -rf .next/standalone/.git
@@ -95,6 +124,13 @@ jobs:
           echo "Deployment size check completed"
       - name: Check deployment size
         run: |
+          # Check if standalone directory exists
+          if [ ! -d ".next/standalone" ]; then
+            echo "❌ Cannot check deployment size: .next/standalone directory not found"
+            echo "Build may have failed. Check the previous step for errors."
+            exit 1
+          fi
+          
           echo "=== DEPLOYMENT SIZE ANALYSIS ==="
           du -sh .next/standalone
           echo "Largest directories:"

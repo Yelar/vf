@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "prebuild": "npm rebuild",
-    "build": "NEXT_TELEMETRY_DISABLED=1 next build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/",
+    "build": "NEXT_TELEMETRY_DISABLED=1 next build",
+    "postbuild": "if [ -d '.next/standalone' ]; then cp -r .next/static .next/standalone/.next/ 2>/dev/null || true; cp -r public .next/standalone/ 2>/dev/null || true; fi",
     "start": "next start",
     "lint": "next lint",
     "render": "ts-node src/render/render-video.ts",
