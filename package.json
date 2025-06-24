@@ -4,7 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "prebuild": "npm rebuild",
+    "build": "npm rebuild better-sqlite3 && next build",
+    "postinstall": "npm rebuild better-sqlite3 --silent || true",
     "start": "next start",
     "lint": "next lint",
     "render": "ts-node src/render/render-video.ts",
