@@ -15,11 +15,27 @@
       "allowedRoles": ["anonymous"]
     },
     {
-      "route": "/auth/*",
+      "route": "/api/uploadthing/*",
+      "allowedRoles": ["anonymous"]
+    },
+    {
+      "route": "/api/temp-audio/*",
       "allowedRoles": ["anonymous"]
     },
     {
       "route": "/api/*",
+      "allowedRoles": ["anonymous"]
+    },
+    {
+      "route": "/auth/*",
+      "allowedRoles": ["anonymous"]
+    },
+    {
+      "route": "/shared",
+      "allowedRoles": ["anonymous"]
+    },
+    {
+      "route": "/*",
       "allowedRoles": ["anonymous"]
     }
   ],
@@ -27,13 +43,21 @@
     "401": {
       "statusCode": 302,
       "redirect": "/auth/signin"
+    },
+    "404": {
+      "rewrite": "/404.html"
     }
   },
   "navigationFallback": {
     "rewrite": "/index.html",
-    "exclude": ["/api/*", "/*.{css,scss,sass,js,json,ico,png,jpg,jpeg,gif,svg,woff,woff2}"]
+    "exclude": ["/api/*", "/*.{css,scss,sass,js,json,ico,png,jpg,jpeg,gif,svg,woff,woff2,ttf,eot}", "/assets/*", "/bg-videos/*", "/bg-music/*"]
   },
   "platform": {
     "apiRuntime": "node:18"
+  },
+  "trailingSlash": "auto",
+  "forwardingGateway": {
+    "allowedForwardedHosts": [],
+    "requiredHeaders": {}
   }
 } 

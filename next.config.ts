@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Add trailing slash handling
+  trailingSlash: false,
+  
   webpack: (config, { isServer }) => {
     // Exclude TypeScript declaration files from being processed
     config.module.rules.push({
