@@ -35,10 +35,12 @@ async function connectToDatabase() {
     const opts = {
       bufferCommands: false,
       dbName: 'vf', // Database name as requested
-      serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
-      socketTimeoutMS: 45000, // Close sockets after 45s of inactivity
-      maxPoolSize: 10, // Maintain up to 10 socket connections
+      serverSelectionTimeoutMS: 3000, // Reduced timeout for faster startup
+      socketTimeoutMS: 10000, // Reduced socket timeout
+      maxPoolSize: 5, // Reduced pool size for serverless
       minPoolSize: 1, // Maintain at least 1 socket connection
+      connectTimeoutMS: 3000, // Fast connection timeout
+      heartbeatFrequencyMS: 10000, // Faster heartbeat
     };
 
     cached.promise = mongoose.connect(MONGODB_URI!, opts).then((mongoose) => {

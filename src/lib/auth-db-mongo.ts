@@ -31,6 +31,16 @@ export interface MongoUserVideo {
   created_at: Date;
 }
 
+// Lazy connection - only connect when needed
+let isConnected = false;
+
+async function ensureConnection() {
+  if (!isConnected) {
+    await connectToDatabase();
+    isConnected = true;
+  }
+}
+
 // Helper function to convert MongoDB document to interface
 function mongoUserToInterface(user: IUser): MongoUser {
   return {
@@ -81,7 +91,7 @@ export async function createUser(
   verificationToken?: string
 ): Promise<MongoUser | null> {
   try {
-    await connectToDatabase();
+    await ensureConnection();
     
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12);
@@ -108,7 +118,7 @@ export async function createUser(
 // Get user by email
 export async function getUserByEmail(email: string): Promise<MongoUser | null> {
   try {
-    await connectToDatabase();
+    await ensureConnection();
     const user = await User.findOne({ email }).exec();
     return user ? mongoUserToInterface(user) : null;
   } catch (error) {
@@ -120,7 +130,7 @@ export async function getUserByEmail(email: string): Promise<MongoUser | null> {
 // Get user by ID
 export async function getUserById(id: string): Promise<MongoUser | null> {
   try {
-    await connectToDatabase();
+    await ensureConnection();
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return null;
     }
@@ -135,6 +145,7 @@ export async function getUserById(id: string): Promise<MongoUser | null> {
 // Verify user password
 export async function verifyPassword(email: string, password: string): Promise<MongoUser | null> {
   try {
+    await ensureConnection();
     const user = await getUserByEmail(email);
     if (!user) return null;
     
@@ -166,7 +177,7 @@ export async function createVideo(
   thumbnailUrl?: string
 ): Promise<MongoUserVideo | null> {
   try {
-    await connectToDatabase();
+    await ensureConnection();
     
     if (!mongoose.Types.ObjectId.isValid(userId)) {
       throw new Error('Invalid user ID');
@@ -194,7 +205,7 @@ export async function createVideo(
 
 export async function getVideoById(id: string): Promise<MongoUserVideo | null> {
   try {
-    await connectToDatabase();
+    await ensureConnection();
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return null;
     }
@@ -208,7 +219,7 @@ export async function getVideoById(id: string): Promise<MongoUserVideo | null> {
 
 export async function getVideosByUserId(userId: string): Promise<MongoUserVideo[]> {
   try {
-    await connectToDatabase();
+    await ensureConnection();
     if (!mongoose.Types.ObjectId.isValid(userId)) {
       return [];
     }
@@ -224,7 +235,7 @@ export async function getVideosByUserId(userId: string): Promise<MongoUserVideo[
 
 export async function deleteVideo(id: string, userId: string): Promise<boolean> {
   try {
-    await connectToDatabase();
+    await ensureConnection();
     if (!mongoose.Types.ObjectId.isValid(id) || !mongoose.Types.ObjectId.isValid(userId)) {
       return false;
     }
@@ -241,7 +252,7 @@ export async function deleteVideo(id: string, userId: string): Promise<boolean> 
 
 export async function updateVideoTitle(id: string, userId: string, title: string): Promise<boolean> {
   try {
-    await connectToDatabase();
+    await ensureConnection();
     if (!mongoose.Types.ObjectId.isValid(id) || !mongoose.Types.ObjectId.isValid(userId)) {
       return false;
     }
@@ -266,7 +277,7 @@ export async function updateVideo(
   thumbnailUrl?: string
 ): Promise<boolean> {
   try {
-    await connectToDatabase();
+    await ensureConnection();
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return false;
     }
@@ -290,7 +301,7 @@ export async function updateVideo(
 // Toggle video sharing status
 export async function toggleVideoSharing(id: string, userId: string): Promise<boolean> {
   try {
-    await connectToDatabase();
+    await ensureConnection();
     if (!mongoose.Types.ObjectId.isValid(id) || !mongoose.Types.ObjectId.isValid(userId)) {
       return false;
     }
@@ -317,7 +328,7 @@ export async function toggleVideoSharing(id: string, userId: string): Promise<bo
 // Get all shared videos (public)
 export async function getSharedVideos(): Promise<(MongoUserVideo & { creator_name: string })[]> {
   try {
-    await connectToDatabase();
+    await ensureConnection();
     const videos = await Video.find({ is_shared: true })
       .populate('user_id', 'name')
       .sort({ created_at: -1 })
@@ -336,7 +347,7 @@ export async function getSharedVideos(): Promise<(MongoUserVideo & { creator_nam
 // Get shared video by ID (public access)
 export async function getSharedVideoById(id: string): Promise<(MongoUserVideo & { creator_name: string }) | null> {
   try {
-    await connectToDatabase();
+    await ensureConnection();
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return null;
     }
@@ -359,7 +370,7 @@ export async function getSharedVideoById(id: string): Promise<(MongoUserVideo & 
 // Email verification functions
 export async function getUserByVerificationToken(token: string): Promise<MongoUser | null> {
   try {
-    await connectToDatabase();
+    await ensureConnection();
     const user = await User.findOne({
       verification_token: token,
       verification_token_expires: { $gt: new Date() }
@@ -373,7 +384,7 @@ export async function getUserByVerificationToken(token: string): Promise<MongoUs
 
 export async function verifyUserEmail(userId: string): Promise<boolean> {
   try {
-    await connectToDatabase();
+    await ensureConnection();
     if (!mongoose.Types.ObjectId.isValid(userId)) {
       return false;
     }
@@ -394,7 +405,7 @@ export async function verifyUserEmail(userId: string): Promise<boolean> {
 
 export async function updateVerificationToken(userId: string, token: string): Promise<boolean> {
   try {
-    await connectToDatabase();
+    await ensureConnection();
     if (!mongoose.Types.ObjectId.isValid(userId)) {
       return false;
     }
