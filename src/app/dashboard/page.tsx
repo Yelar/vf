@@ -41,16 +41,10 @@ interface DashboardStats {
 }
 
 function DashboardContent() {
-  const { data: session, status } = useSession();
+  const { data: session } = useSession();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [copiedVideoId, setCopiedVideoId] = useState<string | null>(null);
-
-  // Debug session state
-  useEffect(() => {
-    console.log('Dashboard - Session status:', status);
-    console.log('Dashboard - Session data:', session);
-  }, [session, status]);
 
   // Copy video URL to clipboard - optimized with useCallback
   const copyVideoUrl = useCallback(async (url: string, videoId: string) => {
