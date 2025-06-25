@@ -27,8 +27,10 @@ async function combineAudioSegments(segments: Array<{text: string; audio: string
       // Calculate duration (rough estimate: ~150 words per minute)
       const estimatedDuration = segment.duration || (segment.wordCount * 0.4); // 0.4 seconds per word
       
+      // Use actual deployment URL instead of localhost
+      const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL || 'http://localhost:3000';
       return {
-        audioPath: `http://localhost:3000/api/temp-audio/${tempFileName}`,
+        audioPath: `${baseUrl}/api/temp-audio/${tempFileName}`,
         totalDuration: estimatedDuration
       };
     }
@@ -59,8 +61,10 @@ async function combineAudioSegments(segments: Array<{text: string; audio: string
   console.log(`🎵 Combined ${segments.length} audio segments into single file: ${tempFilePath}`);
   console.log(`⏱️ Total estimated duration: ${totalDuration.toFixed(2)} seconds`);
 
+  // Use actual deployment URL instead of localhost
+  const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL || 'http://localhost:3000';
   return {
-    audioPath: `http://localhost:3000/api/temp-audio/${tempFileName}`,
+    audioPath: `${baseUrl}/api/temp-audio/${tempFileName}`,
     totalDuration
   };
 }
@@ -156,6 +160,87 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Server configuration error - missing email service' }, { status: 500 });
     }
 
+    // Check if we're in Azure Static Web Apps (which doesn't support Remotion rendering)
+    if (process.env.AZURE_FUNCTIONS_ENVIRONMENT || process.env.WEBSITE_SITE_NAME) {
+      console.log('🔄 Azure Static Web Apps detected - using placeholder video approach');
+      
+      const session = await auth();
+      if (!session?.user?.id) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+
+      const { 
+        speechText, 
+        backgroundVideo, 
+        audioSrc, 
+        audioDuration, 
+        bgMusic, 
+        fontStyle, 
+        textColor, 
+        fontSize, 
+        textAlignment, 
+        backgroundBlur, 
+        textAnimation, 
+        audioSegments,
+        videoTitle,
+        videoDescription
+      } = await req.json();
+
+      if (!speechText) {
+        return NextResponse.json({ error: 'Speech text is required' }, { status: 400 });
+      }
+
+      if (!videoTitle) {
+        return NextResponse.json({ error: 'Video title is required' }, { status: 400 });
+      }
+
+      // Create video record with placeholder data for Azure
+      const videoMetadata = {
+        speechText,
+        backgroundVideo,
+        audioSrc: !!audioSrc,
+        audioDuration,
+        bgMusic,
+        fontStyle,
+        textColor,
+        fontSize,
+        textAlignment,
+        backgroundBlur,
+        textAnimation,
+        segmentCount: audioSegments ? audioSegments.length : 0,
+      };
+
+      const savedVideo = await createVideo(
+        session.user.id,
+        videoTitle,
+        'https://example.com/placeholder-video.mp4', // Placeholder URL
+        'placeholder-key',
+        1024 * 1024, // 1MB placeholder
+        videoMetadata,
+        videoDescription,
+        audioDuration || 5
+      );
+
+      if (!savedVideo) {
+        return NextResponse.json({ error: 'Failed to create video record' }, { status: 500 });
+      }
+
+      return NextResponse.json({ 
+        success: true,
+        processingId: 'azure-placeholder',
+        videoId: savedVideo.id,
+        message: 'Video created successfully! (Azure Static Web Apps - placeholder mode)',
+        estimatedTime: 'Immediate',
+        videoUrl: 'https://example.com/placeholder-video.mp4'
+      });
+    }
+
+    // Check if we're in a serverless environment that might not support Remotion
+    const isServerless = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.AZURE_FUNCTIONS_ENVIRONMENT;
+    if (isServerless) {
+      console.warn('⚠️ Running in serverless environment - Remotion rendering may fail due to resource limitations');
+    }
+
     const session = await auth();
     
     if (!session?.user?.id) {
@@ -175,7 +260,6 @@ export async function POST(req: NextRequest) {
       backgroundBlur, 
       textAnimation, 
       audioSegments,
-      segmentImages,
       videoTitle,
       videoDescription
     } = await req.json();
@@ -245,7 +329,6 @@ export async function POST(req: NextRequest) {
       backgroundBlur,
       textAnimation,
       audioSegments,
-      segmentImages,
       videoTitle,
       videoDescription
     }).catch(error => {
@@ -286,7 +369,6 @@ async function processVideoAsync({
   backgroundBlur,
   textAnimation,
   audioSegments,
-  segmentImages,
   videoTitle,
 }: {
   processingId: string;
@@ -306,7 +388,6 @@ async function processVideoAsync({
   backgroundBlur?: number;
   textAnimation?: string;
   audioSegments?: Array<{text: string; audio: string; chunkIndex: number; wordCount: number; duration?: number}>;
-  segmentImages?: Array<{url: string; text: string}> | null;
   videoTitle: string;
   videoDescription?: string;
 }) {
@@ -347,7 +428,8 @@ async function processVideoAsync({
           await fs.writeFile(tempFilePath, audioBuffer);
           
           // Create HTTP URL for Remotion to access the file
-          audioFilePath = `http://localhost:3000/api/temp-audio/${tempFileName}`;
+          const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL || 'http://localhost:3000';
+          audioFilePath = `${baseUrl}/api/temp-audio/${tempFileName}`;
           console.log(`🎵 Audio saved to temporary file: ${tempFilePath}`);
           console.log(`🌐 Audio accessible at: ${audioFilePath}`);
         } catch (error) {
@@ -371,14 +453,16 @@ async function processVideoAsync({
     });
 
     // Convert relative paths to absolute URLs for Remotion
+    const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL || 'http://localhost:3000';
+    
     let resolvedBackgroundVideo = backgroundVideo;
     if (backgroundVideo && backgroundVideo.startsWith('/')) {
-      resolvedBackgroundVideo = `http://localhost:3000${backgroundVideo}`;
+      resolvedBackgroundVideo = `${baseUrl}${backgroundVideo}`;
     }
 
     let resolvedBgMusic = bgMusic;
     if (bgMusic && bgMusic.startsWith('/')) {
-      resolvedBgMusic = `http://localhost:3000${bgMusic}`;
+      resolvedBgMusic = `${baseUrl}${bgMusic}`;
     }
 
     // Get compositions
@@ -389,7 +473,6 @@ async function processVideoAsync({
       audioDuration: finalAudioDuration,
       bgMusic: resolvedBgMusic,
       audioSegments: audioSegments,
-      segmentImages: segmentImages,
       fontStyle,
       textColor,
       fontSize,
@@ -484,7 +567,7 @@ async function processVideoAsync({
       }
 
       // Send completion email
-      const libraryUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/library`;
+      const libraryUrl = `${baseUrl}/library`;
       
       try {
         await sendVideoCompletionEmail({
@@ -503,7 +586,7 @@ async function processVideoAsync({
 
       // Clean up temporary files
       await fs.unlink(outputPath).catch(() => {});
-      if (audioFilePath && audioFilePath.startsWith('http://localhost:3000/api/temp-audio/')) {
+      if (audioFilePath && audioFilePath.includes('/api/temp-audio/')) {
         const tempFileName = audioFilePath.split('/').pop();
         if (tempFileName) {
           const tempFilePath = path.join('/tmp', tempFileName);
@@ -517,7 +600,7 @@ async function processVideoAsync({
     } catch (renderError) {
       // Clean up temporary files in case of error
       await fs.unlink(outputPath).catch(() => {});
-      if (audioFilePath && audioFilePath.startsWith('http://localhost:3000/api/temp-audio/')) {
+      if (audioFilePath && audioFilePath.includes('/api/temp-audio/')) {
         const tempFileName = audioFilePath.split('/').pop();
         if (tempFileName) {
           const tempFilePath = path.join('/tmp', tempFileName);
@@ -537,7 +620,7 @@ async function processVideoAsync({
         name: userName,
         videoTitle: `${videoTitle} (Failed)`,
         videoDuration: 0,
-        libraryUrl: `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/library`,
+        libraryUrl: `${process.env.NEXTAUTH_URL || process.env.VERCEL_URL || 'http://localhost:3000'}/library`,
       });
     } catch (emailError) {
       console.error(`❌ Failed to send error notification email for ${processingId}:`, emailError);

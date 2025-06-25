@@ -43,9 +43,9 @@ async function combineAudioSegments(segments: Array<{text: string; audio: string
       
       // Calculate duration (rough estimate: ~150 words per minute)
       const estimatedDuration = segment.duration || (segment.wordCount * 0.4); // 0.4 seconds per word
-      
+      const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL || 'http://localhost:3000';
       return {
-        audioPath: `http://localhost:3000/api/temp-audio/${tempFileName}`,
+        audioPath: `${baseUrl}/api/temp-audio/${tempFileName}`,
         totalDuration: estimatedDuration
       };
     }
@@ -75,9 +75,9 @@ async function combineAudioSegments(segments: Array<{text: string; audio: string
 
   console.log(`🎵 Combined ${segments.length} audio segments into single file: ${tempFilePath}`);
   console.log(`⏱️ Total estimated duration: ${totalDuration.toFixed(2)} seconds`);
-
+  const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL || 'http://localhost:3000';
   return {
-    audioPath: `http://localhost:3000/api/temp-audio/${tempFileName}`,
+    audioPath: `${baseUrl}/api/temp-audio/${tempFileName}`,
     totalDuration
   };
 }
@@ -378,14 +378,16 @@ async function processQuizVideoAsync({
     });
 
     // Convert relative paths to absolute URLs for Remotion
+    const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL || 'http://localhost:3000';
+    
     let resolvedBackgroundVideo = backgroundVideo;
     if (backgroundVideo && backgroundVideo.startsWith('/')) {
-      resolvedBackgroundVideo = `http://localhost:3000${backgroundVideo}`;
+      resolvedBackgroundVideo = `${baseUrl}${backgroundVideo}`;
     }
 
     let resolvedBgMusic = bgMusic;
     if (bgMusic && bgMusic.startsWith('/')) {
-      resolvedBgMusic = `http://localhost:3000${bgMusic}`;
+      resolvedBgMusic = `${baseUrl}${bgMusic}`;
     }
 
     // Prepare input props for QuizVideo
@@ -510,7 +512,7 @@ async function processQuizVideoAsync({
       }
 
       // Send completion email
-      const libraryUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/library`;
+      const libraryUrl = `${process.env.NEXTAUTH_URL || process.env.VERCEL_URL || 'http://localhost:3000'}/library`;
       
       try {
         await sendVideoCompletionEmail({
@@ -529,7 +531,7 @@ async function processQuizVideoAsync({
 
       // Clean up temporary files
       await fs.unlink(outputPath).catch(() => {});
-      if (audioFilePath && audioFilePath.startsWith('http://localhost:3000/api/temp-audio/')) {
+      if (audioFilePath && audioFilePath.includes('/api/temp-audio/')) {
         const tempFileName = audioFilePath.split('/').pop();
         if (tempFileName) {
           const tempFilePath = path.join('/tmp', tempFileName);
@@ -543,7 +545,7 @@ async function processQuizVideoAsync({
     } catch (renderError) {
       // Clean up temporary files in case of error
       await fs.unlink(outputPath).catch(() => {});
-      if (audioFilePath && audioFilePath.startsWith('http://localhost:3000/api/temp-audio/')) {
+      if (audioFilePath && audioFilePath.includes('/api/temp-audio/')) {
         const tempFileName = audioFilePath.split('/').pop();
         if (tempFileName) {
           const tempFilePath = path.join('/tmp', tempFileName);
@@ -563,7 +565,7 @@ async function processQuizVideoAsync({
         name: userName,
         videoTitle: `${videoTitle} (Failed)`,
         videoDuration: 0,
-        libraryUrl: `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/library`,
+        libraryUrl: `${process.env.NEXTAUTH_URL || process.env.VERCEL_URL || 'http://localhost:3000'}/library`,
       });
     } catch (emailError) {
       console.error(`❌ Failed to send quiz error notification email for ${processingId}:`, emailError);
