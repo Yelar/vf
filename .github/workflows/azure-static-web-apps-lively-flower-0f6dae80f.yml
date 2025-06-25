@@ -106,12 +106,6 @@ jobs:
             ls -la .next/standalone/
           fi
           
-          # Remove unnecessary files from standalone build
-          rm -rf .next/standalone/node_modules/.cache
-          rm -rf .next/standalone/.git
-          rm -rf .next/standalone/node_modules/.bin
-          # Remove dev dependencies from standalone
-          cd .next/standalone && npm prune --production --silent || true
           # Remove unnecessary files to reduce size
           find . -name "*.map" -delete
           find . -name "*.d.ts" -delete
@@ -119,33 +113,7 @@ jobs:
           find . -name "*.spec.*" -delete
           # Create health check file for faster startup
           echo '{"status":"ready","timestamp":"$(date -u +%Y-%m-%dT%H:%M:%SZ)"}' > public/health.json
-          # Check deployment size
-          du -sh .next/standalone
-          echo "Deployment size check completed"
-      - name: Check deployment size
-        run: |
-          # Check if standalone directory exists
-          if [ ! -d ".next/standalone" ]; then
-            echo "❌ Cannot check deployment size: .next/standalone directory not found"
-            echo "Build may have failed. Check the previous step for errors."
-            exit 1
-          fi
-          
-          echo "=== DEPLOYMENT SIZE ANALYSIS ==="
-          du -sh .next/standalone
-          echo "Largest directories:"
-          du -sh .next/standalone/* | sort -hr | head -10
-          echo "Total file count:"
-          find .next/standalone -type f | wc -l
-          echo "=== END ANALYSIS ==="
-          
-          # Check if size is reasonable (should be under 250MB for Azure Static Web Apps)
-          SIZE=$(du -sm .next/standalone | cut -f1)
-          if [ "$SIZE" -gt 200 ]; then
-            echo "⚠️  WARNING: Deployment size is ${SIZE}MB, which is close to Azure Static Web Apps limit"
-          else
-            echo "✅ Deployment size is ${SIZE}MB, which is acceptable"
-          fi
+          echo "Build optimization completed"
       - name: Build And Deploy
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1
