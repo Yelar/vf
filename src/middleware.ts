@@ -4,13 +4,7 @@ import { NextResponse } from "next/server";
 // Middleware runs in Edge Runtime by default
 
 export default auth((req) => {
-  // Add debug logging for production
-  if (process.env.NODE_ENV === 'production') {
-    console.log('Middleware - Path:', req.nextUrl.pathname);
-    console.log('Middleware - User:', req.auth?.user?.email || 'Not authenticated');
-  }
-
-  // Protect API routes
+  // Only protect API routes, let page routes handle their own auth
   if (req.nextUrl.pathname.startsWith('/api/')) {
     // Allow auth routes and public endpoints
     if (req.nextUrl.pathname.startsWith('/api/auth/') || 
@@ -27,6 +21,7 @@ export default auth((req) => {
     }
   }
 
+  // For all other routes, just continue
   return NextResponse.next();
 });
 

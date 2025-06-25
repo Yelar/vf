@@ -50,8 +50,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         httpOnly: true,
         sameSite: 'lax',
         path: '/',
-        secure: process.env.NODE_ENV === 'production',
-        domain: process.env.NODE_ENV === 'production' ? '.azurestaticapps.net' : undefined
+        secure: process.env.NODE_ENV === 'production'
+        // Removed domain restriction to fix Azure deployment issues
       }
     }
   }

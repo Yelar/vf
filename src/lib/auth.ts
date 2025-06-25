@@ -67,7 +67,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
   secret: process.env.NEXTAUTH_SECRET,
   trustHost: true, // Required for Azure Static Web Apps
-  debug: process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'production', // Enable debug logs for troubleshooting
+  debug: process.env.NODE_ENV === 'development', // Only enable debug in development
   // Azure Static Web Apps specific configuration
   useSecureCookies: process.env.NODE_ENV === 'production',
   cookies: {
@@ -77,8 +77,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         httpOnly: true,
         sameSite: 'lax',
         path: '/',
-        secure: process.env.NODE_ENV === 'production',
-        domain: process.env.NODE_ENV === 'production' ? '.azurestaticapps.net' : undefined
+        secure: process.env.NODE_ENV === 'production'
+        // Removed domain restriction to fix Azure deployment issues
       }
     }
   }

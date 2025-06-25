@@ -11,14 +11,21 @@ interface AuthGuardProps {
 }
 
 export function AuthGuard({ children }: AuthGuardProps) {
-  const { status } = useSession();
+  const { status, data: session } = useSession();
   const router = useRouter();
 
   useEffect(() => {
+    // Add debug logging for production
+    if (process.env.NODE_ENV === 'production') {
+      console.log('AuthGuard - Status:', status);
+      console.log('AuthGuard - Session:', session?.user?.email || 'No session');
+    }
+
     if (status === 'unauthenticated') {
+      console.log('AuthGuard - Redirecting to signin');
       router.push('/auth/signin');
     }
-  }, [status, router]);
+  }, [status, session, router]);
 
   if (status === 'loading') {
     return (
