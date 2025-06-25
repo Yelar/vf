@@ -386,7 +386,7 @@ export default function AdminPage() {
           <AlertTriangle className="h-16 w-16 text-red-500 mx-auto mb-4" />
           <h1 className="text-2xl font-bold mb-4">Access Denied</h1>
           <p className="text-gray-400 mb-6">
-            You don't have permission to access the admin panel. 
+            You don&apos;t have permission to access the admin panel. 
             Only authorized administrators can view this page.
           </p>
           <Button onClick={() => window.history.back()}>

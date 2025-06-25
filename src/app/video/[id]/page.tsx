@@ -139,6 +139,8 @@ function VideoCreationContent() {
   const fetchBackgroundMusic = async () => {
     try {
       setIsLoadingBackgroundMusic(true);
+      console.log(isLoadingBackgroundMusic)
+      console.log(isLoadingBackgroundVideos)
       const response = await fetch('/api/background-music?active=true');
       
       if (!response.ok) {
@@ -2008,8 +2010,8 @@ function VideoCreationContent() {
                     <div className="space-y-4">
                       <Label>Upload Reference Files (Optional)</Label>
                       <div className="border-2 border-dashed border-gray-600 rounded-lg p-6 text-center">
-                        <UploadButton<OurFileRouter, "quizContentUploader">
-                          endpoint="quizContentUploader"
+                        <UploadButton<OurFileRouter, "backgroundVideoUploader">
+                          endpoint="backgroundVideoUploader"
                           onClientUploadComplete={(res) => {
                             console.log('📎 Files uploaded:', res);
                             if (res) handleQuizFileUpload(res);

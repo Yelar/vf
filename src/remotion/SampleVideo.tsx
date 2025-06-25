@@ -9,7 +9,7 @@ import {
   Sequence,
   delayRender,
   continueRender,
-  staticFile,
+
 } from 'remotion';
 
 
@@ -59,8 +59,8 @@ export const SampleVideo: React.FC<SampleVideoProps> = ({
   const {durationInFrames, fps} = useVideoConfig();
   
   // State for video loading with timeout handling
-  const [videoReady, setVideoReady] = useState(false);
-  const [videoError, setVideoError] = useState(false);
+  const [, setVideoReady] = useState(false);
+  const [, setVideoError] = useState(false);
   
   // Handle video loading with timeout
   useEffect(() => {
