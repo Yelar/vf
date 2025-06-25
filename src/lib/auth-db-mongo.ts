@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import connectToDatabase from './mongodb';
 import User, { IUser } from './models/User';
 import Video, { IVideo } from './models/Video';
@@ -13,6 +14,8 @@ export interface MongoUser {
   email_verified: boolean;
   verification_token?: string;
   verification_token_expires?: Date;
+  password_reset_token?: string;
+  password_reset_token_expires?: Date;
   created_at: Date;
 }
 
@@ -51,6 +54,8 @@ function mongoUserToInterface(user: IUser): MongoUser {
     email_verified: user.email_verified,
     verification_token: user.verification_token || undefined,
     verification_token_expires: user.verification_token_expires || undefined,
+    password_reset_token: user.password_reset_token || undefined,
+    password_reset_token_expires: user.password_reset_token_expires || undefined,
     created_at: user.created_at,
   };
 }
@@ -420,6 +425,125 @@ export async function updateVerificationToken(userId: string, token: string): Pr
     return result.modifiedCount > 0;
   } catch (error) {
     console.error('Error updating verification token:', error);
+    return false;
+  }
+}
+
+// Password reset functions
+export async function createPasswordResetToken(email: string): Promise<string | null> {
+  try {
+    await ensureConnection();
+    
+    const user = await User.findOne({ email }).exec();
+    if (!user) {
+      return null; // User not found
+    }
+    
+    // Generate password reset token
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    
+    // Set token expiration to 1 hour from now
+    const tokenExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+    
+    // Update user with reset token
+    await User.findByIdAndUpdate(user._id, {
+      password_reset_token: resetToken,
+      password_reset_token_expires: tokenExpires,
+    }).exec();
+    
+    return resetToken;
+  } catch (error) {
+    console.error('Error creating password reset token:', error);
+    return null;
+  }
+}
+
+export async function getUserByPasswordResetToken(token: string): Promise<MongoUser | null> {
+  try {
+    await ensureConnection();
+    
+    const user = await User.findOne({
+      password_reset_token: token,
+      password_reset_token_expires: { $gt: new Date() }, // Token not expired
+    }).exec();
+    
+    return user ? mongoUserToInterface(user) : null;
+  } catch (error) {
+    console.error('Error getting user by password reset token:', error);
+    return null;
+  }
+}
+
+export async function resetPassword(token: string, newPassword: string): Promise<boolean> {
+  try {
+    await ensureConnection();
+    
+    const user = await User.findOne({
+      password_reset_token: token,
+      password_reset_token_expires: { $gt: new Date() }, // Token not expired
+    }).exec();
+    
+    if (!user) {
+      return false; // Token invalid or expired
+    }
+    
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+    
+    // Update password and clear reset token
+    await User.findByIdAndUpdate(user._id, {
+      password: hashedPassword,
+      password_reset_token: null,
+      password_reset_token_expires: null,
+    }).exec();
+    
+    return true;
+  } catch (error) {
+    console.error('Error resetting password:', error);
+    return false;
+  }
+}
+
+export async function updatePassword(userId: string, newPassword: string): Promise<boolean> {
+  try {
+    await ensureConnection();
+    
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return false;
+    }
+    
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+    
+    // Update password
+    const result = await User.findByIdAndUpdate(userId, {
+      password: hashedPassword,
+    }).exec();
+    
+    return !!result;
+  } catch (error) {
+    console.error('Error updating password:', error);
+    return false;
+  }
+}
+
+export async function verifyCurrentPassword(userId: string, currentPassword: string): Promise<boolean> {
+  try {
+    await ensureConnection();
+    
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return false;
+    }
+    
+    const user = await User.findById(userId).exec();
+    if (!user) {
+      return false;
+    }
+    
+    const isValid = await bcrypt.compare(currentPassword, user.password);
+    return isValid;
+  } catch (error) {
+    console.error('Error verifying current password:', error);
     return false;
   }
 } 

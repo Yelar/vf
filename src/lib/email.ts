@@ -363,4 +363,111 @@ Create another video: ${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/das
 Best regards,
 The VFS Studio Team
   `;
+}
+
+export interface PasswordResetData {
+  to: string;
+  name: string;
+  resetUrl: string;
+}
+
+export async function sendPasswordResetEmail({ to, name, resetUrl }: PasswordResetData) {
+  try {
+    console.log(`🔑 Sending password reset email to: ${to}`);
+    
+    const { data, error } = await resend.emails.send({
+      from: 'VFS Studio <onboarding@hintcode.top>',
+      to,
+      subject: '🔐 Reset your VFS Studio password',
+      html: getPasswordResetEmailHTML(name, resetUrl),
+      text: getPasswordResetEmailText(name, resetUrl),
+    });
+
+    if (error) {
+      console.error('❌ Resend password reset email error:', error);
+      throw new Error(`Failed to send password reset email: ${error.message}`);
+    }
+
+    console.log('✅ Password reset email sent successfully:', data?.id);
+    return { success: true, messageId: data?.id };
+  } catch (error) {
+    console.error('❌ Password reset email sending error:', error);
+    throw error;
+  }
+}
+
+function getPasswordResetEmailHTML(name: string, resetUrl: string): string {
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Reset Your Password - VFS Studio</title>
+    </head>
+    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f8fafc; margin: 0; padding: 20px;">
+      <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+        <div style="background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); color: white; padding: 30px; text-align: center;">
+          <h1 style="margin: 0; font-size: 28px; font-weight: 700;">🔐 VFS Studio</h1>
+          <p style="margin: 10px 0 0 0; opacity: 0.9; font-size: 16px;">Password Reset Request</p>
+        </div>
+        
+        <div style="padding: 40px 30px;">
+          <h2 style="color: #1a202c; font-size: 24px; margin-bottom: 20px;">Hi ${name}! 👋</h2>
+          
+          <p style="color: #4a5568; font-size: 16px; margin-bottom: 20px;">We received a request to reset your password for your VFS Studio account.</p>
+          
+          <p style="color: #4a5568; font-size: 16px; margin-bottom: 20px;">If you requested this password reset, click the button below to create a new password:</p>
+          
+          <div style="text-align: center;">
+            <a href="${resetUrl}" style="display: inline-block; background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); color: white; text-decoration: none; padding: 16px 32px; border-radius: 8px; font-weight: 600; font-size: 16px; margin: 20px 0;">
+              🔑 Reset My Password
+            </a>
+          </div>
+          
+          <div style="background-color: #fef2f2; border: 1px solid #fecaca; padding: 20px; border-radius: 8px; margin: 30px 0;">
+            <h3 style="margin-top: 0; color: #dc2626;">⚠️ Important Security Information</h3>
+            <p style="margin: 5px 0; color: #7f1d1d;">• This password reset link will expire in 1 hour</p>
+            <p style="margin: 5px 0; color: #7f1d1d;">• If you didn't request this reset, you can safely ignore this email</p>
+            <p style="margin: 5px 0; color: #7f1d1d;">• Your current password will remain unchanged until you complete the reset</p>
+            <p style="margin: 5px 0; color: #7f1d1d;">• For security, this link can only be used once</p>
+          </div>
+          
+          <div style="background-color: #f7fafc; padding: 20px; border-radius: 8px; margin-top: 30px; text-align: center; border: 1px solid #e2e8f0;">
+            <p style="margin: 0; font-size: 14px; color: #718096;">If the button doesn't work, copy and paste this link into your browser:</p>
+            <a href="${resetUrl}" style="color: #dc2626; text-decoration: none; word-break: break-all; font-size: 12px;">${resetUrl}</a>
+          </div>
+        </div>
+        
+        <div style="background-color: #1a202c; color: #a0aec0; padding: 30px; text-align: center; font-size: 14px;">
+          <p>If you didn't request a password reset, please ignore this email or contact support if you have concerns.</p>
+          <p style="margin-top: 20px;"><strong>VFS Studio</strong><br>Keeping your account secure</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+}
+
+function getPasswordResetEmailText(name: string, resetUrl: string): string {
+  return `
+Hi ${name}!
+
+We received a request to reset your password for your VFS Studio account.
+
+If you requested this password reset, click the link below to create a new password:
+${resetUrl}
+
+This link will expire in 1 hour for security reasons.
+
+Important:
+• If you didn't request this reset, you can safely ignore this email
+• Your current password will remain unchanged until you complete the reset
+• This link can only be used once
+
+If you have any concerns, please contact our support team.
+
+Best regards,
+The VFS Studio Team
+  `;
 } 

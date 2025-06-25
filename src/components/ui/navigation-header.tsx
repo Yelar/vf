@@ -11,7 +11,8 @@ import {
   LogOut,
   Plus,
   Settings,
-  Bell
+  Bell,
+  Key
 } from "lucide-react";
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -25,6 +26,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { ChangePasswordDialog } from "@/components/ui/change-password-dialog";
 
 export function NavigationHeader() {
   const { data: session } = useSession();
@@ -145,6 +147,15 @@ export function NavigationHeader() {
                 <User className="mr-2 h-4 w-4" />
                 <span>Profile</span>
               </DropdownMenuItem>
+              <ChangePasswordDialog>
+                <DropdownMenuItem 
+                  className="p-2 text-gray-300 hover:text-white hover:bg-white/10 cursor-pointer"
+                  onSelect={(e) => e.preventDefault()}
+                >
+                  <Key className="mr-2 h-4 w-4" />
+                  <span>Change Password</span>
+                </DropdownMenuItem>
+              </ChangePasswordDialog>
               <DropdownMenuSeparator className="bg-white/10" />
               <DropdownMenuItem 
                 className="p-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 cursor-pointer"
