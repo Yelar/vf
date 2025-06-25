@@ -11,15 +11,22 @@ interface AuthGuardProps {
 }
 
 export function AuthGuard({ children }: AuthGuardProps) {
-  const { status } = useSession();
+  const { data: session, status } = useSession();
   const router = useRouter();
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/auth/signin');
-    }
+    // Add a small delay to ensure session is properly loaded
+    const timer = setTimeout(() => {
+      if (status === 'unauthenticated') {
+        console.log('User not authenticated, redirecting to signin');
+        router.push('/auth/signin');
+      }
+    }, 1000);
+
+    return () => clearTimeout(timer);
   }, [status, router]);
 
+  // Show loading state while checking authentication
   if (status === 'loading') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background to-muted flex items-center justify-center p-4">
@@ -42,9 +49,11 @@ export function AuthGuard({ children }: AuthGuardProps) {
     );
   }
 
+  // Don't render anything if not authenticated (will redirect)
   if (status === 'unauthenticated') {
-    return null; // Will redirect via useEffect
+    return null;
   }
 
+  // Render children if authenticated
   return <>{children}</>;
 } 

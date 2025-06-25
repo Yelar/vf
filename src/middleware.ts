@@ -27,6 +27,16 @@ export default auth((req) => {
     }
   }
 
+  // Protect dashboard pages
+  if (req.nextUrl.pathname.startsWith('/dashboard') || 
+      req.nextUrl.pathname.startsWith('/library') ||
+      req.nextUrl.pathname.startsWith('/video/')) {
+    
+    if (!req.auth) {
+      return NextResponse.redirect(new URL('/auth/signin', req.url));
+    }
+  }
+
   return NextResponse.next();
 });
 
@@ -38,7 +48,8 @@ export const config = {
      * - _next/image (image optimization files) 
      * - favicon.ico (favicon file)
      * - .swa (Azure Static Web Apps internal routes)
+     * - debug (debug pages for troubleshooting)
      */
-    '/((?!_next/static|_next/image|favicon.ico|.swa).*)',
+    '/((?!_next/static|_next/image|favicon.ico|.swa|debug).*)',
   ],
 };
