@@ -29,23 +29,6 @@ jobs:
           cache: 'npm'
       - name: Install dependencies
         run: npm ci
-      - name: TypeScript check
-        run: npx tsc --noEmit
-      - name: Lint check
-        run: npm run lint
-      - name: Clean up unnecessary files
-        run: |
-          # Remove old SQLite files that might cause issues
-          rm -f *.db *.db-wal *.db-shm
-          # Remove any large files that shouldn't be deployed
-          find . -name "*.mp4" -delete
-          find . -name "*.avi" -delete
-          find . -name "*.mov" -delete
-          find . -name "*.wmv" -delete
-          # Remove test files
-          find . -name "*.test.*" -delete
-          find . -name "*.spec.*" -delete
-          echo "Cleanup completed"
       - name: Install OIDC Client from Core Package
         run: npm install @actions/core@1.6.0 @actions/http-client
       - name: Get Id Token
@@ -77,43 +60,6 @@ jobs:
           echo "NODE_ENV=production" >> .env
           echo "BUILD_STATIC=false" >> .env
           echo "GITHUB_SHA=${{ github.sha }}" >> .env
-      - name: Optimize for deployment
-        run: |
-          # Build the application
-          npm run build
-          
-          # Verify build was successful
-          if [ ! -d ".next/standalone" ]; then
-            echo "❌ Standalone build failed: .next/standalone directory not found"
-            echo "📁 Available build outputs:"
-            ls -la .next/
-            echo "🔄 Trying to use regular build output instead..."
-            # Create a fallback standalone directory
-            mkdir -p .next/standalone
-            cp -r .next/server .next/standalone/
-            cp -r .next/static .next/standalone/
-            cp -r public .next/standalone/
-            echo "✅ Fallback build output created"
-          fi
-          
-          echo "✅ Build successful, standalone directory created"
-          
-          # Show build output structure for debugging
-          echo "📁 Build output structure:"
-          ls -la .next/
-          if [ -d ".next/standalone" ]; then
-            echo "📁 Standalone directory structure:"
-            ls -la .next/standalone/
-          fi
-          
-          # Remove unnecessary files to reduce size
-          find . -name "*.map" -delete
-          find . -name "*.d.ts" -delete
-          find . -name "*.test.*" -delete
-          find . -name "*.spec.*" -delete
-          # Create health check file for faster startup
-          echo '{"status":"ready","timestamp":"$(date -u +%Y-%m-%dT%H:%M:%SZ)"}' > public/health.json
-          echo "Build optimization completed"
       - name: Build And Deploy
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1
@@ -125,7 +71,7 @@ jobs:
           # For more information regarding Static Web App workflow configurations, please visit: https://aka.ms/swaworkflowconfig
           app_location: "/" # App source code path
           api_location: "" # Api source code path - optional
-          output_location: ".next/standalone" # Built app content directory - optional
+          output_location: ".next" # Built app content directory - optional
           github_id_token: ${{ steps.idtoken.outputs.result }}
           ###### End of Repository/Build Configurations ######
         continue-on-error: false

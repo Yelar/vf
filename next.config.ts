@@ -89,7 +89,6 @@ const nextConfig: NextConfig = {
     'mongoose'
   ],
   // Azure Static Web Apps specific configuration
-  output: process.env.BUILD_STATIC === 'true' ? 'export' : 'standalone',
   trailingSlash: false,
   generateBuildId: async () => {
     // Use commit hash or timestamp for consistent builds
