@@ -70,6 +70,9 @@ function VideoCreationContent() {
     if (!isNew && videoId) {
       fetchVideoData();
     }
+    // Load background videos and music
+    fetchBackgroundVideos();
+    fetchBackgroundMusic();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [videoId, isNew]);
 
@@ -113,6 +116,44 @@ function VideoCreationContent() {
     }
   };
 
+  // Fetch background videos from API
+  const fetchBackgroundVideos = async () => {
+    try {
+      setIsLoadingBackgroundVideos(true);
+      const response = await fetch('/api/background-videos?active=true');
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch background videos');
+      }
+      
+      const data = await response.json();
+      setBackgroundVideos(data.videos || []);
+    } catch (error) {
+      console.error('Error fetching background videos:', error);
+    } finally {
+      setIsLoadingBackgroundVideos(false);
+    }
+  };
+
+  // Fetch background music from API
+  const fetchBackgroundMusic = async () => {
+    try {
+      setIsLoadingBackgroundMusic(true);
+      const response = await fetch('/api/background-music?active=true');
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch background music');
+      }
+      
+      const data = await response.json();
+      setBackgroundMusic(data.music || []);
+    } catch (error) {
+      console.error('Error fetching background music:', error);
+    } finally {
+      setIsLoadingBackgroundMusic(false);
+    }
+  };
+
   // Copy video URL to clipboard
   const copyVideoUrl = async () => {
     try {
@@ -124,11 +165,35 @@ function VideoCreationContent() {
     }
   };
   
+  // Background video states
   const [backgroundVideo, setBackgroundVideo] = useState<string | null>(null);
   const [backgroundVideoFile, setBackgroundVideoFile] = useState<File | null>(null);
   const [selectedPresetVideo, setSelectedPresetVideo] = useState<string>('none');
+  const [backgroundVideos, setBackgroundVideos] = useState<Array<{
+    _id: string;
+    name: string;
+    description?: string;
+    uploadthing_url: string;
+    category: string;
+    tags: string[];
+    is_active: boolean;
+  }>>([]);
+  const [isLoadingBackgroundVideos, setIsLoadingBackgroundVideos] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
+  // Background music states
+  const [selectedBgMusic, setSelectedBgMusic] = useState<string>('none');
+  const [backgroundMusic, setBackgroundMusic] = useState<Array<{
+    _id: string;
+    name: string;
+    description?: string;
+    uploadthing_url: string;
+    category: string;
+    tags: string[];
+    is_active: boolean;
+  }>>([]);
+  const [isLoadingBackgroundMusic, setIsLoadingBackgroundMusic] = useState(false);
+
   // Text-to-speech states
   const [speechText, setSpeechText] = useState('');
   const [generatedAudio, setGeneratedAudio] = useState<string | null>(null);
@@ -147,9 +212,6 @@ function VideoCreationContent() {
   // Render method selection
 
   
-  // Background music states
-  const [selectedBgMusic, setSelectedBgMusic] = useState<string>('none');
-
   // Content generation states
   const [isGeneratingContent, setIsGeneratingContent] = useState(false);
   const [generatedContent, setGeneratedContent] = useState<string | null>(null);
@@ -238,26 +300,24 @@ function VideoCreationContent() {
     content: ''
   });
 
-  // List of preset background videos (update this list when you add new videos)
+  // List of preset background videos (now loaded from MongoDB)
   const presetVideos = [
     { value: 'none', label: 'No preset video', path: '' },
-    { value: 'minecraft-parkour', label: '🎮 Minecraft Parkour', path: '/bg-videos/minecraft-parkour.mp4' },
-    
-    // TO ADD MORE VIDEOS:
-    // 1. Place your MP4 file in public/bg-videos/ folder
-    // 2. Add a new line here like: { value: 'filename', label: '🎬 Display Name', path: '/bg-videos/filename.mp4' }
-    // 3. Save and refresh browser
+    ...backgroundVideos.map(video => ({
+      value: video._id,
+      label: `🎬 ${video.name}`,
+      path: video.uploadthing_url
+    }))
   ];
 
-  // List of preset background music (update this list when you add new music)
+  // List of preset background music (now loaded from MongoDB)
   const bgMusicOptions = [
     { value: 'none', label: 'No background music', path: '' },
-    { value: 'mii', label: '🎵 Mii Theme - Nintendo', path: '/bg-music/Mii.mp3' },
-    
-    // TO ADD MORE MUSIC:
-    // 1. Place your MP3 file in public/bg-music/ folder
-    // 2. Add a new line here like: { value: 'filename', label: '🎵 Song Name', path: '/bg-music/filename.mp3' }
-    // 3. Save and refresh browser
+    ...backgroundMusic.map(music => ({
+      value: music._id,
+      label: `🎵 ${music.name}`,
+      path: music.uploadthing_url
+    }))
   ];
 
   // Available Eleven Labs voices

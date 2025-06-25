@@ -6,9 +6,10 @@ import { NextResponse } from "next/server";
 export default auth((req) => {
   // Only protect API routes, let page routes handle their own auth
   if (req.nextUrl.pathname.startsWith('/api/')) {
-    // Allow auth routes and public endpoints
+    // Allow auth routes, public endpoints, and UploadThing callbacks
     if (req.nextUrl.pathname.startsWith('/api/auth/') || 
-        req.nextUrl.pathname.startsWith('/api/videos/shared/')) {
+        req.nextUrl.pathname.startsWith('/api/videos/shared/') ||
+        req.nextUrl.pathname.startsWith('/api/uploadthing')) {
       return NextResponse.next();
     }
 

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   AbsoluteFill,
   interpolate,
@@ -7,6 +7,9 @@ import {
   Audio,
   Video,
   Sequence,
+  delayRender,
+  continueRender,
+  staticFile,
 } from 'remotion';
 
 
@@ -54,6 +57,67 @@ export const SampleVideo: React.FC<SampleVideoProps> = ({
 }) => {
   const frame = useCurrentFrame();
   const {durationInFrames, fps} = useVideoConfig();
+  
+  // State for video loading with timeout handling
+  const [videoReady, setVideoReady] = useState(false);
+  const [videoError, setVideoError] = useState(false);
+  
+  // Handle video loading with timeout
+  useEffect(() => {
+    if (!backgroundVideo) {
+      setVideoReady(true);
+      return;
+    }
+
+    // If it's an UploadThing URL, we need to handle it carefully
+    if (backgroundVideo.includes('utfs.io') || backgroundVideo.includes('uploadthing')) {
+      console.log('🎬 UploadThing video detected, using optimized loading:', backgroundVideo);
+      
+      const handle = delayRender('Loading UploadThing video metadata');
+      const timeout = setTimeout(() => {
+        console.warn('⚠️ UploadThing video loading timeout, proceeding without preload');
+        setVideoError(true);
+        setVideoReady(true);
+        continueRender(handle);
+      }, 10000); // 10 second timeout instead of 28 seconds
+      
+      // Try to preload the video
+      const video = document.createElement('video');
+      video.crossOrigin = 'anonymous';
+      video.preload = 'metadata';
+      
+      const handleSuccess = () => {
+        console.log('✅ UploadThing video metadata loaded successfully');
+        clearTimeout(timeout);
+        setVideoReady(true);
+        continueRender(handle);
+      };
+      
+      const handleError = () => {
+        console.warn('⚠️ UploadThing video metadata failed to load, proceeding anyway');
+        clearTimeout(timeout);
+        setVideoError(true);
+        setVideoReady(true);
+        continueRender(handle);
+      };
+      
+      video.addEventListener('loadedmetadata', handleSuccess);
+      video.addEventListener('error', handleError);
+      video.addEventListener('abort', handleError);
+      
+      video.src = backgroundVideo;
+      
+      return () => {
+        clearTimeout(timeout);
+        video.removeEventListener('loadedmetadata', handleSuccess);
+        video.removeEventListener('error', handleError);
+        video.removeEventListener('abort', handleError);
+      };
+    } else {
+      // For local files or other URLs, proceed normally
+      setVideoReady(true);
+    }
+  }, [backgroundVideo]);
   
   // Font options with system fonts for reliable server-side rendering
   const fontOptions = [

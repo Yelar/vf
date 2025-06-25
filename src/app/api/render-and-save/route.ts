@@ -455,9 +455,33 @@ async function processVideoAsync({
     // Convert relative paths to absolute URLs for Remotion
     const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL || 'http://localhost:3000';
     
-    let resolvedBackgroundVideo = backgroundVideo;
+    let resolvedBackgroundVideo: string | undefined = backgroundVideo;
     if (backgroundVideo && backgroundVideo.startsWith('/')) {
       resolvedBackgroundVideo = `${baseUrl}${backgroundVideo}`;
+    }
+
+    // Validate UploadThing URLs and add fallback for problematic videos
+    if (resolvedBackgroundVideo && (resolvedBackgroundVideo.includes('utfs.io') || resolvedBackgroundVideo.includes('uploadthing'))) {
+      try {
+        console.log(`🔍 Validating UploadThing video URL: ${resolvedBackgroundVideo}`);
+        
+        // Try to fetch the video headers to ensure it's accessible
+        const response = await fetch(resolvedBackgroundVideo, { 
+          method: 'HEAD',
+          signal: AbortSignal.timeout(10000) // 10 second timeout
+        });
+        
+        if (!response.ok) {
+          console.warn(`⚠️ UploadThing video not accessible (${response.status}), using fallback`);
+          resolvedBackgroundVideo = undefined; // Use gradient background instead
+        } else {
+          console.log(`✅ UploadThing video is accessible`);
+        }
+      } catch (error) {
+        console.warn(`⚠️ UploadThing video validation failed:`, error);
+        console.log(`🎨 Using gradient background as fallback instead of problematic video`);
+        resolvedBackgroundVideo = undefined; // Use gradient background instead
+      }
     }
 
     let resolvedBgMusic = bgMusic;
@@ -465,7 +489,7 @@ async function processVideoAsync({
       resolvedBgMusic = `${baseUrl}${bgMusic}`;
     }
 
-    // Get compositions
+    // Get compositions with fallback handling
     const inputProps = {
       speechText,
       backgroundVideo: resolvedBackgroundVideo,
@@ -480,6 +504,14 @@ async function processVideoAsync({
       backgroundBlur,
       textAnimation,
     };
+
+    console.log(`🎬 Input props for ${processingId}:`, {
+      hasBackgroundVideo: !!resolvedBackgroundVideo,
+      backgroundVideoUrl: resolvedBackgroundVideo ? resolvedBackgroundVideo.substring(0, 50) + '...' : 'none',
+      hasAudio: !!audioFilePath,
+      audioDuration: finalAudioDuration,
+      speechTextLength: speechText.length
+    });
 
     const comps = await getCompositions(bundleLocation, {
       inputProps,
@@ -514,7 +546,7 @@ async function processVideoAsync({
     });
 
     try {
-      // Render the video with high quality settings
+      // Render the video with high quality settings and better timeout handling
       await renderMedia({
         serveUrl: bundleLocation,
         composition: comp,
@@ -536,6 +568,12 @@ async function processVideoAsync({
         concurrency: 1,
         jpegQuality: 100,
         scale: 1,
+        // Add timeout configuration
+        timeoutInMilliseconds: 120000, // 2 minutes total timeout
+        // Add better error handling for network issues
+        onProgress: (progress) => {
+          console.log(`🎬 Rendering progress for ${processingId}: ${(progress.progress * 100).toFixed(1)}%`);
+        },
       });
 
       // Read the rendered video file
@@ -626,4 +664,4 @@ async function processVideoAsync({
       console.error(`❌ Failed to send error notification email for ${processingId}:`, emailError);
     }
   }
-} 
+}
