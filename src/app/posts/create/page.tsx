@@ -3,13 +3,15 @@
 import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { AuthGuard } from '@/components/auth/AuthGuard';
-import { Copy, Eye, Code, Sparkles, Zap } from 'lucide-react';
+import { NavigationHeader } from '@/components/ui/navigation-header';
+import { Copy, Code, Sparkles, ChevronLeft, Library, Globe, Palette } from 'lucide-react';
+import Link from 'next/link';
+import { ModernCard, ModernCardContent } from '@/components/ui/modern-card';
 
 interface PostVariant {
   id: string;
@@ -400,318 +402,309 @@ export default function CreatePost() {
 
   return (
     <AuthGuard>
-      {/* Dark theme with purple accents */}
-      <div className="min-h-screen bg-black text-white">
-        {/* Background gradient */}
-        <div className="fixed inset-0 bg-gradient-to-br from-purple-900/20 via-black to-blue-900/20 pointer-events-none"></div>
-        
-        {/* Animated background elements */}
-        <div className="fixed inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl animate-pulse"></div>
-          <div className="absolute top-1/2 -left-40 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
-          <div className="absolute bottom-0 right-1/3 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl animate-pulse delay-2000"></div>
-        </div>
+      <div className="min-h-screen bg-gradient-to-br from-gray-950 via-black to-purple-950/50">
+        <NavigationHeader />
 
-        <div className="relative z-10">
-          <div className="max-w-7xl mx-auto px-4 py-8">
-            {/* Header */}
-            <div className="text-center mb-12">
-              <div className="flex items-center justify-center gap-3 mb-6">
-                <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center shadow-lg">
-                  <Sparkles className="w-6 h-6 text-white" />
-                </div>
-                <h1 className="text-5xl font-bold bg-gradient-to-r from-white via-purple-200 to-purple-400 bg-clip-text text-transparent">
-                  AI Instagram Creator
-                </h1>
-              </div>
-              <p className="text-xl text-gray-400 max-w-2xl mx-auto leading-relaxed">
-                Generate stunning Instagram posts with AI-powered JSX components. 
-                <span className="text-purple-400"> Copy, customize, and ship.</span>
-              </p>
+        {/* Main Content */}
+        <main className="container mx-auto px-4 py-8 space-y-8">
+          {/* Page Header */}
+          <div className="flex flex-col items-center justify-center text-center space-y-6 py-12">
+            <div className="inline-flex items-center space-x-2 px-4 py-2 bg-purple-500/10 border border-purple-500/20 rounded-full">
+              <Sparkles className="w-4 h-4 text-purple-400" />
+              <span className="text-sm text-purple-300 font-medium">AI Post Creator</span>
             </div>
+            
+            <h1 className="text-5xl md:text-6xl font-bold">
+              <span className="bg-gradient-to-r from-purple-400 via-purple-300 to-blue-400 bg-clip-text text-transparent">
+                Create Instagram Posts
+              </span>
+            </h1>
+            
+            <p className="text-xl text-gray-400 max-w-2xl mx-auto leading-relaxed">
+              Generate stunning Instagram posts with AI. Perfect for creators, marketers, and social media managers.
+            </p>
 
-            {/* Input Section */}
-            <Card className="mb-8 bg-gray-900/50 border-gray-800 backdrop-blur-xl">
-              <CardHeader className="border-b border-gray-800">
-                <CardTitle className="flex items-center gap-3 text-white">
-                  <Zap className="w-5 h-5 text-purple-400" />
-                  Describe Your Vision
-                </CardTitle>
-                <CardDescription className="text-gray-400">
-                  Tell us what kind of Instagram post you want to create. Be specific about style, message, and visual elements.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-6">
-                <div className="space-y-6">
-                  <div className="space-y-3">
-                    <div className="flex gap-4 items-center">
-                      <Input
-                        placeholder="e.g., Create a motivational post about overcoming challenges with bold typography..."
-                        value={prompt}
-                        onChange={(e) => setPrompt(e.target.value)}
-                        className="h-14 text-lg bg-gray-800/50 border-gray-700 text-white placeholder:text-gray-500 focus:border-purple-500 focus:ring-purple-500/20"
-                        disabled={isGenerating}
-                        onKeyPress={(e) => e.key === 'Enter' && !isGenerating && handleGenerate()}
+            {/* Quick Navigation */}
+            <div className="flex items-center gap-4 mt-4">
+              <Link href="/dashboard">
+                <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
+                  <ChevronLeft className="w-4 h-4 mr-1" />
+                  Dashboard
+                </Button>
+              </Link>
+              <Link href="/library">
+                <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
+                  <Library className="w-4 h-4 mr-1" />
+                  My Library
+                </Button>
+              </Link>
+              <Link href="/shared">
+                <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
+                  <Globe className="w-4 h-4 mr-1" />
+                  Shared Posts
+                </Button>
+              </Link>
+            </div>
+          </div>
+
+          {/* Main Card */}
+          <ModernCard gradient="purple" glow className="relative overflow-hidden">
+            <ModernCardContent className="p-8">
+              {/* Input Section */}
+              <div className="space-y-6">
+                <div className="space-y-3">
+                  <div className="flex gap-4 items-center">
+                    <Input
+                      placeholder="e.g., Create a motivational post about overcoming challenges with bold typography..."
+                      value={prompt}
+                      onChange={(e) => setPrompt(e.target.value)}
+                      className="h-14 text-lg bg-gray-800/50 border-gray-700 text-white placeholder:text-gray-500 focus:border-purple-500 focus:ring-purple-500/20"
+                      disabled={isGenerating}
+                      onKeyPress={(e) => e.key === 'Enter' && !isGenerating && handleGenerate()}
+                    />
+                    <div className="flex items-center gap-2">
+                      <label className="text-sm text-gray-400">AI Images</label>
+                      <input
+                        type="checkbox"
+                        checked={useAiImage}
+                        onChange={(e) => setUseAiImage(e.target.checked)}
+                        className="w-4 h-4 text-purple-600 bg-gray-800 border-gray-600 rounded focus:ring-purple-500"
                       />
-                      <div className="flex items-center gap-2">
-                        <label className="text-sm text-gray-400">AI Images</label>
-                        <input
-                          type="checkbox"
-                          checked={useAiImage}
-                          onChange={(e) => setUseAiImage(e.target.checked)}
-                          className="w-4 h-4 text-purple-600 bg-gray-800 border-gray-600 rounded focus:ring-purple-500"
-                        />
-                      </div>
                     </div>
-                    
-                    <div className="flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-center">
-                      <div className="flex flex-wrap gap-2">
-                        {EXAMPLE_PROMPTS.slice(0, 3).map((example, index) => (
-                          <Button
-                            key={index}
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setPrompt(example)}
-                            disabled={isGenerating}
-                            className="text-xs bg-gray-800/50 border-gray-700 text-gray-300 hover:text-white hover:border-purple-500 hover:bg-purple-500/10"
+                  </div>
+                  
+                  <div className="flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-center">
+                    <div className="flex flex-wrap gap-2">
+                      {EXAMPLE_PROMPTS.slice(0, 3).map((example, index) => (
+                        <Button
+                          key={index}
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setPrompt(example)}
+                          disabled={isGenerating}
+                          className="text-xs bg-gray-800/50 border-gray-700 text-gray-300 hover:text-white hover:border-purple-500 hover:bg-purple-500/10"
+                        >
+                          {example.slice(0, 35)}...
+                        </Button>
+                      ))}
+                    </div>
+                    <Button 
+                      onClick={handleGenerate}
+                      disabled={isGenerating || !prompt.trim()}
+                      className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-8 py-3 h-auto font-semibold shadow-lg"
+                    >
+                      {isGenerating ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></div>
+                          Generating...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-4 h-4 mr-2" />
+                          Generate Posts
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+
+                {isGenerating && (
+                  <div className="space-y-3">
+                    <Progress value={66} className="h-2 bg-gray-800" />
+                    <p className="text-sm text-gray-400 text-center flex items-center justify-center gap-2">
+                      <Sparkles className="w-4 h-4 text-purple-400 animate-pulse" />
+                      AI is crafting your perfect Instagram posts...
+                    </p>
+                  </div>
+                )}
+
+                {error && (
+                  <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
+                    <p className="text-red-400 font-medium">❌ Error: {error}</p>
+                  </div>
+                )}
+              </div>
+            </ModernCardContent>
+          </ModernCard>
+
+          {/* Results Section */}
+          {result && (
+            <div className="space-y-8">
+              {/* AI Reasoning */}
+              <ModernCard gradient="blue" glow className="relative overflow-hidden">
+                <ModernCardContent className="p-8">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                      🧠
+                    </div>
+                    <h2 className="text-xl font-bold text-white">AI Strategy & Analysis</h2>
+                  </div>
+                  <p className="text-gray-300 leading-relaxed">{result.reasoning}</p>
+                </ModernCardContent>
+              </ModernCard>
+
+              <div className="grid xl:grid-cols-4 gap-8">
+                {/* Variants Sidebar */}
+                <div className="xl:col-span-1">
+                  <ModernCard gradient="none" className="bg-gray-900/50 backdrop-blur">
+                    <ModernCardContent className="p-6">
+                      <div className="flex items-center gap-2 mb-4">
+                        <Palette className="w-5 h-5 text-purple-400" />
+                        <h3 className="text-lg font-bold text-white">Variants ({result.variants.length})</h3>
+                      </div>
+                      <div className="space-y-3">
+                        {result.variants.map((variant) => (
+                          <div
+                            key={variant.id}
+                            className={`p-4 rounded-lg cursor-pointer transition-all border ${
+                              selectedVariant === variant.id
+                                ? 'border-purple-500 bg-purple-500/10'
+                                : 'border-gray-700 bg-gray-800/30 hover:border-gray-600 hover:bg-gray-800/50'
+                            }`}
+                            onClick={() => {
+                              setSelectedVariant(variant.id);
+                              setCurrentSlide(0);
+                            }}
                           >
-                            {example.slice(0, 35)}...
-                          </Button>
+                            <div className="space-y-2">
+                              <h3 className="font-semibold text-white text-sm">{variant.title}</h3>
+                              <p className="text-xs text-gray-400">{variant.description}</p>
+                              <Badge 
+                                variant="outline" 
+                                className={`text-xs ${
+                                  selectedVariant === variant.id 
+                                    ? 'border-purple-400 text-purple-400' 
+                                    : 'border-gray-600 text-gray-400'
+                                }`}
+                              >
+                                {variant.type === 'carousel' ? `${variant.slides?.length || 0} slides` : 'Single Post'}
+                              </Badge>
+                            </div>
+                          </div>
                         ))}
                       </div>
-                      <Button 
-                        onClick={handleGenerate}
-                        disabled={isGenerating || !prompt.trim()}
-                        className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-8 py-3 h-auto font-semibold shadow-lg"
-                      >
-                        {isGenerating ? (
-                          <>
-                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></div>
-                            Generating...
-                          </>
-                        ) : (
-                          <>
-                            <Sparkles className="w-4 h-4 mr-2" />
-                            Generate Posts
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-
-                  {isGenerating && (
-                    <div className="space-y-3">
-                      <Progress value={66} className="h-2 bg-gray-800" />
-                      <p className="text-sm text-gray-400 text-center flex items-center justify-center gap-2">
-                        <Sparkles className="w-4 h-4 text-purple-400 animate-pulse" />
-                        AI is crafting your perfect Instagram posts...
-                      </p>
-                    </div>
-                  )}
-
-                  {error && (
-                    <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
-                      <p className="text-red-400 font-medium">❌ Error: {error}</p>
-                    </div>
-                  )}
+                    </ModernCardContent>
+                  </ModernCard>
                 </div>
-              </CardContent>
-            </Card>
 
-            {/* Results Section */}
-            {result && (
-              <div className="space-y-8">
-                {/* AI Reasoning */}
-                <Card className="bg-gray-900/50 border-gray-800 backdrop-blur-xl">
-                  <CardHeader className="border-b border-gray-800">
-                    <CardTitle className="flex items-center gap-3 text-white">
-                      <div className="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center">
-                        🧠
-                      </div>
-                      AI Strategy & Analysis
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-6">
-                    <p className="text-gray-300 leading-relaxed">{result.reasoning}</p>
-                  </CardContent>
-                </Card>
+                {/* Main Preview Area */}
+                <div className="xl:col-span-3">
+                  {selectedVariantData && (
+                    <ModernCard gradient="none" className="bg-gray-900/50 backdrop-blur">
+                      <ModernCardContent className="p-6">
+                        <Tabs value="preview" className="w-full">
+                          <TabsList className="grid grid-cols-2 w-full mb-6 bg-gray-800 border-gray-700">
+                            <TabsTrigger value="preview" className="data-[state=active]:bg-purple-600 data-[state=active]:text-white">
+                              Preview & Code
+                            </TabsTrigger>
+                            <TabsTrigger value="details" className="data-[state=active]:bg-purple-600 data-[state=active]:text-white">
+                              Caption & Details
+                            </TabsTrigger>
+                          </TabsList>
 
-                <div className="grid xl:grid-cols-4 gap-8">
-                  {/* Variants Sidebar */}
-                  <div className="xl:col-span-1">
-                    <Card className="bg-gray-900/50 border-gray-800 backdrop-blur-xl">
-                      <CardHeader className="border-b border-gray-800">
-                        <CardTitle className="flex items-center gap-2 text-white text-lg">
-                          🎨 Variants ({result.variants.length})
-                        </CardTitle>
-                        <CardDescription className="text-gray-400">
-                          Choose a design to preview
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="p-4">
-                        <div className="space-y-3">
-                          {result.variants.map((variant) => (
-                            <div
-                              key={variant.id}
-                              className={`p-4 rounded-lg cursor-pointer transition-all border ${
-                                selectedVariant === variant.id
-                                  ? 'border-purple-500 bg-purple-500/10'
-                                  : 'border-gray-700 bg-gray-800/30 hover:border-gray-600 hover:bg-gray-800/50'
-                              }`}
-                              onClick={() => {
-                                setSelectedVariant(variant.id);
-                                setCurrentSlide(0);
-                              }}
-                            >
-                              <div className="space-y-2">
-                                <h3 className="font-semibold text-white text-sm">{variant.title}</h3>
-                                <p className="text-xs text-gray-400">{variant.description}</p>
-                                <Badge 
-                                  variant="outline" 
-                                  className={`text-xs ${
-                                    selectedVariant === variant.id 
-                                      ? 'border-purple-400 text-purple-400' 
-                                      : 'border-gray-600 text-gray-400'
-                                  }`}
+                          <TabsContent value="preview" className="space-y-6">
+                            {/* Carousel Controls */}
+                            {selectedVariantData.type === 'carousel' && selectedVariantData.slides && (
+                              <div className="flex items-center justify-between bg-gray-800/50 rounded-lg p-4 border border-gray-700">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setCurrentSlide(Math.max(0, currentSlide - 1))}
+                                  disabled={currentSlide === 0}
+                                  className="border-gray-600 text-gray-300 hover:text-white hover:border-purple-500"
                                 >
-                                  {variant.type === 'carousel' ? `${variant.slides?.length || 0} slides` : 'Single Post'}
-                                </Badge>
+                                  ← Previous
+                                </Button>
+                                <span className="text-sm font-medium text-gray-300">
+                                  Slide {currentSlide + 1} of {selectedVariantData.slides.length}
+                                </span>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setCurrentSlide(Math.min(selectedVariantData.slides!.length - 1, currentSlide + 1))}
+                                  disabled={currentSlide === selectedVariantData.slides.length - 1}
+                                  className="border-gray-600 text-gray-300 hover:text-white hover:border-purple-500"
+                                >
+                                  Next →
+                                </Button>
+                              </div>
+                            )}
+
+                            {/* Preview Component */}
+                            {selectedVariantData.type === 'carousel' && selectedVariantData.slides ? (
+                              <CarouselPreview 
+                                slides={selectedVariantData.slides} 
+                                currentSlide={currentSlide}
+                                imageUrl={selectedVariantData.imageUrl}
+                              />
+                            ) : (
+                              <JSXPreview 
+                                jsx={selectedVariantData.jsx} 
+                                imageUrl={selectedVariantData.imageUrl}
+                              />
+                            )}
+
+                            <div className="text-center text-sm text-gray-400 bg-purple-500/5 border border-purple-500/20 rounded-lg p-4">
+                              💻 <strong className="text-purple-400">Implementation:</strong> Copy the JSX code above and use it in your React project with Tailwind CSS for the complete design.
+                            </div>
+                          </TabsContent>
+
+                          <TabsContent value="details" className="space-y-6">
+                            {/* Caption */}
+                            <div>
+                              <h3 className="font-semibold text-white mb-3 flex items-center gap-2">
+                                📝 Caption
+                              </h3>
+                              <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-4">
+                                <p className="text-gray-300 whitespace-pre-wrap leading-relaxed">
+                                  {selectedVariantData.metadata.caption}
+                                </p>
                               </div>
                             </div>
-                          ))}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
 
-                  {/* Main Preview Area */}
-                  <div className="xl:col-span-3">
-                    {selectedVariantData && (
-                      <Card className="bg-gray-900/50 border-gray-800 backdrop-blur-xl">
-                        <CardHeader className="border-b border-gray-800">
-                          <CardTitle className="flex items-center gap-3 text-white">
-                            <Eye className="w-5 h-5 text-purple-400" />
-                            Preview & Code
-                          </CardTitle>
-                          <CardDescription className="text-gray-400">
-                            Copy the JSX code and implement in your React project
-                          </CardDescription>
-                        </CardHeader>
-                        <CardContent className="p-6">
-                          <Tabs value="preview" className="w-full">
-                            <TabsList className="grid grid-cols-2 w-full mb-6 bg-gray-800 border-gray-700">
-                              <TabsTrigger value="preview" className="data-[state=active]:bg-purple-600 data-[state=active]:text-white">
-                                Preview & Code
-                              </TabsTrigger>
-                              <TabsTrigger value="details" className="data-[state=active]:bg-purple-600 data-[state=active]:text-white">
-                                Caption & Details
-                              </TabsTrigger>
-                            </TabsList>
-
-                            <TabsContent value="preview" className="space-y-6">
-                              {/* Carousel Controls */}
-                              {selectedVariantData.type === 'carousel' && selectedVariantData.slides && (
-                                <div className="flex items-center justify-between bg-gray-800/50 rounded-lg p-4 border border-gray-700">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setCurrentSlide(Math.max(0, currentSlide - 1))}
-                                    disabled={currentSlide === 0}
-                                    className="border-gray-600 text-gray-300 hover:text-white hover:border-purple-500"
-                                  >
-                                    ← Previous
-                                  </Button>
-                                  <span className="text-sm font-medium text-gray-300">
-                                    Slide {currentSlide + 1} of {selectedVariantData.slides.length}
-                                  </span>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setCurrentSlide(Math.min(selectedVariantData.slides!.length - 1, currentSlide + 1))}
-                                    disabled={currentSlide === selectedVariantData.slides.length - 1}
-                                    className="border-gray-600 text-gray-300 hover:text-white hover:border-purple-500"
-                                  >
-                                    Next →
-                                  </Button>
-                                </div>
-                              )}
-
-                              {/* Preview Component */}
-                              {selectedVariantData.type === 'carousel' && selectedVariantData.slides ? (
-                                <CarouselPreview 
-                                  slides={selectedVariantData.slides} 
-                                  currentSlide={currentSlide}
-                                  imageUrl={selectedVariantData.imageUrl}
-                                />
-                              ) : (
-                                <JSXPreview 
-                                  jsx={selectedVariantData.jsx} 
-                                  imageUrl={selectedVariantData.imageUrl}
-                                />
-                              )}
-
-                              <div className="text-center text-sm text-gray-400 bg-purple-500/5 border border-purple-500/20 rounded-lg p-4">
-                                💻 <strong className="text-purple-400">Implementation:</strong> Copy the JSX code above and use it in your React project with Tailwind CSS for the complete design.
+                            {/* Hashtags */}
+                            <div>
+                              <h3 className="font-semibold text-white mb-3 flex items-center gap-2">
+                                🏷️ Hashtags
+                              </h3>
+                              <div className="flex flex-wrap gap-2">
+                                {selectedVariantData.metadata.hashtags.map((tag, index) => (
+                                  <Badge key={index} variant="secondary" className="bg-purple-500/20 text-purple-300 border-purple-500/30">
+                                    #{tag}
+                                  </Badge>
+                                ))}
                               </div>
-                            </TabsContent>
+                            </div>
 
-                            <TabsContent value="details" className="space-y-6">
-                              {/* Caption */}
-                              <div>
-                                <h3 className="font-semibold text-white mb-3 flex items-center gap-2">
-                                  📝 Caption
-                                </h3>
-                                <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-4">
-                                  <p className="text-gray-300 whitespace-pre-wrap leading-relaxed">
-                                    {selectedVariantData.metadata.caption}
-                                  </p>
+                            {/* Engagement Tips */}
+                            {selectedVariantData.metadata.engagement_tips.length > 0 && (
+                              <>
+                                <Separator className="bg-gray-700" />
+                                <div>
+                                  <h3 className="font-semibold text-white mb-3 flex items-center gap-2">
+                                    💡 Engagement Tips
+                                  </h3>
+                                  <ul className="space-y-3">
+                                    {selectedVariantData.metadata.engagement_tips.map((tip, index) => (
+                                      <li key={index} className="flex items-start gap-3">
+                                        <span className="text-green-400 mt-1">✓</span>
+                                        <span className="text-gray-300">{tip}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
                                 </div>
-                              </div>
-
-                              {/* Hashtags */}
-                              <div>
-                                <h3 className="font-semibold text-white mb-3 flex items-center gap-2">
-                                  🏷️ Hashtags
-                                </h3>
-                                <div className="flex flex-wrap gap-2">
-                                  {selectedVariantData.metadata.hashtags.map((tag, index) => (
-                                    <Badge key={index} variant="secondary" className="bg-purple-500/20 text-purple-300 border-purple-500/30">
-                                      #{tag}
-                                    </Badge>
-                                  ))}
-                                </div>
-                              </div>
-
-                              {/* Engagement Tips */}
-                              {selectedVariantData.metadata.engagement_tips.length > 0 && (
-                                <>
-                                  <Separator className="bg-gray-700" />
-                                  <div>
-                                    <h3 className="font-semibold text-white mb-3 flex items-center gap-2">
-                                      💡 Engagement Tips
-                                    </h3>
-                                    <ul className="space-y-3">
-                                      {selectedVariantData.metadata.engagement_tips.map((tip, index) => (
-                                        <li key={index} className="flex items-start gap-3">
-                                          <span className="text-green-400 mt-1">✓</span>
-                                          <span className="text-gray-300">{tip}</span>
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  </div>
-                                </>
-                              )}
-                            </TabsContent>
-                          </Tabs>
-                        </CardContent>
-                      </Card>
-                    )}
-                  </div>
+                              </>
+                            )}
+                          </TabsContent>
+                        </Tabs>
+                      </ModernCardContent>
+                    </ModernCard>
+                  )}
                 </div>
               </div>
-            )}
-          </div>
-        </div>
+            </div>
+          )}
+        </main>
       </div>
     </AuthGuard>
   );

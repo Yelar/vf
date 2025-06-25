@@ -1,7 +1,6 @@
 import {Composition, registerRoot} from 'remotion';
 import {SampleVideo} from './SampleVideo';
 import {QuizVideo} from './QuizVideo';
-import {InstagramPost} from './InstagramPost';
 
 // Placeholder DialogueVideo component
 const DialogueVideo: React.FC<{
@@ -114,36 +113,8 @@ export const RemotionRoot: React.FC = () => {
           backgroundVideo: null,
         }}
       />
-      <Composition
-        id="InstagramPost"
-        component={InstagramPost as unknown as React.ComponentType<Record<string, unknown>>}
-        durationInFrames={1}
-        fps={30}
-        width={1080}
-        height={1080}
-        defaultProps={{
-          variant: {
-            id: 'sample',
-            type: 'text',
-            title: 'Sample Title',
-            content: 'Sample content for Instagram post',
-            style: {
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              textColor: '#ffffff',
-              accentColor: '#ff6b6b',
-              font: 'Inter, sans-serif',
-              theme: 'gradient'
-            },
-            metadata: {
-              hashtags: ['sample'],
-              caption: 'Sample caption',
-              engagement_tips: ['Sample tip']
-            }
-          },
-          currentSlide: 0
-        }}
-      />
-    </>
+      
+  </>
   );
 }; 
 
