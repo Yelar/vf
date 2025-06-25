@@ -35,9 +35,16 @@ export function NavigationHeader() {
   const navigationItems = [
     {
       href: '/video/new',
-      label: 'Create',
+      label: 'Video',
       icon: Plus,
       active: pathname.startsWith('/video'),
+      highlight: false
+    },
+    {
+      href: '/posts/create',
+      label: 'Posts',
+      icon: Plus,
+      active: pathname.startsWith('/posts'),
       highlight: true
     },
     {
