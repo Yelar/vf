@@ -146,49 +146,49 @@ const JSXPreview = ({ jsx, className = "", imageUrl = undefined }: { jsx: string
   const content = extractContentFromJSX(jsx);
 
   return (
-    <div className={`space-y-4 ${className}`}>
+    <div className={`space-y-2 ${className}`}>
       {/* Isolated Preview */}
       <div className="relative bg-gray-900 rounded-xl overflow-hidden border border-gray-700">
-        <div className="bg-gray-800 px-4 py-2 flex items-center justify-between border-b border-gray-700">
-          <div className="flex items-center gap-2">
+        <div className="bg-gray-800 px-3 py-1.5 flex items-center justify-between border-b border-gray-700">
+          <div className="flex items-center gap-1.5">
             <div className="flex gap-1">
-              <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-              <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+              <div className="w-2.5 h-2.5 bg-red-500 rounded-full"></div>
+              <div className="w-2.5 h-2.5 bg-yellow-500 rounded-full"></div>
+              <div className="w-2.5 h-2.5 bg-green-500 rounded-full"></div>
             </div>
-            <span className="text-gray-400 text-sm ml-2">Instagram Post Preview</span>
+            <span className="text-gray-400 text-xs ml-2">Instagram Post Preview</span>
           </div>
           <Button
             variant="ghost"
             size="sm"
             onClick={copyToClipboard}
-            className="text-gray-400 hover:text-white"
+            className="text-gray-400 hover:text-white h-6 px-2"
           >
-            {copied ? '✓ Copied' : <Copy className="w-4 h-4" />}
+            {copied ? '✓ Copied' : <Copy className="w-3 h-3" />}
           </Button>
         </div>
         
-        {/* Isolated Preview Container */}
-        <div className="bg-gray-100 p-8 flex items-center justify-center">
+        {/* Preview Container with Comfortable Size */}
+        <div className="bg-gray-100 p-4">
           <div className="relative flex items-center justify-center">
-            {/* Instagram Post Container with CSS isolation */}
+            {/* Instagram Post Container */}
             <div 
-              className="border-4 border-white rounded-2xl shadow-2xl overflow-hidden bg-white"
-              style={{ width: '1080px', height: '1080px' }}
+              className="border-2 border-white rounded-xl shadow-xl overflow-hidden bg-white"
+              style={{ width: '400px', height: '400px' }}
             >
               <div 
                 ref={containerRef}
                 className="w-full h-full relative"
                 style={{
-                  width: '1080px',
-                  height: '1080px',
+                  width: '400px',
+                  height: '400px',
                   overflow: 'hidden',
                   isolation: 'isolate',
                   contain: 'layout style'
                 }}
               >
                 {/* Actual Instagram Post Content */}
-                <div className={`w-full h-full ${content.backgroundClass} flex flex-col items-center justify-center p-16 relative overflow-hidden`}>
+                <div className={`w-full h-full ${content.backgroundClass} flex flex-col items-center justify-center p-8 relative overflow-hidden`}>
                   {/* Background image if available */}
                   {imageUrl && (
                     <div 
@@ -204,14 +204,13 @@ const JSXPreview = ({ jsx, className = "", imageUrl = undefined }: { jsx: string
                   <div className="absolute inset-0 bg-black/40"></div>
                   
                   {/* Main content */}
-                  <div className="relative z-10 flex flex-col items-center justify-center text-center px-20 py-16">
+                  <div className="relative z-10 flex flex-col items-center justify-center text-center px-8 py-6">
                     {/* Title (only if different from content) */}
                     {content.title && content.title !== content.content && content.title.length < 50 && (
                       <h1 
-                        className={`text-6xl font-${content.fontWeight || 'bold'} mb-8 leading-tight text-white max-w-5xl`}
+                        className={`text-3xl font-${content.fontWeight || 'bold'} mb-4 leading-tight text-white max-w-[320px]`}
                         style={{ 
-                          fontSize: '4rem',
-                          lineHeight: 1.1,
+                          lineHeight: 1.2,
                           fontWeight: content.fontWeight === 'extrabold' ? 800 : content.fontWeight === 'black' ? 900 : 700,
                           textShadow: '2px 2px 4px rgba(0,0,0,0.3)'
                         }}
@@ -222,9 +221,9 @@ const JSXPreview = ({ jsx, className = "", imageUrl = undefined }: { jsx: string
                     
                     {/* Main Content */}
                     <div 
-                      className={`text-3xl font-${content.fontWeight || 'bold'} text-white leading-relaxed max-w-4xl whitespace-pre-line`}
+                      className={`text-lg font-${content.fontWeight || 'bold'} text-white leading-relaxed max-w-[320px] whitespace-pre-line`}
                       style={{ 
-                        fontSize: content.title && content.title !== content.content ? '1.5rem' : '2.5rem', 
+                        fontSize: content.title && content.title !== content.content ? '1rem' : '1.5rem', 
                         lineHeight: 1.4,
                         fontWeight: content.fontWeight === 'extrabold' ? 700 : content.fontWeight === 'black' ? 800 : 600,
                         textShadow: '2px 2px 4px rgba(0,0,0,0.3)'
@@ -234,7 +233,7 @@ const JSXPreview = ({ jsx, className = "", imageUrl = undefined }: { jsx: string
                     </div>
                     
                     {/* Bottom accent */}
-                    <div className="absolute bottom-16 left-1/2 transform -translate-x-1/2 w-24 h-2 bg-white/50 rounded-full"></div>
+                    <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 w-12 h-1 bg-white/50 rounded-full"></div>
                   </div>
                 </div>
               </div>
@@ -246,22 +245,22 @@ const JSXPreview = ({ jsx, className = "", imageUrl = undefined }: { jsx: string
       {/* JSX Code Display */}
       <div className="relative">
         <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden">
-          <div className="bg-gray-800 px-4 py-2 flex items-center justify-between border-b border-gray-700">
-            <div className="flex items-center gap-2">
-              <Code className="w-4 h-4 text-purple-400" />
-              <span className="text-gray-300 text-sm">Generated JSX Component</span>
+          <div className="bg-gray-800 px-3 py-1.5 flex items-center justify-between border-b border-gray-700">
+            <div className="flex items-center gap-1.5">
+              <Code className="w-3.5 h-3.5 text-purple-400" />
+              <span className="text-gray-300 text-xs">Generated JSX Component</span>
             </div>
             <Button
               variant="ghost"
               size="sm"
               onClick={copyToClipboard}
-              className="text-gray-400 hover:text-white hover:bg-gray-700"
+              className="text-gray-400 hover:text-white h-6 px-2"
             >
               {copied ? '✓ Copied!' : 'Copy Code'}
             </Button>
           </div>
-          <div className="p-4 max-h-80 overflow-y-auto">
-            <pre className="text-sm text-gray-300 whitespace-pre-wrap font-mono leading-relaxed">
+          <div className="p-3 max-h-48 overflow-y-auto">
+            <pre className="text-xs text-gray-300 whitespace-pre-wrap font-mono leading-relaxed">
               <code>{jsx}</code>
             </pre>
           </div>
@@ -270,8 +269,6 @@ const JSXPreview = ({ jsx, className = "", imageUrl = undefined }: { jsx: string
     </div>
   );
 };
-
-
 
 // Carousel Preview
 const CarouselPreview = ({ slides, currentSlide = 0, className = "", imageUrl = undefined }: { 
@@ -529,10 +526,10 @@ export default function CreatePost() {
 
           {/* Results Section */}
           {result && (
-            <div className="space-y-8">
+            <div className="space-y-6">
               {/* AI Reasoning */}
               <ModernCard gradient="blue" glow className="relative overflow-hidden">
-                <ModernCardContent className="p-8">
+                <ModernCardContent className="p-6">
                   <div className="flex items-center gap-3 mb-4">
                     <div className="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center">
                       🧠
@@ -543,20 +540,20 @@ export default function CreatePost() {
                 </ModernCardContent>
               </ModernCard>
 
-              <div className="grid xl:grid-cols-4 gap-8">
+              <div className="grid lg:grid-cols-12 gap-6">
                 {/* Variants Sidebar */}
-                <div className="xl:col-span-1">
-                  <ModernCard gradient="none" className="bg-gray-900/50 backdrop-blur">
-                    <ModernCardContent className="p-6">
+                <div className="lg:col-span-3">
+                  <ModernCard gradient="none" className="bg-gray-900/50 backdrop-blur sticky top-20">
+                    <ModernCardContent className="p-4">
                       <div className="flex items-center gap-2 mb-4">
                         <Palette className="w-5 h-5 text-purple-400" />
                         <h3 className="text-lg font-bold text-white">Variants ({result.variants.length})</h3>
                       </div>
-                      <div className="space-y-3">
+                      <div className="space-y-2">
                         {result.variants.map((variant) => (
                           <div
                             key={variant.id}
-                            className={`p-4 rounded-lg cursor-pointer transition-all border ${
+                            className={`p-3 rounded-lg cursor-pointer transition-all border ${
                               selectedVariant === variant.id
                                 ? 'border-purple-500 bg-purple-500/10'
                                 : 'border-gray-700 bg-gray-800/30 hover:border-gray-600 hover:bg-gray-800/50'
@@ -588,12 +585,12 @@ export default function CreatePost() {
                 </div>
 
                 {/* Main Preview Area */}
-                <div className="xl:col-span-3">
+                <div className="lg:col-span-9">
                   {selectedVariantData && (
                     <ModernCard gradient="none" className="bg-gray-900/50 backdrop-blur">
-                      <ModernCardContent className="p-6">
-                        <Tabs value="preview" className="w-full">
-                          <TabsList className="grid grid-cols-2 w-full mb-6 bg-gray-800 border-gray-700">
+                      <ModernCardContent className="p-4">
+                        <Tabs defaultValue="preview" className="w-full">
+                          <TabsList className="grid grid-cols-2 w-full mb-4 bg-gray-800 border-gray-700">
                             <TabsTrigger value="preview" className="data-[state=active]:bg-purple-600 data-[state=active]:text-white">
                               Preview & Code
                             </TabsTrigger>
@@ -602,10 +599,10 @@ export default function CreatePost() {
                             </TabsTrigger>
                           </TabsList>
 
-                          <TabsContent value="preview" className="space-y-6">
+                          <TabsContent value="preview" className="space-y-4 focus-visible:outline-none">
                             {/* Carousel Controls */}
                             {selectedVariantData.type === 'carousel' && selectedVariantData.slides && (
-                              <div className="flex items-center justify-between bg-gray-800/50 rounded-lg p-4 border border-gray-700">
+                              <div className="flex items-center justify-between bg-gray-800/50 rounded-lg p-3 border border-gray-700">
                                 <Button
                                   variant="outline"
                                   size="sm"
@@ -631,28 +628,26 @@ export default function CreatePost() {
                             )}
 
                             {/* Preview Component */}
-                            {selectedVariantData.type === 'carousel' && selectedVariantData.slides ? (
-                              <CarouselPreview 
-                                slides={selectedVariantData.slides} 
-                                currentSlide={currentSlide}
-                                imageUrl={selectedVariantData.imageUrl}
-                              />
-                            ) : (
-                              <JSXPreview 
-                                jsx={selectedVariantData.jsx} 
-                                imageUrl={selectedVariantData.imageUrl}
-                              />
-                            )}
-
-                            <div className="text-center text-sm text-gray-400 bg-purple-500/5 border border-purple-500/20 rounded-lg p-4">
-                              💻 <strong className="text-purple-400">Implementation:</strong> Copy the JSX code above and use it in your React project with Tailwind CSS for the complete design.
+                            <div className="flex justify-center">
+                              {selectedVariantData.type === 'carousel' && selectedVariantData.slides ? (
+                                <CarouselPreview 
+                                  slides={selectedVariantData.slides} 
+                                  currentSlide={currentSlide}
+                                  imageUrl={selectedVariantData.imageUrl}
+                                />
+                              ) : (
+                                <JSXPreview 
+                                  jsx={selectedVariantData.jsx} 
+                                  imageUrl={selectedVariantData.imageUrl}
+                                />
+                              )}
                             </div>
                           </TabsContent>
 
-                          <TabsContent value="details" className="space-y-6">
+                          <TabsContent value="details" className="space-y-4 focus-visible:outline-none">
                             {/* Caption */}
                             <div>
-                              <h3 className="font-semibold text-white mb-3 flex items-center gap-2">
+                              <h3 className="font-semibold text-white mb-2 flex items-center gap-2">
                                 📝 Caption
                               </h3>
                               <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-4">
@@ -664,7 +659,7 @@ export default function CreatePost() {
 
                             {/* Hashtags */}
                             <div>
-                              <h3 className="font-semibold text-white mb-3 flex items-center gap-2">
+                              <h3 className="font-semibold text-white mb-2 flex items-center gap-2">
                                 🏷️ Hashtags
                               </h3>
                               <div className="flex flex-wrap gap-2">
@@ -681,12 +676,12 @@ export default function CreatePost() {
                               <>
                                 <Separator className="bg-gray-700" />
                                 <div>
-                                  <h3 className="font-semibold text-white mb-3 flex items-center gap-2">
+                                  <h3 className="font-semibold text-white mb-2 flex items-center gap-2">
                                     💡 Engagement Tips
                                   </h3>
-                                  <ul className="space-y-3">
+                                  <ul className="space-y-2">
                                     {selectedVariantData.metadata.engagement_tips.map((tip, index) => (
-                                      <li key={index} className="flex items-start gap-3">
+                                      <li key={index} className="flex items-start gap-2">
                                         <span className="text-green-400 mt-1">✓</span>
                                         <span className="text-gray-300">{tip}</span>
                                       </li>
