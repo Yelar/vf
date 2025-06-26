@@ -15,7 +15,7 @@ Add to your `.env.local`:
 ```bash
 MONGODB_URI=mongodb+srv://<username>:<password>@<cluster>.mongodb.net/vf?retryWrites=true&w=majority
 ```
-
+  
 ### 3. Run Migration (if you have existing data)
 ```bash
 npm run migrate
