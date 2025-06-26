@@ -133,12 +133,12 @@ function DashboardContent() {
             <span className="bg-gradient-to-r from-purple-400 via-purple-300 to-blue-400 bg-clip-text text-transparent">
               {session?.user?.name?.split(' ')[0] || 'Creator'}!
             </span>
-                  </h1>
+          </h1>
           
           <p className="text-xl md:text-2xl text-gray-400 max-w-4xl mx-auto leading-relaxed">
-            Ready to create your next viral video? Let&apos;s turn your ideas into engaging content with AI.
-                      </p>
-                    </div>
+            Ready to create amazing content? Let&apos;s turn your ideas into engaging posts and videos with AI.
+          </p>
+        </div>
 
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

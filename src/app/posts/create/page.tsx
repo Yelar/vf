@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, forwardRef, useImperativeHandle } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -14,6 +14,7 @@ import Link from 'next/link';
 import { ModernCard, ModernCardContent } from '@/components/ui/modern-card';
 import { SpeechToText } from '@/components/SpeechToText';
 import html2canvas from 'html2canvas-pro';
+import JSZip from 'jszip';
 
 interface PostVariant {
   id: string;
@@ -36,11 +37,47 @@ interface GenerationResult {
   variants: PostVariant[];
 }
 
-// Safe JSX Preview Component with Shadow DOM isolation
-const JSXPreview = ({ jsx, className = "", imageUrl = undefined }: { jsx: string; className?: string; imageUrl?: string }) => {
+interface JSXPreviewRef {
+  takeScreenshotAndGetBlob: () => Promise<Blob | null>;
+}
+
+const JSXPreview = forwardRef<JSXPreviewRef, {
+  jsx: string;
+  className?: string;
+  imageUrl?: string;
+}>(({ jsx, className = "", imageUrl = undefined }, ref) => {
   const [copied, setCopied] = useState(false);
   const [isScreenshotting, setIsScreenshotting] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  useImperativeHandle(ref, () => ({
+    takeScreenshotAndGetBlob: async () => {
+      if (!containerRef.current) return null;
+      
+      try {
+        const canvas = await html2canvas(containerRef.current, {
+          backgroundColor: null,
+          scale: 2,
+          logging: false,
+          useCORS: true,
+          allowTaint: true,
+          width: 400,
+          height: 400,
+          windowWidth: 400,
+          windowHeight: 400
+        });
+
+        return new Promise((resolve) => {
+          canvas.toBlob((blob) => {
+            resolve(blob);
+          }, 'image/png');
+        });
+      } catch (error) {
+        console.error('Failed to take screenshot:', error);
+        return null;
+      }
+    }
+  }));
 
   const copyToClipboard = async () => {
     try {
@@ -329,7 +366,10 @@ const JSXPreview = ({ jsx, className = "", imageUrl = undefined }: { jsx: string
       </div>
     </div>
   );
-};
+});
+
+// Add display name
+JSXPreview.displayName = 'JSXPreview';
 
 // Carousel Preview
 const CarouselPreview = ({ slides, currentSlide = 0, className = "", imageUrl = undefined }: { 
@@ -338,10 +378,87 @@ const CarouselPreview = ({ slides, currentSlide = 0, className = "", imageUrl = 
   className?: string;
   imageUrl?: string;
 }) => {
+  const [isDownloadingAll, setIsDownloadingAll] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState(0);
+  const previewRef = useRef<JSXPreviewRef>(null);
+
+  const downloadAllSlides = async () => {
+    if (!slides || slides.length === 0) return;
+    
+    setIsDownloadingAll(true);
+    setDownloadProgress(0);
+
+    try {
+      // Create a zip file
+      const zip = new JSZip();
+      
+      // Download each slide sequentially
+      for (let i = 0; i < slides.length; i++) {
+        if (previewRef.current) {
+          const blob = await previewRef.current.takeScreenshotAndGetBlob();
+          if (blob) {
+            zip.file(`slide-${i + 1}.png`, blob);
+          }
+        }
+        setDownloadProgress(((i + 1) / slides.length) * 100);
+      }
+
+      // Generate and download zip file
+      const content = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(content);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `instagram-carousel-${Date.now()}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+    } catch (error) {
+      console.error('Failed to download all slides:', error);
+      alert('Failed to download all slides. Please try again.');
+    } finally {
+      setIsDownloadingAll(false);
+      setDownloadProgress(0);
+    }
+  };
+
   if (!slides || slides.length === 0) return null;
   
   const jsx = slides[currentSlide] || slides[0];
-  return <JSXPreview jsx={jsx} className={className} imageUrl={imageUrl} />;
+  return (
+    <div className="space-y-4">
+      {slides.length > 1 && (
+        <div className="flex justify-end">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={downloadAllSlides}
+            disabled={isDownloadingAll}
+            className="text-gray-400 hover:text-white border-gray-700 hover:border-purple-500"
+          >
+            {isDownloadingAll ? (
+              <>
+                <div className="w-3 h-3 border border-gray-400 border-t-white rounded-full animate-spin mr-2" />
+                Downloading {Math.round(downloadProgress)}%
+              </>
+            ) : (
+              <>
+                <Camera className="w-3 h-3 mr-1" />
+                Download All Slides
+              </>
+            )}
+          </Button>
+        </div>
+      )}
+      <JSXPreview 
+        ref={previewRef}
+        jsx={jsx} 
+        className={className} 
+        imageUrl={imageUrl} 
+      />
+    </div>
+  );
 };
 
 const EXAMPLE_PROMPTS = [

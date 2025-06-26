@@ -11,7 +11,6 @@ import {
   LogOut,
   Plus,
   Settings,
-  Bell,
   Key
 } from "lucide-react";
 import Link from 'next/link';
@@ -35,7 +34,7 @@ export function NavigationHeader() {
   const navigationItems = [
     {
       href: '/video/new',
-      label: 'Video',
+      label: 'Create',
       icon: Plus,
       active: pathname.startsWith('/video'),
       highlight: false
@@ -76,7 +75,7 @@ export function NavigationHeader() {
             <span className="text-xl font-bold bg-gradient-to-r from-purple-400 via-purple-300 to-blue-400 bg-clip-text text-transparent">
               VFS Studio
             </span>
-            <span className="text-xs text-gray-400 -mt-1">AI Video Creator</span>
+            <span className="text-xs text-gray-400 -mt-1">AI Content Creator</span>
           </div>
         </Link>
 
@@ -113,12 +112,6 @@ export function NavigationHeader() {
 
         {/* User Menu */}
         <div className="flex items-center space-x-3">
-          {/* Notifications */}
-          <Button variant="ghost" size="sm" className="relative text-gray-400 hover:text-white">
-            <Bell className="w-4 h-4" />
-            <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></div>
-          </Button>
-
           {/* User Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

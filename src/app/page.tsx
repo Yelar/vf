@@ -34,9 +34,12 @@ export default function Home() {
                 <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg flex items-center justify-center">
                   <VideoIcon className="w-6 h-6 text-white" />
                 </div>
-                <span className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
-                  VFS
-                </span>
+                <div className="flex flex-col">
+                  <span className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
+                    VFS Studio
+                  </span>
+                  <span className="text-sm text-gray-400 -mt-1">AI Content Creator</span>
+                </div>
               </div>
               <Button asChild variant="outline" className="border-purple-500/30 hover:bg-purple-500/10">
                 <Link href="/auth/signin">

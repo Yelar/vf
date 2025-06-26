@@ -442,25 +442,25 @@ export default function SharedLibraryPage() {
       <main className="container mx-auto px-4 py-8 space-y-8">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div>
+          <div>
             <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
-              Shared Videos
-                    </h1>
+              Shared Content
+            </h1>
             <p className="text-gray-400 mt-1">
-              {loading ? 'Loading...' : `${filteredAndSortedVideos.length} video${filteredAndSortedVideos.length !== 1 ? 's' : ''} from the community`}
-                    </p>
-                  </div>
+              {loading ? 'Loading...' : `${filteredAndSortedVideos.length} item${filteredAndSortedVideos.length !== 1 ? 's' : ''} from the community`}
+            </p>
+          </div>
           
           <div className="flex items-center space-x-3">
             <Link href="/video/new">
               <Button className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700">
                 <Video className="w-4 h-4 mr-2" />
-                Create Video
+                Create Content
               </Button>
             </Link>
-                </div>
-              </div>
-              
+          </div>
+        </div>
+        
         {/* Filters and Controls */}
         <ModernCard gradient="purple">
           <ModernCardContent className="p-6">
@@ -469,7 +469,7 @@ export default function SharedLibraryPage() {
               <div className="flex-1 relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                   <Input
-                    placeholder="Search videos or creators..."
+                    placeholder="Search content or creators..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10 bg-white/5 border-white/10 text-white placeholder-gray-400"
@@ -550,19 +550,19 @@ export default function SharedLibraryPage() {
             <ModernCardContent>
               <Globe className="w-16 h-16 text-gray-500 mx-auto mb-4" />
               <h3 className="text-xl font-semibold text-white mb-2">
-                {searchTerm || creatorFilter !== 'all' ? 'No videos found' : 'No shared videos yet'}
+                {searchTerm || creatorFilter !== 'all' ? 'No content found' : 'No shared content yet'}
               </h3>
               <p className="text-gray-400 mb-6">
                 {searchTerm || creatorFilter !== 'all'
                   ? 'Try adjusting your search or filters' 
-                  : 'Be the first to share your amazing AI-generated video!'
+                  : 'Be the first to share your amazing AI-generated content!'
                 }
               </p>
               {!searchTerm && creatorFilter === 'all' && (
                 <Link href="/video/new">
                   <Button className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700">
                     <Video className="w-4 h-4 mr-2" />
-                    Create & Share Video
+                    Create & Share Content
                   </Button>
                 </Link>
               )}

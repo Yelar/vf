@@ -311,24 +311,24 @@ function LibraryContent() {
       <main className="container mx-auto px-4 py-8 space-y-8">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div>
+          <div>
             <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
-              My Video Library
-                    </h1>
+              My Content Library
+            </h1>
             <p className="text-gray-400 mt-1">
-              {loading ? 'Loading...' : `${filteredAndSortedVideos.length} video${filteredAndSortedVideos.length !== 1 ? 's' : ''} found`}
-                    </p>
-              </div>
-              
+              {loading ? 'Loading...' : `${filteredAndSortedVideos.length} item${filteredAndSortedVideos.length !== 1 ? 's' : ''} found`}
+            </p>
+          </div>
+          
           <div className="flex items-center space-x-3">
             <Link href="/video/new">
               <Button className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700">
                 <Video className="w-4 h-4 mr-2" />
-                Create Video
-                  </Button>
-                </Link>
-              </div>
-            </div>
+                Create Content
+              </Button>
+            </Link>
+          </div>
+        </div>
 
         {/* Filters and Controls */}
         <ModernCard gradient="purple">
