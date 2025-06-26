@@ -9,10 +9,11 @@ import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { NavigationHeader } from '@/components/ui/navigation-header';
-import { Copy, Code, Sparkles, ChevronLeft, Library, Globe, Palette } from 'lucide-react';
+import { Copy, Code, Sparkles, ChevronLeft, Library, Globe, Palette, Camera } from 'lucide-react';
 import Link from 'next/link';
 import { ModernCard, ModernCardContent } from '@/components/ui/modern-card';
 import { SpeechToText } from '@/components/SpeechToText';
+import html2canvas from 'html2canvas-pro';
 
 interface PostVariant {
   id: string;
@@ -38,6 +39,7 @@ interface GenerationResult {
 // Safe JSX Preview Component with Shadow DOM isolation
 const JSXPreview = ({ jsx, className = "", imageUrl = undefined }: { jsx: string; className?: string; imageUrl?: string }) => {
   const [copied, setCopied] = useState(false);
+  const [isScreenshotting, setIsScreenshotting] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const copyToClipboard = async () => {
@@ -47,6 +49,48 @@ const JSXPreview = ({ jsx, className = "", imageUrl = undefined }: { jsx: string
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error('Failed to copy:', err);
+    }
+  };
+
+  const takeScreenshot = async () => {
+    if (!containerRef.current) return;
+    
+    setIsScreenshotting(true);
+    try {
+      console.log('📸 Taking screenshot of JSX preview...');
+      
+      const canvas = await html2canvas(containerRef.current, {
+        backgroundColor: null,
+        scale: 2, // Higher quality
+        logging: false,
+        useCORS: true,
+        allowTaint: true,
+        width: 400,
+        height: 400,
+        windowWidth: 400,
+        windowHeight: 400
+      });
+
+      // Convert to blob and download
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `instagram-post-${Date.now()}.png`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          console.log('✅ Screenshot saved successfully');
+        }
+      }, 'image/png');
+      
+    } catch (error) {
+      console.error('❌ Failed to take screenshot:', error);
+      alert('Failed to take screenshot. Please try again.');
+    } finally {
+      setIsScreenshotting(false);
     }
   };
 
@@ -159,14 +203,30 @@ const JSXPreview = ({ jsx, className = "", imageUrl = undefined }: { jsx: string
             </div>
             <span className="text-gray-400 text-xs ml-2">Instagram Post Preview</span>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={copyToClipboard}
-            className="text-gray-400 hover:text-white h-6 px-2"
-          >
-            {copied ? '✓ Copied' : <Copy className="w-3 h-3" />}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={takeScreenshot}
+              disabled={isScreenshotting}
+              className="text-gray-400 hover:text-white h-6 px-2"
+              title="Download as PNG"
+            >
+              {isScreenshotting ? (
+                <div className="w-3 h-3 border border-gray-400 border-t-white rounded-full animate-spin" />
+              ) : (
+                <Camera className="w-3 h-3" />
+              )}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={copyToClipboard}
+              className="text-gray-400 hover:text-white h-6 px-2"
+            >
+              {copied ? '✓ Copied' : <Copy className="w-3 h-3" />}
+            </Button>
+          </div>
         </div>
         
         {/* Preview Container with Comfortable Size */}
