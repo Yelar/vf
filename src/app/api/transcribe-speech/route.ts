@@ -30,80 +30,66 @@ export async function POST(request: NextRequest) {
 
     console.log(`🎵 Processing audio file: ${audioFile.name} (${(audioFile.size / 1024 / 1024).toFixed(2)} MB)`);
 
-    try {
-      // Initialize Groq client
-      const groq = new Groq({
-        apiKey: process.env.GROQ_API_KEY
-      });
+    // Initialize Groq client
+    const groq = new Groq({
+      apiKey: process.env.GROQ_API_KEY
+    });
 
-      // Transcribe using Groq Whisper - pass the file directly
-      const transcription = await groq.audio.transcriptions.create({
-        file: audioFile,
-        model: 'whisper-large-v3',
-        prompt: '', // Optional: provide context or vocabulary
-        response_format: 'json',
-        language: 'en', // Optional: specify language (auto-detect if not provided)
-        temperature: 0.0 // Lower temperature for more deterministic results
-      });
+    // Transcribe using Groq Whisper - pass the file directly
+    const transcription = await groq.audio.transcriptions.create({
+      file: audioFile,
+      model: 'whisper-large-v3-turbo',
+      response_format: 'json',
+      language: 'en',
+      temperature: 0.0
+    });
 
-      const transcribedText = transcription.text;
-
-      if (!transcribedText) {
-        throw new Error('No transcription result');
-      }
-
-      console.log(`✅ Transcription successful: "${transcribedText.slice(0, 100)}${transcribedText.length > 100 ? '...' : ''}"`);
-
-      return NextResponse.json({
-        success: true,
-        text: transcribedText,
-        metadata: {
-          duration: 'detected',
-          language: 'auto-detected',
-          model: 'whisper-large-v3'
-        }
-      });
-
-    } catch (transcriptionError) {
-      console.error('❌ Transcription error:', transcriptionError);
-      
-      // Handle specific transcription errors
-      if (transcriptionError instanceof Error) {
-        if (transcriptionError.message.includes('rate limit') || transcriptionError.message.includes('429')) {
-          return NextResponse.json({ 
-            error: 'Too many requests. Please wait a moment and try again.',
-            errorType: 'rate_limit'
-          }, { status: 429 });
-        }
-        
-        if (transcriptionError.message.includes('audio') || transcriptionError.message.includes('format')) {
-          return NextResponse.json({ 
-            error: 'Invalid audio format. Please use WAV, MP3, M4A, or FLAC format.',
-            errorType: 'invalid_audio'
-          }, { status: 400 });
-        }
-
-        if (transcriptionError.message.includes('API key') || transcriptionError.message.includes('401')) {
-          return NextResponse.json({ 
-            error: 'Invalid API credentials',
-            errorType: 'auth_error'
-          }, { status: 401 });
-        }
-      }
-      
-      throw transcriptionError;
+    if (!transcription.text) {
+      throw new Error('No transcription result');
     }
+
+    console.log(`✅ Transcription successful: "${transcription.text.slice(0, 100)}${transcription.text.length > 100 ? '...' : ''}"`);
+
+    return NextResponse.json({
+      success: true,
+      text: transcription.text,
+      metadata: {
+        duration: 'detected',
+        language: 'en',
+        model: 'whisper-large-v3-turbo'
+      }
+    });
 
   } catch (error) {
     console.error('❌ Speech transcription error:', error);
+    
+    // Handle specific errors
+    if (error instanceof Error) {
+      if (error.message.includes('rate limit') || error.message.includes('429')) {
+        return NextResponse.json({ 
+          error: 'Too many requests. Please wait a moment and try again.',
+          errorType: 'rate_limit'
+        }, { status: 429 });
+      }
+      
+      if (error.message.includes('audio') || error.message.includes('format')) {
+        return NextResponse.json({ 
+          error: 'Invalid audio format. Please use WAV, MP3, M4A, or FLAC format.',
+          errorType: 'invalid_audio'
+        }, { status: 400 });
+      }
+
+      if (error.message.includes('API key') || error.message.includes('401')) {
+        return NextResponse.json({ 
+          error: 'Invalid API credentials',
+          errorType: 'auth_error'
+        }, { status: 401 });
+      }
+    }
+
     return NextResponse.json({ 
       error: 'Failed to transcribe audio',
       details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 });
   }
 } 
-
-
-
-
-

@@ -3,10 +3,10 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Mic, Square, Volume2, Loader2, AlertCircle } from 'lucide-react';
+import { Mic, Square, Loader2, AlertCircle } from 'lucide-react';
 
 interface SpeechToTextProps {
-  onTranscriptionComplete: (text: string) => void;
+  onTranscriptionComplete: (text: string, shouldAppend: boolean) => void;
   placeholder?: string;
   disabled?: boolean;
   className?: string;
@@ -21,18 +21,63 @@ export const SpeechToText: React.FC<SpeechToTextProps> = ({
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
-  const [hasRecordedAudio, setHasRecordedAudio] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const durationIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const recordedAudioRef = useRef<string | null>(null);
 
   // Check if browser supports audio recording
   const isSupported = typeof navigator !== 'undefined' && 
                      typeof navigator.mediaDevices !== 'undefined' && 
                      typeof navigator.mediaDevices.getUserMedia !== 'undefined';
+
+  const transcribeAudio = useCallback(async (audioBlob: Blob) => {
+    setIsTranscribing(true);
+    setError(null);
+    
+    try {
+      console.log('🧠 Starting transcription...');
+      
+      // Convert to webm format
+      const formData = new FormData();
+      formData.append('audio', audioBlob, 'recording.webm');
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+
+      const response = await fetch('/api/transcribe-speech', {
+        method: 'POST',
+        body: formData,
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to transcribe audio');
+      }
+
+      const data = await response.json();
+      
+      if (data.success && data.text) {
+        console.log('✅ Transcription successful:', data.text);
+        onTranscriptionComplete(data.text, true); // true means append
+      } else {
+        throw new Error('No transcription text received');
+      }
+    } catch (error) {
+      console.error('❌ Transcription error:', error);
+      if (error instanceof Error && error.name === 'AbortError') {
+        setError('Transcription took too long. Please try a shorter recording.');
+      } else {
+        setError(error instanceof Error ? error.message : 'Failed to transcribe audio');
+      }
+    } finally {
+      setIsTranscribing(false);
+    }
+  }, [onTranscriptionComplete]);
 
   const startRecording = useCallback(async () => {
     if (!isSupported) {
@@ -47,12 +92,15 @@ export const SpeechToText: React.FC<SpeechToTextProps> = ({
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true,
-          sampleRate: 16000, // Optimal for Whisper
+          sampleRate: 16000,
+          channelCount: 1,
         } 
       });
 
       const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4'
+        mimeType: MediaRecorder.isTypeSupported('audio/webm;codecs=opus') 
+          ? 'audio/webm;codecs=opus' 
+          : 'audio/webm'
       });
 
       audioChunksRef.current = [];
@@ -68,27 +116,17 @@ export const SpeechToText: React.FC<SpeechToTextProps> = ({
         stream.getTracks().forEach(track => track.stop());
         setIsRecording(false);
         
+        // Transcribe only after recording is complete
         if (audioChunksRef.current.length > 0) {
-          const audioBlob = new Blob(audioChunksRef.current, { 
-            type: mediaRecorder.mimeType || 'audio/webm' 
-          });
-          
-          // Create audio URL for playback preview
-          if (recordedAudioRef.current) {
-            URL.revokeObjectURL(recordedAudioRef.current);
-          }
-          recordedAudioRef.current = URL.createObjectURL(audioBlob);
-          setHasRecordedAudio(true);
-          
-          // Auto-transcribe
+          const audioBlob = new Blob(audioChunksRef.current, { type: mediaRecorder.mimeType });
           transcribeAudio(audioBlob);
         }
       };
 
-      mediaRecorder.start(1000); // Collect data every second
+      // Start recording - collect all data at once when stopped
+      mediaRecorder.start();
       setIsRecording(true);
       setRecordingDuration(0);
-      setHasRecordedAudio(false);
 
       // Start duration timer
       durationIntervalRef.current = setInterval(() => {
@@ -100,7 +138,7 @@ export const SpeechToText: React.FC<SpeechToTextProps> = ({
       console.error('❌ Failed to start recording:', error);
       setError('Failed to access microphone. Please check permissions.');
     }
-  }, [isSupported]);
+  }, [isSupported, transcribeAudio]);
 
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current && isRecording) {
@@ -114,43 +152,6 @@ export const SpeechToText: React.FC<SpeechToTextProps> = ({
       console.log('🛑 Recording stopped');
     }
   }, [isRecording]);
-
-  const transcribeAudio = useCallback(async (audioBlob: Blob) => {
-    setIsTranscribing(true);
-    setError(null);
-    
-    try {
-      console.log('🧠 Starting transcription with Azure Speech Service...');
-      
-      const formData = new FormData();
-      formData.append('audio', audioBlob, 'recording.webm');
-
-      const response = await fetch('/api/transcribe-speech', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to transcribe audio');
-      }
-
-      const data = await response.json();
-      
-      if (data.success && data.text) {
-        console.log('✅ Transcription successful:', data.text);
-        onTranscriptionComplete(data.text);
-        setHasRecordedAudio(false); // Hide the preview after successful transcription
-      } else {
-        throw new Error('No transcription text received');
-      }
-    } catch (error) {
-      console.error('❌ Transcription error:', error);
-      setError(error instanceof Error ? error.message : 'Failed to transcribe audio');
-    } finally {
-      setIsTranscribing(false);
-    }
-  }, [onTranscriptionComplete]);
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -220,52 +221,6 @@ export const SpeechToText: React.FC<SpeechToTextProps> = ({
         )}
       </div>
 
-      {/* Audio Preview */}
-      {hasRecordedAudio && recordedAudioRef.current && !isTranscribing && (
-        <div className="space-y-2 p-3 bg-white/5 rounded-lg border border-white/10">
-          <div className="flex items-center gap-2 text-sm text-gray-300">
-            <Volume2 className="w-4 h-4" />
-            <span>Recorded Audio Preview:</span>
-          </div>
-          <audio
-            src={recordedAudioRef.current}
-            controls
-            className="w-full"
-            preload="metadata"
-          />
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                if (audioChunksRef.current.length > 0) {
-                  const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-                  transcribeAudio(audioBlob);
-                }
-              }}
-              disabled={isTranscribing}
-              className="text-xs"
-            >
-              Transcribe This
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setHasRecordedAudio(false);
-                if (recordedAudioRef.current) {
-                  URL.revokeObjectURL(recordedAudioRef.current);
-                  recordedAudioRef.current = null;
-                }
-              }}
-              className="text-xs"
-            >
-              Discard
-            </Button>
-          </div>
-        </div>
-      )}
-
       {/* Error Display */}
       {error && (
         <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
@@ -275,7 +230,7 @@ export const SpeechToText: React.FC<SpeechToTextProps> = ({
       )}
 
       {/* Help Text */}
-      {!isRecording && !hasRecordedAudio && !isTranscribing && (
+      {!isRecording && !isTranscribing && (
         <p className="text-xs text-gray-400">
           🎤 {placeholder}. Speak clearly for best results.
         </p>

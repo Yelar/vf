@@ -12,6 +12,7 @@ import { NavigationHeader } from '@/components/ui/navigation-header';
 import { Copy, Code, Sparkles, ChevronLeft, Library, Globe, Palette } from 'lucide-react';
 import Link from 'next/link';
 import { ModernCard, ModernCardContent } from '@/components/ui/modern-card';
+import { SpeechToText } from '@/components/SpeechToText';
 
 interface PostVariant {
   id: string;
@@ -450,24 +451,37 @@ export default function CreatePost() {
               {/* Input Section */}
               <div className="space-y-6">
                 <div className="space-y-3">
-                  <div className="flex gap-4 items-center">
-                    <Input
-                      placeholder="e.g., Create a motivational post about overcoming challenges with bold typography..."
-                      value={prompt}
-                      onChange={(e) => setPrompt(e.target.value)}
-                      className="h-14 text-lg bg-gray-800/50 border-gray-700 text-white placeholder:text-gray-500 focus:border-purple-500 focus:ring-purple-500/20"
-                      disabled={isGenerating}
-                      onKeyPress={(e) => e.key === 'Enter' && !isGenerating && handleGenerate()}
-                    />
-                    <div className="flex items-center gap-2">
-                      <label className="text-sm text-gray-400">AI Images</label>
-                      <input
-                        type="checkbox"
-                        checked={useAiImage}
-                        onChange={(e) => setUseAiImage(e.target.checked)}
-                        className="w-4 h-4 text-purple-600 bg-gray-800 border-gray-600 rounded focus:ring-purple-500"
+                  <div className="flex flex-col gap-4">
+                    <div className="flex gap-4 items-center">
+                      <Input
+                        placeholder="e.g., Create a motivational post about overcoming challenges with bold typography..."
+                        value={prompt}
+                        onChange={(e) => setPrompt(e.target.value)}
+                        className="h-14 text-lg bg-gray-800/50 border-gray-700 text-white placeholder:text-gray-500 focus:border-purple-500 focus:ring-purple-500/20"
+                        disabled={isGenerating}
+                        onKeyPress={(e) => e.key === 'Enter' && !isGenerating && handleGenerate()}
                       />
+                      <div className="flex items-center gap-2">
+                        <label className="text-sm text-gray-400">AI Images</label>
+                        <input
+                          type="checkbox"
+                          checked={useAiImage}
+                          onChange={(e) => setUseAiImage(e.target.checked)}
+                          className="w-4 h-4 text-purple-600 bg-gray-800 border-gray-600 rounded focus:ring-purple-500"
+                        />
+                      </div>
                     </div>
+                    <SpeechToText
+                      onTranscriptionComplete={(text, shouldAppend) => {
+                        if (shouldAppend && prompt) {
+                          setPrompt(prev => `${prev} ${text}`);
+                        } else {
+                          setPrompt(text);
+                        }
+                      }}
+                      disabled={isGenerating}
+                      className="w-full"
+                    />
                   </div>
                   
                   <div className="flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-center">
