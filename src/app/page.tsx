@@ -57,14 +57,14 @@ export default function Home() {
             <div className="space-y-4">
               <Badge className="bg-purple-500/10 text-purple-300 border-purple-500/30 px-4 py-2">
                 <Bot className="w-4 h-4 mr-2" />
-                AI-Powered Video Generation
+                AI-Powered Content Generation
               </Badge>
               
               <h1 className="text-6xl md:text-8xl font-black bg-gradient-to-r from-white via-purple-200 to-blue-200 bg-clip-text text-transparent leading-tight">
                 Create Viral
                 <br />
                 <span className="bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
-                  AI Videos
+                  AI Content
                 </span>
               </h1>
               
