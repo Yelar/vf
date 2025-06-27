@@ -563,7 +563,7 @@ async function processQuizVideoAsync({
       await sendVideoCompletionEmail({
         to: userEmail,
         name: userName,
-        videoTitle: `${videoTitle} (Failed)`,
+        videoTitle: `${videoTitle} (Failed) ${error}`,
         videoDuration: 0,
         libraryUrl: `${process.env.NEXTAUTH_URL || process.env.VERCEL_URL || 'http://localhost:3000'}/library`,
       });
