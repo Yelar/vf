@@ -208,7 +208,11 @@ function VideoCreationContent() {
   }> | null>(null);
   const [isGeneratingSpeech, setIsGeneratingSpeech] = useState(false);
   const [audioDuration, setAudioDuration] = useState<number | null>(null);
-  const [selectedVoice, setSelectedVoice] = useState('EXAVITQu4vr4xnSDxMaL');
+  const [selectedVoiceProvider, setSelectedVoiceProvider] = useState<'azure' | 'elevenlabs'>('azure');
+  const [selectedVoice, setSelectedVoice] = useState('alloy');
+
+  // Add new state for TTS instructions
+  const [ttsInstructions, setTtsInstructions] = useState<string>('');
 
   
   // Render method selection
@@ -243,7 +247,6 @@ function VideoCreationContent() {
     imageUrl: string;
     description?: string;
   }> | null>(null);
-  const [isGeneratingImages, setIsGeneratingImages] = useState(false);
 
   // Save to library states
   const [isSaving, setIsSaving] = useState(false);
@@ -322,14 +325,30 @@ function VideoCreationContent() {
     }))
   ];
 
-  // Available Eleven Labs voices
-  const voiceOptions = [
-    { value: 'EXAVITQu4vr4xnSDxMaL', label: '👩 Bella - Friendly Female' },
-    { value: 'pNInz6obpgDQGcFmaJgB', label: '👨 Adam - Professional Male' },
-    { value: 'ErXwobaYiN019PkySvjV', label: '👨 Antoni - Warm Male' },
-    { value: 'VR6AewLTigWG4xSOukaG', label: '👨 Arnold - Deep Male' },
-    { value: 'MF3mGyEYCl7XYWbV9V6O', label: '👩 Elli - Young Female' },
-    { value: 'TxGEqnHWrfWFTfGW9XjX', label: '👨 Josh - Casual Male' },
+  // Available voice options
+  const voiceProviders = [
+    { value: 'azure', label: '🔊 Azure OpenAI TTS (Active)', disabled: false },
+    { value: 'elevenlabs', label: '🔇 Eleven Labs (Out of tokens)', disabled: true }
+  ] as const;
+
+  // Azure OpenAI TTS voices
+  const azureVoices = [
+    { value: 'alloy', label: '👩 Alloy - Versatile, well-rounded voice' },
+    { value: 'echo', label: '👨 Echo - Clear, well-modulated voice' },
+    { value: 'fable', label: '👩 Fable - Expressive, dynamic voice' },
+    { value: 'onyx', label: '👨 Onyx - Authoritative, refined voice' },
+    { value: 'nova', label: '👩 Nova - Energetic, engaging voice' },
+    { value: 'shimmer', label: '👩 Shimmer - Warm, welcoming voice' }
+  ] as const;
+
+  // Eleven Labs voices (currently unavailable)
+  const elevenLabsVoices = [
+    { value: 'EXAVITQu4vr4xnSDxMaL', label: '👩 Bella - Friendly Female', available: false },
+    { value: 'pNInz6obpgDQGcFmaJgB', label: '👨 Adam - Professional Male', available: false },
+    { value: 'ErXwobaYiN019PkySvjV', label: '👨 Antoni - Warm Male', available: false },
+    { value: 'VR6AewLTigWG4xSOukaG', label: '👨 Arnold - Deep Male', available: false },
+    { value: 'MF3mGyEYCl7XYWbV9V6O', label: '👩 Elli - Young Female', available: false },
+    { value: 'TxGEqnHWrfWFTfGW9XjX', label: '👨 Josh - Casual Male', available: false }
   ];
 
   // Available font styles
@@ -504,9 +523,12 @@ function VideoCreationContent() {
     }
   ];
 
-
-
-
+  // Text animation options
+  const textAnimations = [
+    { value: 'none' as const, label: '⏹️ None' },
+    { value: 'typewriter' as const, label: '⌨️ Typewriter' },
+    { value: 'fade-in' as const, label: '🌅 Fade In' }
+  ] as const;
 
   const generateSpeech = async () => {
     if (!speechText.trim()) {
@@ -516,9 +538,13 @@ function VideoCreationContent() {
 
     setIsGeneratingSpeech(true);
     try {
-      console.log('🎤 Generating segmented audio with intelligent LLM-based segmentation...');
+      console.log(`🎤 Generating segmented audio with ${selectedVoiceProvider} TTS...`);
       
-      const response = await fetch('/api/generate-speech', {
+      const endpoint = selectedVoiceProvider === 'azure' 
+        ? '/api/generate-speech/azure-tts'
+        : '/api/generate-speech';
+
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -526,7 +552,8 @@ function VideoCreationContent() {
         body: JSON.stringify({
           text: speechText,
           voiceId: selectedVoice,
-          useSegments: true, // Use intelligent segmentation
+          useSegments: true,
+          instructions: selectedVoiceProvider === 'azure' ? ttsInstructions : undefined,
         }),
       });
 
@@ -539,7 +566,7 @@ function VideoCreationContent() {
         
         // Handle specific error types with better user messages
         if (response.status === 429 && errorData.errorType === 'rate_limit') {
-          alert('⚠️ Eleven Labs Free Tier Limit Reached\n\nThe voice generation service is temporarily unavailable. This can happen due to:\n\n• High usage on the free tier\n• Multiple accounts detected\n• VPN/Proxy usage\n\nSolutions:\n✅ Wait a few hours and try again\n✅ Try with a different network\n✅ Consider upgrading to Eleven Labs paid plan\n\nYou can still create videos without voice - just type your text and generate the video!');
+          alert('⚠️ Voice service rate limit reached. Please try again later.');
           return;
         }
         
@@ -613,9 +640,7 @@ function VideoCreationContent() {
       return;
     }
 
-    setIsGeneratingImages(true);
-    console.log('🎨 Generating prompts and creating AI images for segments...');
-
+    setIsGeneratingSpeech(true);
     try {
       // Step 1: Generate image prompts using LLM
       console.log('🧠 Generating image prompts using AI...');
@@ -665,7 +690,7 @@ function VideoCreationContent() {
       console.error('❌ Failed to generate AI images:', error);
       alert('Failed to generate images. Please try again.');
     } finally {
-      setIsGeneratingImages(false);
+      setIsGeneratingSpeech(false);
     }
   };
 
@@ -1020,7 +1045,6 @@ function VideoCreationContent() {
     audio?: string;
     duration?: number;
   }>) => {
-    setIsGeneratingImages(true);
     try {
       console.log('🖼️ Generating quiz images with OpenAI DALL-E...');
       
@@ -1077,8 +1101,6 @@ function VideoCreationContent() {
     } catch (error) {
       console.error('❌ Quiz image generation error:', error);
       alert(`Failed to generate quiz images: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    } finally {
-      setIsGeneratingImages(false);
     }
   };
 
@@ -1933,7 +1955,7 @@ function VideoCreationContent() {
               <CardHeader>
                 <CardTitle className="flex items-center justify-between text-white">
                   <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 bg-gradient-to-r from-blue-500 to-cyan-500 rounded flex items-center justify-center">
+                    <div className="flex items-center gap-2">
                       {isQuizMode ? (
                         <Brain className="h-3 w-3 text-white" />
                       ) : (
@@ -2233,18 +2255,34 @@ function VideoCreationContent() {
                             {/* Voice Selection */}
                             <div className="space-y-2">
                               <Label className="text-xs">Voice</Label>
-                              <Select value={selectedVoice} onValueChange={setSelectedVoice}>
+                              <Select 
+                                value={selectedVoice} 
+                                onValueChange={setSelectedVoice}
+                                disabled={selectedVoiceProvider === 'elevenlabs'}
+                              >
                                 <SelectTrigger>
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {voiceOptions.map((voice) => (
-                                    <SelectItem key={voice.value} value={voice.value}>
+                                  {(selectedVoiceProvider === 'azure' ? azureVoices : elevenLabsVoices).map((voice) => (
+                                    <SelectItem 
+                                      key={voice.value} 
+                                      value={voice.value}
+                                      disabled={selectedVoiceProvider === 'elevenlabs'}
+                                    >
                                       {voice.label}
+                                      {selectedVoiceProvider === 'elevenlabs' && (
+                                        <span className="ml-2 text-xs text-red-400">(Unavailable)</span>
+                                      )}
                                     </SelectItem>
                                   ))}
                                 </SelectContent>
                               </Select>
+                              {selectedVoiceProvider === 'azure' && (
+                                <p className="text-xs text-muted-foreground">
+                                  🎯 Azure TTS provides high-quality voices with natural intonation and expression
+                                </p>
+                              )}
                             </div>
 
                             {/* Font Style */}
@@ -2323,14 +2361,23 @@ function VideoCreationContent() {
                             {/* Text Animation */}
                             <div className="space-y-2">
                               <Label className="text-xs">Text Animation</Label>
-                              <Select value={textAnimation} onValueChange={(value: 'none' | 'typewriter' | 'fade-in') => setTextAnimation(value)}>
+                              <Select 
+                                value={textAnimation}
+                                onValueChange={(value) => {
+                                  if (value === 'none' || value === 'typewriter' || value === 'fade-in') {
+                                    setTextAnimation(value);
+                                  }
+                                }}
+                              >
                                 <SelectTrigger>
-                                  <SelectValue />
+                                  <SelectValue placeholder="Select animation" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="none">🚫 None</SelectItem>
-                                  <SelectItem value="fade-in">✨ Fade In</SelectItem>
-                                  <SelectItem value="typewriter">⌨️ Typewriter</SelectItem>
+                                  {textAnimations.map((animation) => (
+                                    <SelectItem key={animation.value} value={animation.value}>
+                                      {animation.label}
+                                    </SelectItem>
+                                  ))}
                                 </SelectContent>
                               </Select>
                             </div>
@@ -2394,69 +2441,89 @@ function VideoCreationContent() {
                       />
                     </div>
                     
+                    <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label>Voice Selection</Label>
-                      <Select value={selectedVoice} onValueChange={setSelectedVoice}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Choose a voice" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {voiceOptions.map((voice) => (
-                            <SelectItem key={voice.value} value={voice.value}>
-                              {voice.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Font Style</Label>
-                      <Select value={selectedFont} onValueChange={setSelectedFont}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Choose a font style" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {fontOptions.map((font) => (
-                            <SelectItem key={font.value} value={font.value}>
-                              <span style={{ fontFamily: font.font, fontWeight: font.weight }}>
-                                {font.label}
-                              </span>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <p className="text-xs text-muted-foreground">
-                        ✨ Choose font style for your video text
-                      </p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Text Color</Label>
-                      <Select value={selectedColor} onValueChange={setSelectedColor}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Choose text color" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {colorOptions.map((colorOption) => (
-                            <SelectItem key={colorOption.value} value={colorOption.value}>
+                        <Label>Voice Provider</Label>
+                        <div className="grid grid-cols-2 gap-2">
+                          {voiceProviders.map((provider) => (
+                            <Button
+                              key={provider.value}
+                              onClick={() => setSelectedVoiceProvider(provider.value as 'azure' | 'elevenlabs')}
+                              disabled={provider.disabled}
+                              variant={selectedVoiceProvider === provider.value ? 'default' : 'outline'}
+                              className={`w-full justify-start ${provider.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            >
                               <div className="flex items-center gap-2">
-                                <div 
-                                  className="w-4 h-4 rounded-full border border-white/20" 
-                                  style={{ backgroundColor: colorOption.color }}
-                                />
-                                <span>{colorOption.label}</span>
+                                <div className={`w-2 h-2 rounded-full ${provider.disabled ? 'bg-red-400' : 'bg-green-400'}`} />
+                                {provider.label}
                               </div>
+                            </Button>
+                          ))}
+                        </div>
+                        {selectedVoiceProvider === 'elevenlabs' && (
+                          <p className="text-xs text-amber-400">
+                            ⚠️ Eleven Labs is currently unavailable due to token limits. Please use Azure TTS instead.
+                          </p>
+                        )}
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label>Voice Selection</Label>
+                        <Select 
+                          value={selectedVoice} 
+                          onValueChange={setSelectedVoice}
+                          disabled={selectedVoiceProvider === 'elevenlabs'}
+                        >
+                        <SelectTrigger>
+                            <SelectValue placeholder="Choose a voice" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {(selectedVoiceProvider === 'azure' ? azureVoices : elevenLabsVoices).map((voice) => (
+                              <SelectItem 
+                                key={voice.value} 
+                                value={voice.value}
+                                disabled={selectedVoiceProvider === 'elevenlabs'}
+                              >
+                                {voice.label}
+                                {selectedVoiceProvider === 'elevenlabs' && (
+                                  <span className="ml-2 text-xs text-red-400">(Unavailable)</span>
+                                )}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
+                        {selectedVoiceProvider === 'azure' && (
                       <p className="text-xs text-muted-foreground">
-                        🎨 Choose color for your video text
+                            🎯 Azure TTS provides high-quality voices with natural intonation and expression
                       </p>
+                        )}
                     </div>
 
-                    {/* Text Styling & Effects */}
+                      {selectedVoiceProvider === 'azure' && (
+                        <div className="space-y-2">
+                          <Label htmlFor="tts-instructions">Voice Instructions (Optional)</Label>
+                          <Textarea
+                            id="tts-instructions"
+                            value={ttsInstructions}
+                            onChange={(e) => setTtsInstructions(e.target.value)}
+                            placeholder="Add instructions for text processing (e.g., 'add pause between sentences', 'pronounce numbers as cardinals')"
+                            rows={2}
+                            className="resize-none"
+                          />
+                          <div className="text-xs space-y-1 text-muted-foreground">
+                            <p>💡 Supported features:</p>
+                            <ul className="list-disc list-inside pl-2">
+                              <li>Sentence structure with &lt;s&gt; tags</li>
+                              <li>Number pronunciation (cardinal, ordinal)</li>
+                              <li>Date formatting (MM/DD/YYYY)</li>
+                              <li>Pauses and breaks between sentences</li>
+                            </ul>
+                      </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Text Formatting Controls */}
                     <div className="space-y-4 p-4 bg-white/5 border border-white/10 rounded-lg">
                       <Label className="text-sm font-medium text-white flex items-center gap-2">
                         <div className="w-4 h-4 bg-gradient-to-r from-purple-500 to-pink-500 rounded">
@@ -2464,8 +2531,50 @@ function VideoCreationContent() {
                         </div>
                         Text Styling & Effects
                       </Label>
-                      
+
                       <div className="grid grid-cols-2 gap-4">
+                        {/* Font Style */}
+                        <div className="space-y-2">
+                          <Label className="text-xs">Font Style</Label>
+                          <Select value={selectedFont} onValueChange={setSelectedFont}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {fontOptions.map((font) => (
+                                <SelectItem key={font.value} value={font.value}>
+                                  <span style={{ fontFamily: font.font, fontWeight: font.weight }}>
+                                    {font.label}
+                                  </span>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {/* Text Color */}
+                        <div className="space-y-2">
+                          <Label className="text-xs">Text Color</Label>
+                          <Select value={selectedColor} onValueChange={setSelectedColor}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {colorOptions.map((colorOption) => (
+                                <SelectItem key={colorOption.value} value={colorOption.value}>
+                                  <div className="flex items-center gap-2">
+                                    <div 
+                                      className="w-4 h-4 rounded-full border border-white/20" 
+                                      style={{ backgroundColor: colorOption.color }}
+                                    />
+                                    <span>{colorOption.label}</span>
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
                         {/* Font Size */}
                         <div className="space-y-2">
                           <Label className="text-xs">Font Size</Label>
@@ -2499,16 +2608,17 @@ function VideoCreationContent() {
 
                         {/* Background Blur */}
                         <div className="space-y-2">
-                          <Label className="text-xs">Background Blur</Label>
-                          <Select value={backgroundBlur.toString()} onValueChange={(value) => setBackgroundBlur(value === 'true')}>
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="false">🚫 No Blur</SelectItem>
-                              <SelectItem value="true">✨ Blur Effect</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          <Label className="text-xs">Background Effect</Label>
+                          <div className="flex gap-2">
+                            <Button
+                              variant={backgroundBlur ? 'default' : 'outline'}
+                              size="sm"
+                              onClick={() => setBackgroundBlur(!backgroundBlur)}
+                              className="flex-1"
+                            >
+                              {backgroundBlur ? '🌫️ Blur On' : '🔍 Blur Off'}
+                            </Button>
+                          </div>
                         </div>
 
                         {/* Text Animation */}
@@ -2528,76 +2638,28 @@ function VideoCreationContent() {
                       </div>
                       
                       <p className="text-xs text-muted-foreground">
-                        🎨 Customize text appearance and animations
+                        🎨 Customize video text appearance and animations
                       </p>
                     </div>
 
                     {/* Add Pictures Toggle */}
-                    <div className="space-y-3 p-4 bg-white/5 border border-white/10 rounded-lg">
-                      <Label className="text-sm font-medium text-white flex items-center gap-2">
-                        <div className="w-4 h-4 bg-gradient-to-r from-green-500 to-emerald-500 rounded">
-                          <div className="h-3 w-3 text-white p-0.5">🖼️</div>
-                        </div>
-                        Generate AI Images
+                    <div className="flex items-center space-x-2 p-3 bg-white/5 border border-white/10 rounded-lg">
+                      <input
+                        type="checkbox"
+                        id="add-pictures"
+                        checked={addPictures}
+                        onChange={(e) => setAddPictures(e.target.checked)}
+                        className="rounded border-gray-300 text-primary focus:ring-primary"
+                      />
+                      <Label htmlFor="add-pictures" className="text-sm cursor-pointer flex items-center gap-2">
+                        <Image className="h-4 w-4" />
+                        Generate AI images for segments
                       </Label>
-                      
-                      <div className="flex items-center space-x-2">
-                        <input
-                          type="checkbox"
-                          id="add-pictures-toggle"
-                          checked={addPictures}
-                          onChange={(e) => setAddPictures(e.target.checked)}
-                          className="rounded border-gray-300 text-primary focus:ring-primary"
-                        />
-                        <Label htmlFor="add-pictures-toggle" className="text-sm cursor-pointer">
-                          Generate custom AI images for each text segment
-                        </Label>
-                      </div>
-                      
-                      {addPictures && (
-                        <div className="text-xs text-gray-400 bg-blue-500/10 border border-blue-500/30 rounded p-2">
-                          🎨 AI will analyze each segment and generate unique, custom images tailored to your content
-                        </div>
-                      )}
-
-                      {segmentImages && segmentImages.length > 0 && (
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between text-xs text-gray-400">
-                            <span>AI Images ready: {segmentImages.length}</span>
-                            {isGeneratingImages && <span className="animate-pulse">🎨 Generating AI images...</span>}
-                          </div>
-                          <div className="grid grid-cols-3 gap-2">
-                            {segmentImages.slice(0, 6).map((img, index) => (
-                              <div
-                                key={index}
-                                className="aspect-square bg-gray-700 rounded overflow-hidden"
-                                title={img.description}
-                              >
-                                <img
-                                  src={img.imageUrl}
-                                  alt={img.description || 'Segment image'}
-                                  className="w-full h-full object-cover"
-                                  loading="lazy"
-                                />
-                              </div>
-                            ))}
-                            {segmentImages.length > 6 && (
-                              <div className="aspect-square bg-gray-700 rounded flex items-center justify-center text-xs text-gray-400">
-                                +{segmentImages.length - 6} more
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                      
-                      <p className="text-xs text-muted-foreground">
-                        🎨 AI analyzes your text and creates unique, custom images for each segment
-                      </p>
                     </div>
 
                     <Button 
                       onClick={generateSpeech}
-                      disabled={isGeneratingSpeech || !speechText.trim()}
+                      disabled={isGeneratingSpeech || !speechText.trim() || (selectedVoiceProvider === 'elevenlabs')}
                       className="w-full"
                     >
                       {isGeneratingSpeech ? (
