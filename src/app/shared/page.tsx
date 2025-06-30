@@ -36,20 +36,19 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-interface SharedVideo {
+interface Video {
   id: string;
-  user_id: string;
   title: string;
   description?: string;
-  uploadthing_url: string;
-  uploadthing_key: string;
+  s3_url?: string;
+  s3_key?: string;
   file_size: number;
   duration?: number;
-  thumbnail_url?: string;
-  metadata: string;
-  is_shared: boolean;
   created_at: string;
-  creator_name: string;
+  metadata: object;
+  is_shared: boolean;
+  user_id: string;
+  creator_name?: string;
 }
 
 type ViewMode = 'grid' | 'list';
@@ -67,14 +66,14 @@ const VideoCard = React.memo(({
   copyVideoUrl, 
   downloadVideo 
 }: {
-  video: SharedVideo;
+  video: Video;
   viewMode: ViewMode;
   copyingVideoId: string | null;
   formatDuration: (seconds: number) => string;
   formatDateFull: (dateString: string) => string;
   formatFileSize: (bytes: number) => string;
   copyVideoUrl: (url: string, videoId: string) => void;
-  downloadVideo: (video: SharedVideo) => void;
+  downloadVideo: (video: Video) => void;
 }) => {
   if (viewMode === 'grid') {
     return (
@@ -113,7 +112,7 @@ const VideoCard = React.memo(({
               <div className="flex items-center space-x-3 text-xs text-gray-500">
                 <div className="flex items-center space-x-1">
                   <User className="w-3 h-3" />
-                  <span>{video.creator_name}</span>
+                  <span>{video.creator_name || 'Unknown Creator'}</span>
                 </div>
                 <div className="flex items-center space-x-1">
                   <Calendar className="w-3 h-3" />
@@ -180,7 +179,7 @@ const VideoCard = React.memo(({
       <div className="flex-1 min-w-0">
         <h3 className="font-semibold text-white truncate">{video.title}</h3>
         <div className="flex items-center space-x-4 mt-1 text-xs text-gray-400">
-          <span>{video.creator_name}</span>
+          <span>{video.creator_name || 'Unknown Creator'}</span>
           <span>{formatDateFull(video.created_at)}</span>
           <span>{formatFileSize(video.file_size)}</span>
           {video.duration && <span>{formatDuration(video.duration)}</span>}
@@ -228,7 +227,7 @@ const VideoCard = React.memo(({
 VideoCard.displayName = 'VideoCard';
 
 export default function SharedLibraryPage() {
-  const [videos, setVideos] = useState<SharedVideo[]>([]);
+  const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -274,7 +273,10 @@ export default function SharedLibraryPage() {
 
   // Memoized unique creators for filter - performance optimization
   const uniqueCreators = useMemo(() => {
-    const creators = [...new Set(videos.map(video => video.creator_name))];
+    const creators = [...new Set(videos
+      .map(video => video.creator_name)
+      .filter((name): name is string => !!name)  // Filter out undefined/null values
+    )];
     return creators.sort();
   }, [videos]);
 
@@ -282,7 +284,7 @@ export default function SharedLibraryPage() {
   const filteredAndSortedVideos = useMemo(() => {
     const filtered = videos.filter(video => {
       const matchesSearch = video.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    video.creator_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (video.creator_name?.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (video.description && video.description.toLowerCase().includes(searchTerm.toLowerCase()));
       
       const matchesCreator = creatorFilter === 'all' || video.creator_name === creatorFilter;
@@ -312,8 +314,8 @@ export default function SharedLibraryPage() {
           bValue = b.duration || 0;
           break;
         case 'creator_name':
-          aValue = a.creator_name.toLowerCase();
-          bValue = b.creator_name.toLowerCase();
+          aValue = (a.creator_name || '').toLowerCase();
+          bValue = (b.creator_name || '').toLowerCase();
           break;
         default:
           return 0;
@@ -379,7 +381,7 @@ export default function SharedLibraryPage() {
     }
   }, []);
 
-  const downloadVideo = useCallback(async (video: SharedVideo) => {
+  const downloadVideo = useCallback(async (video: Video) => {
     try {
       const response = await fetch(`/api/videos/download/${video.id}`);
       if (response.ok) {
@@ -395,7 +397,7 @@ export default function SharedLibraryPage() {
       } else {
         // Fallback to direct link
     const link = document.createElement('a');
-    link.href = video.uploadthing_url;
+    link.href = video.s3_url || '';
         link.download = `${video.title}.mp4`;
         link.target = '_blank';
         document.body.appendChild(link);
@@ -406,7 +408,7 @@ export default function SharedLibraryPage() {
       console.error('Error downloading video:', error);
       // Fallback to direct link
       const link = document.createElement('a');
-      link.href = video.uploadthing_url;
+      link.href = video.s3_url || '';
       link.download = `${video.title}.mp4`;
       link.target = '_blank';
       document.body.appendChild(link);

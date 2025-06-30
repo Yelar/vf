@@ -31,25 +31,25 @@ export async function POST(req: NextRequest) {
     const { 
       title, 
       description, 
-      uploadthingUrl, 
-      uploadthingKey, 
+      s3Url, 
+      s3Key, 
       fileSize, 
       duration, 
       thumbnailUrl, 
       metadata 
     } = await req.json();
 
-    if (!title || !uploadthingUrl || !uploadthingKey || !fileSize) {
+    if (!title || !s3Url || !s3Key || !fileSize) {
       return NextResponse.json({ 
-        error: 'Missing required fields: title, uploadthingUrl, uploadthingKey, fileSize' 
+        error: 'Missing required fields: title, s3Url, s3Key, fileSize' 
       }, { status: 400 });
     }
 
     const video = await createVideo(
       session.user.id,
       title,
-      uploadthingUrl,
-      uploadthingKey,
+      s3Url,
+      s3Key,
       fileSize,
       metadata || {},
       description,

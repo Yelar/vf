@@ -9,9 +9,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { S3Upload } from "@/components/ui/s3-upload";
 
-import { UploadButton } from '@uploadthing/react';
-import type { OurFileRouter } from '@/lib/uploadthing';
+// UploadThing imports removed - using S3 instead
 import { 
   Upload, 
   Trash2, 
@@ -23,15 +23,16 @@ import {
   CheckCircle,
   AlertTriangle,
   RefreshCw,
-  Database
+  Database,
+  AlertCircle
 } from "lucide-react";
 
 interface BackgroundVideo {
   _id: string;
   name: string;
   description?: string;
-  uploadthing_url: string;
-  uploadthing_key: string;
+  s3_url: string;
+  s3_key: string;
   file_size: number;
   duration?: number;
   category: string;
@@ -46,8 +47,8 @@ interface BackgroundMusic {
   _id: string;
   name: string;
   description?: string;
-  uploadthing_url: string;
-  uploadthing_key: string;
+  s3_url: string;
+  s3_key: string;
   file_size: number;
   duration?: number;
   category: string;
@@ -58,12 +59,7 @@ interface BackgroundMusic {
   updated_at: string;
 }
 
-type UploadResponse = {
-  url: string;
-  key: string;
-  name: string;
-  size: number;
-}[];
+// type UploadResponse = { url: string; key: string; name: string; size: number; }[];
 
 export default function AdminPage() {
   const { data: session, status } = useSession();
@@ -78,6 +74,7 @@ export default function AdminPage() {
   const [showAddMusicDialog, setShowAddMusicDialog] = useState(false);
   const [editingVideo, setEditingVideo] = useState<BackgroundVideo | null>(null);
   const [editingMusic, setEditingMusic] = useState<BackgroundMusic | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   // Form states for adding/editing
   const [formData, setFormData] = useState({
@@ -126,58 +123,38 @@ export default function AdminPage() {
     }
   };
 
-  const handleBackgroundVideoUploadComplete = (res: UploadResponse) => {
-    if (!res?.[0]?.url) {
-      console.error('No valid upload response received');
-      return;
-    }
+  // TODO: Replace with S3 upload handler
+  // const handleBackgroundVideoUploadComplete = (res: UploadResponse) => { ... }
 
-    console.log('🎬 Background video upload response:', res[0]);
-
-    saveBackgroundVideoToDatabase({
-      url: res[0].url,
-      key: res[0].key,
-      name: formData.name || res[0].name,
-      size: res[0].size
-    });
-  };
-
-  const handleBackgroundMusicUploadComplete = (res: UploadResponse) => {
-    if (!res?.[0]?.url) {
-      console.error('No valid upload response received');
-      return;
-    }
-
-    console.log('🎵 Background music upload response:', res[0]);
-
-    saveBackgroundMusicToDatabase({
-      url: res[0].url,
-      key: res[0].key,
-      name: formData.name || res[0].name,
-      size: res[0].size
-    });
-  };
+  // TODO: Replace with S3 upload handler
+  // const handleBackgroundMusicUploadComplete = (res: UploadResponse) => { ... }
 
   const saveBackgroundVideoToDatabase = async (file: { url: string; key: string; name: string; size: number }) => {
     try {
       setIsUploadingVideo(true);
+      console.log('S3 upload response:', file);
+
+      const requestBody = {
+        name: formData.name || file.name,
+        description: formData.description || `Uploaded background video: ${file.name}`,
+        s3_url: file.url,
+        s3_key: file.key,
+        fileSize: file.size,
+        category: formData.category || 'general',
+        tags: formData.tags ? formData.tags.split(',').map(tag => tag.trim()) : ['uploaded']
+      };
+      console.log('Request body:', requestBody);
+
       const response = await fetch('/api/background-videos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: file.name,
-          description: formData.description || `Uploaded background video: ${file.name}`,
-          uploadthingUrl: file.url,
-          uploadthingKey: file.key,
-          fileSize: file.size,
-          category: formData.category || 'general',
-          tags: formData.tags ? formData.tags.split(',').map(tag => tag.trim()) : ['uploaded']
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
-        const error = await response.text();
-        throw new Error(error || 'Failed to save background video');
+        const errorText = await response.text();
+        console.error('API error response:', errorText);
+        throw new Error(errorText || 'Failed to save background video');
       }
 
       const data = await response.json();
@@ -187,7 +164,8 @@ export default function AdminPage() {
       setShowAddVideoDialog(false);
     } catch (error) {
       console.error('Error saving background video:', error);
-      alert('Failed to save background video. Please try again.');
+      const message = error instanceof Error ? error.message : 'Failed to save background video';
+      setError(message);
     } finally {
       setIsUploadingVideo(false);
     }
@@ -196,23 +174,29 @@ export default function AdminPage() {
   const saveBackgroundMusicToDatabase = async (file: { url: string; key: string; name: string; size: number }) => {
     try {
       setIsUploadingMusic(true);
+      console.log('S3 upload response:', file);
+
+      const requestBody = {
+        name: formData.name || file.name,
+        description: formData.description || `Uploaded background music: ${file.name}`,
+        s3_url: file.url,
+        s3_key: file.key,
+        fileSize: file.size,
+        category: formData.category || 'general',
+        tags: formData.tags ? formData.tags.split(',').map(tag => tag.trim()) : ['uploaded']
+      };
+      console.log('Request body:', requestBody);
+
       const response = await fetch('/api/background-music', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: file.name,
-          description: formData.description || `Uploaded background music: ${file.name}`,
-          uploadthingUrl: file.url,
-          uploadthingKey: file.key,
-          fileSize: file.size,
-          category: formData.category || 'general',
-          tags: formData.tags ? formData.tags.split(',').map(tag => tag.trim()) : ['uploaded']
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
-        const error = await response.text();
-        throw new Error(error || 'Failed to save background music');
+        const errorText = await response.text();
+        console.error('API error response:', errorText);
+        throw new Error(errorText || 'Failed to save background music');
       }
 
       const data = await response.json();
@@ -222,7 +206,8 @@ export default function AdminPage() {
       setShowAddMusicDialog(false);
     } catch (error) {
       console.error('Error saving background music:', error);
-      alert('Failed to save background music. Please try again.');
+      const message = error instanceof Error ? error.message : 'Failed to save background music';
+      setError(message);
     } finally {
       setIsUploadingMusic(false);
     }
@@ -687,25 +672,20 @@ export default function AdminPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                {error && (
+                  <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-red-400 text-sm">
+                    <AlertCircle className="w-4 h-4 inline-block mr-2" />
+                    {error}
+                  </div>
+                )}
                 <div className="space-y-2">
                   <Label className="text-white">Video File</Label>
-                  <div className="border-2 border-dashed border-gray-600 rounded-lg p-4 text-center">
-                    <UploadButton<OurFileRouter, "backgroundVideoUploader">
-                      endpoint="backgroundVideoUploader"
-                      onClientUploadComplete={handleBackgroundVideoUploadComplete}
-                      onUploadError={(error: Error) => {
-                        console.error('❌ Upload error:', error);
-                        alert(`Upload failed: ${error.message}`);
-                      }}
-                      appearance={{
-                        button: "bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-md",
-                        allowedContent: "text-gray-400 text-sm"
-                      }}
-                    />
-                    <p className="text-gray-400 text-sm mt-2">
-                      MP4, WebM, or MOV files (max 64MB)
-                    </p>
-                  </div>
+                  <S3Upload
+                    type="video"
+                    maxSize={64 * 1024 * 1024} // 64MB
+                    onUploadComplete={saveBackgroundVideoToDatabase}
+                    onUploadError={(error) => setError(error)}
+                  />
                 </div>
 
                 <div className="space-y-2">
@@ -822,25 +802,21 @@ export default function AdminPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                {error && (
+                  <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-red-400 text-sm">
+                    <AlertCircle className="w-4 h-4 inline-block mr-2" />
+                    {error}
+                  </div>
+                )}
                 <div className="space-y-2">
                   <Label className="text-white">Music File</Label>
-                  <div className="border-2 border-dashed border-gray-600 rounded-lg p-4 text-center">
-                    <UploadButton<OurFileRouter, "backgroundMusicUploader">
-                      endpoint="backgroundMusicUploader"
-                      onClientUploadComplete={handleBackgroundMusicUploadComplete}
-                      onUploadError={(error: Error) => {
-                        console.error('❌ Upload error:', error);
-                        alert(`Upload failed: ${error.message}`);
-                      }}
-                      appearance={{
-                        button: "bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded-md",
-                        allowedContent: "text-gray-400 text-sm"
-                      }}
-                    />
-                    <p className="text-gray-400 text-sm mt-2">
-                      MP3, WAV, or audio files (max 32MB)
-                    </p>
-                  </div>
+                  <S3Upload
+                    type="music"
+                    accept="audio/mp3,audio/wav,audio/mpeg"
+                    maxSize={32 * 1024 * 1024} // 32MB
+                    onUploadComplete={saveBackgroundMusicToDatabase}
+                    onUploadError={(error) => setError(error)}
+                  />
                 </div>
 
                 <div className="space-y-2">

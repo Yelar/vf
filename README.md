@@ -13,7 +13,7 @@ A Next.js application that generates vertical videos perfect for YouTube Shorts,
 - 📦 **High Quality Output**: 1080x1920 resolution at 60fps
 - 🏗️ **Video Library**: Save and manage your created videos
 - 📊 **User Authentication**: Secure login and personal video collections
-- 💾 **Cloud Storage**: Videos stored securely with UploadThing integration
+- 💾 **Cloud Storage**: Videos stored securely with AWS S3 integration
 - 🔍 **Search & Filter**: Find your videos quickly by title or description
 - 🎤 **Voice Input**: Speak your topic ideas with Azure Speech Service transcription
 - 📧 **Async Processing**: Videos processed in background with email notifications
@@ -34,7 +34,7 @@ A Next.js application that generates vertical videos perfect for YouTube Shorts,
 
 3. **Set up API Keys**
    - Get an API key from [Eleven Labs](https://elevenlabs.io/docs/api-reference/authentication)
-   - Get an UploadThing **V7 Token** from [UploadThing Dashboard](https://uploadthing.com/dashboard) → API Keys → V7 tab
+   - Set up AWS S3 bucket and IAM credentials (see S3_MIGRATION_SETUP.md for details)
    - Get a Resend API key from [Resend](https://resend.com) for email notifications
    - Create a `.env.local` file in the root directory:
    ```env
@@ -49,7 +49,7 @@ A Next.js application that generates vertical videos perfect for YouTube Shorts,
    AZURE_OPENAI_API_VERSION=2024-04-01-preview
    ```
 
-   **⚠️ Important**: Use UploadThing **V7 Token** (not the old V6 secret). The V7 token is a base64 encoded JSON that includes app ID, region, and API key all in one.
+   **⚠️ Important**: Ensure your AWS S3 bucket has proper CORS configuration and public read access for video playback.
 
 4. **Run the development server**
    ```bash
@@ -87,7 +87,7 @@ A Next.js application that generates vertical videos perfect for YouTube Shorts,
     - No need to wait - you can close the browser and continue with other tasks
 
 ### Sharing Videos
-1. **Direct Video URLs**: Each video has a direct UploadThing URL for sharing
+1. **Direct Video URLs**: Each video has a direct S3 URL for sharing
 2. **Copy Video Link**: Use the copy button in video creation page or dashboard to copy the direct video URL
 3. **Universal Sharing**: Share the video URL anywhere - social media, messaging apps, email, etc.
 4. **Instant Access**: Recipients can immediately view/download the video without needing app access
@@ -124,26 +124,29 @@ A Next.js application that generates vertical videos perfect for YouTube Shorts,
 - **Backend**: Next.js API Routes, SQLite Database
 - **Video**: Remotion for rendering, MediaRecorder for generation
 - **AI Services**: Azure OpenAI (GPT-4), Eleven Labs (Text-to-Speech)
-- **File Storage**: UploadThing (v7)
+- **File Storage**: AWS S3
 - **Email**: Resend
 - **Authentication**: NextAuth.js v5
 - **UI Components**: Radix UI, Lucide React Icons
 
 ## 🔧 Troubleshooting
 
-### UploadThing Issues
+### S3 Issues
 
 **Problem**: "Request timed out" or "Connection timeout" errors
 **Solutions**:
-1. Ensure you're using the **V7 Token** (not V6 secret) from UploadThing Dashboard → API Keys → V7 tab
+1. Ensure your AWS credentials are valid and have proper S3 permissions
 2. Check your internet connection and try again
 3. For large files, the system will automatically retry with exponential backoff
-4. If downloads fail, the system will fallback to direct UploadThing redirect
+4. Verify your S3 bucket region matches AWS_REGION environment variable
 
-**Problem**: "UPLOADTHING_TOKEN is missing" error
-**Solution**: Make sure your `.env.local` file contains the V7 token:
+**Problem**: "AWS S3 configuration missing" error
+**Solution**: Make sure your `.env.local` file contains the S3 credentials:
 ```env
-UPLOADTHING_TOKEN=your_v7_token_here
+AWS_ACCESS_KEY_ID=your_access_key_here
+AWS_SECRET_ACCESS_KEY=your_secret_key_here
+AWS_REGION=your_region_here
+AWS_S3_BUCKET_NAME=your_bucket_name_here
 ```
 
 ### Video Generation Issues
@@ -165,8 +168,11 @@ UPLOADTHING_TOKEN=your_v7_token_here
 
 **Required Variables**:
 ```env
-# Core functionality
-UPLOADTHING_TOKEN=your_v7_token_here
+# Core functionality (AWS S3)
+AWS_ACCESS_KEY_ID=your_access_key_here
+AWS_SECRET_ACCESS_KEY=your_secret_key_here
+AWS_REGION=your_region_here
+AWS_S3_BUCKET_NAME=your_bucket_name_here
 ELEVEN_LABS_API_KEY=your_api_key_here
 NEXTAUTH_SECRET=your_secret_here
 
@@ -193,7 +199,7 @@ src/
 │   │   ├── render-video/        # Video generation API
 │   │   ├── render-and-save/     # Video generation + library save
 │   │   ├── videos/              # Video CRUD operations
-│   │   └── uploadthing/         # File upload handling
+│   │   └── upload-s3/           # S3 file upload handling
 │   ├── auth/                    # Sign in/up pages
 │   ├── dashboard/               # Main video creation studio
 │   ├── library/                 # Video library management
@@ -208,7 +214,7 @@ src/
 └── lib/
     ├── auth.ts                  # NextAuth configuration
     ├── auth-db.ts               # Database operations
-    ├── uploadthing.ts           # UploadThing configuration
+    ├── s3.ts                    # AWS S3 configuration
     └── utils.ts
 ```
 
@@ -276,8 +282,11 @@ AZURE_OPENAI_API_VERSION=2024-04-01-preview
 NEXTAUTH_SECRET=your_secret_key_here
 NEXTAUTH_URL=http://localhost:3000
 
-# Required: File Storage
-UPLOADTHING_TOKEN=your_uploadthing_v7_token_here
+# Required: File Storage (AWS S3)
+AWS_ACCESS_KEY_ID=your_access_key_here
+AWS_SECRET_ACCESS_KEY=your_secret_key_here
+AWS_REGION=your_region_here
+AWS_S3_BUCKET_NAME=your_bucket_name_here
 
 # Required: Email Notifications
 RESEND_API_KEY=your_resend_api_key_here

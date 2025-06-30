@@ -69,13 +69,13 @@ export const SampleVideo: React.FC<SampleVideoProps> = ({
       return;
     }
 
-    // If it's an UploadThing URL, we need to handle it carefully
-    if (backgroundVideo.includes('utfs.io') || backgroundVideo.includes('uploadthing')) {
-      console.log('🎬 UploadThing video detected, using optimized loading:', backgroundVideo);
+    // If it's an S3 URL, we need to handle it carefully
+    if (backgroundVideo.includes('amazonaws.com') || backgroundVideo.includes('s3')) {
+      console.log('🎬 S3 video detected, using optimized loading:', backgroundVideo);
       
-      const handle = delayRender('Loading UploadThing video metadata');
+      const handle = delayRender('Loading S3 video metadata');
       const timeout = setTimeout(() => {
-        console.warn('⚠️ UploadThing video loading timeout, proceeding without preload');
+        console.warn('⚠️ S3 video loading timeout, proceeding without preload');
         setVideoError(true);
         setVideoReady(true);
         continueRender(handle);
@@ -87,14 +87,14 @@ export const SampleVideo: React.FC<SampleVideoProps> = ({
       video.preload = 'metadata';
       
       const handleSuccess = () => {
-        console.log('✅ UploadThing video metadata loaded successfully');
+        console.log('✅ S3 video metadata loaded successfully');
         clearTimeout(timeout);
         setVideoReady(true);
         continueRender(handle);
       };
       
       const handleError = () => {
-        console.warn('⚠️ UploadThing video metadata failed to load, proceeding anyway');
+        console.warn('⚠️ S3 video metadata failed to load, proceeding anyway');
         clearTimeout(timeout);
         setVideoError(true);
         setVideoReady(true);

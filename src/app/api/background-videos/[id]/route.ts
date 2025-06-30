@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import connectToDatabase from '@/lib/mongodb';
 import BackgroundVideo from '@/lib/models/BackgroundVideo';
-import { UTApi } from 'uploadthing/server';
+import { deleteFromS3 } from '@/lib/s3';
 
 // GET /api/background-videos/[id] - Get a specific background video
 export async function GET(
@@ -108,14 +108,15 @@ export async function DELETE(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Delete from UploadThing first
+    // Delete from S3 first
     try {
-      const utapi = new UTApi();
-      await utapi.deleteFiles([video.uploadthing_key]);
-      console.log(`🗑️ Deleted file from UploadThing: ${video.uploadthing_key}`);
-    } catch (uploadThingError) {
-      console.error('Error deleting from UploadThing:', uploadThingError);
-      // Continue with database deletion even if UploadThing deletion fails
+      if (video.s3_key) {
+        await deleteFromS3(video.s3_key);
+        console.log(`🗑️ Deleted file from S3: ${video.s3_key}`);
+      }
+    } catch (s3Error) {
+      console.error('Error deleting from S3:', s3Error);
+      // Continue with database deletion even if S3 deletion fails
     }
 
     // Delete from database

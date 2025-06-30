@@ -82,68 +82,51 @@ async function combineAudioSegments(segments: Array<{text: string; audio: string
   };
 }
 
-// Function to upload video to UploadThing
-async function uploadToUploadThing(videoBuffer: Buffer, filename: string): Promise<{ url: string; key: string } | null> {
+// Function to upload video to S3
+async function uploadVideoToS3(videoBuffer: Buffer, filename: string): Promise<{ url: string; key: string } | null> {
   const maxRetries = 3;
-  const timeoutMs = 300000; // 5 minutes for upload
+
   
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      console.log(`📤 UploadThing upload attempt ${attempt}/${maxRetries}`);
+      console.log(`📤 S3 upload attempt ${attempt}/${maxRetries}`);
       console.log(`📁 File: ${filename}`);
       console.log(`📏 Size: ${(videoBuffer.length / 1024 / 1024).toFixed(2)}MB`);
       
-      // Use UploadThing SDK for server-side upload with timeout
-      const { UTApi, UTFile } = await import("uploadthing/server");
+      // Use S3 SDK for server-side upload
+      const { uploadToS3 } = await import("@/lib/s3");
       
-      // Initialize UTApi with timeout configuration
-      const utapi = new UTApi({
-        logLevel: 'Info'
-      });
-
-      // Create a UTFile object with proper metadata
-      const fileObject = new UTFile([videoBuffer], filename, { 
-        type: 'video/mp4',
-        lastModified: Date.now()
-      });
-      
-      console.log(`⏳ Starting upload to UploadThing...`);
+      console.log(`⏳ Starting upload to S3...`);
       const uploadStartTime = Date.now();
       
-      // Create a timeout promise
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => {
-          reject(new Error(`Upload timeout after ${timeoutMs}ms`));
-        }, timeoutMs);
-      });
+      const key = `videos/${Date.now()}-${filename.replace(/[^a-z0-9.-]/gi, '-').toLowerCase()}`;
       
-      // Race the upload against the timeout
-      const uploadResult = await Promise.race([
-        utapi.uploadFiles([fileObject]),
-        timeoutPromise
-      ]);
+      const result = await uploadToS3(
+        videoBuffer,
+        key,
+        'video/mp4',
+        {
+          originalName: filename,
+          uploadedAt: new Date().toISOString(),
+          fileType: 'video',
+        }
+      );
       
       const uploadDuration = Date.now() - uploadStartTime;
       console.log(`⏱️ Upload completed in ${uploadDuration}ms`);
+      console.log(`✅ S3 upload successful:`);
+      console.log(`🔗 URL: ${result.url}`);
+      console.log(`🔑 Key: ${result.key}`);
+      console.log(`📊 Final size: ${(result.size / 1024 / 1024).toFixed(2)}MB`);
       
-      if (uploadResult && uploadResult[0] && uploadResult[0].data) {
-        const result = uploadResult[0].data;
-        console.log(`✅ UploadThing upload successful:`);
-        console.log(`🔗 URL: ${result.url}`);
-        console.log(`🔑 Key: ${result.key}`);
-        console.log(`📊 Final size: ${(result.size / 1024 / 1024).toFixed(2)}MB`);
-        
-        return {
-          url: result.url,
-          key: result.key
-        };
-      }
-
-      throw new Error('UploadThing upload failed - no data returned');
+      return {
+        url: result.url,
+        key: result.key
+      };
       
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error(`❌ UploadThing upload attempt ${attempt} failed:`, errorMessage);
+      console.error(`❌ S3 upload attempt ${attempt} failed:`, errorMessage);
       
       if (attempt === maxRetries) {
         console.error(`💥 All ${maxRetries} upload attempts failed`);
@@ -163,9 +146,13 @@ async function uploadToUploadThing(videoBuffer: Buffer, filename: string): Promi
 export async function POST(request: NextRequest) {
   try {
     // Check for required environment variables
-    if (!process.env.UPLOADTHING_TOKEN) {
-      console.error('Missing UPLOADTHING_TOKEN environment variable');
-      return NextResponse.json({ error: 'Server configuration error - missing upload token' }, { status: 500 });
+    // Check for required S3 environment variables
+    const requiredS3Vars = ['AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'AWS_S3_REGION', 'AWS_S3_BUCKET_NAME'];
+    const missingS3Vars = requiredS3Vars.filter(key => !process.env[key]);
+    
+    if (missingS3Vars.length > 0) {
+      console.error('Missing S3 environment variables:', missingS3Vars);
+      return NextResponse.json({ error: `Server configuration error - missing S3 variables: ${missingS3Vars.join(', ')}` }, { status: 500 });
     }
 
     if (!process.env.RESEND_API_KEY) {
@@ -204,7 +191,7 @@ export async function POST(request: NextRequest) {
 
     const userEmail = session.user.email || 'unknown';
     const userName = session.user.name || 'User';
-    console.log(`🧠 User ${userEmail} starting quiz video render and save to UploadThing`);
+          console.log(`🧠 User ${userEmail} starting quiz video render and save to S3`);
 
     // Filter audio segments to only include those with actual audio data
     // (excludes 'wait' segments which have duration but no audio)
@@ -481,6 +468,12 @@ async function processQuizVideoAsync({
         concurrency: 1,
         jpegQuality: 90,
         scale: 1,
+        // Add timeout configuration
+        timeoutInMilliseconds: 120000, // 2 minutes total timeout
+        // Add progress tracking
+        onProgress: (progress) => {
+          console.log(`🎬 Rendering progress for ${processingId}: ${(progress.progress * 100).toFixed(1)}%`);
+        },
       });
 
       // Read the rendered video file
@@ -489,14 +482,14 @@ async function processQuizVideoAsync({
       
       console.log(`✅ Quiz video ${processingId} rendered successfully, size: ${(fileSize / 1024 / 1024).toFixed(2)} MB`);
 
-      // Upload to UploadThing
-      const uploadResult = await uploadToUploadThing(fileBuffer, `quiz-${videoTitle.replace(/[^a-z0-9]/gi, '-').toLowerCase()}-${Date.now()}.mp4`);
+      // Upload to S3
+      const uploadResult = await uploadVideoToS3(fileBuffer, `quiz-${videoTitle.replace(/[^a-z0-9]/gi, '-').toLowerCase()}-${Date.now()}.mp4`);
       
       if (!uploadResult) {
-        throw new Error('Failed to upload quiz video to UploadThing');
+        throw new Error('Failed to upload quiz video to S3');
       }
 
-      console.log(`✅ Quiz video ${processingId} uploaded to UploadThing: ${uploadResult.url}`);
+      console.log(`✅ Quiz video ${processingId} uploaded to S3: ${uploadResult.url}`);
 
       // Update video record with actual URL and file info
       const updateSuccess = await updateVideo(

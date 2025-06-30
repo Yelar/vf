@@ -27,7 +27,7 @@ export async function GET() {
         created_at: video.created_at,
         is_shared: video.is_shared,
         duration: video.duration,
-        url: video.uploadthing_url
+        url: video.s3_url
       }));
 
     return NextResponse.json({

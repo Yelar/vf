@@ -181,7 +181,7 @@ async function handleRequest(
     }
 
     console.log(`📝 Video: "${video.title}"`);
-    console.log(`🔗 UploadThing URL: ${video.uploadthing_url}`);
+    console.log(`🔗 S3 URL: ${video.s3_url}`);
     console.log(`💾 File size: ${Math.round(video.file_size / 1024 / 1024)}MB`);
 
     // Check if user owns the video
@@ -191,7 +191,7 @@ async function handleRequest(
     }
 
     // Check if video has uploaded URL
-    if (!video.uploadthing_url) {
+    if (!video.s3_url) {
       console.log(`❌ Video not yet uploaded: ${videoId}`);
       return NextResponse.json({ error: 'Video not yet processed' }, { status: 404 });
     }
@@ -199,7 +199,7 @@ async function handleRequest(
     // Fetch video with enhanced retry mechanism
     let videoResponse: Response;
     try {
-      videoResponse = await fetchWithRetry(video.uploadthing_url);
+      videoResponse = await fetchWithRetry(video.s3_url!);
     } catch {
       console.error(`💥 All fetch attempts failed, falling back to redirect`);
       
@@ -208,8 +208,8 @@ async function handleRequest(
       const filename = `${safeTitle}.mp4`;
       
       try {
-        // video.uploadthing_url is guaranteed to exist due to check above
-        const downloadUrl = new URL(video.uploadthing_url!);
+            // video.s3_url is guaranteed to exist due to check above
+    const downloadUrl = new URL(video.s3_url!);
         downloadUrl.searchParams.set('response-content-disposition', `attachment; filename="${filename}"`);
         downloadUrl.searchParams.set('response-content-type', 'video/mp4');
         downloadUrl.searchParams.set('download', '1');

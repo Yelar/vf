@@ -24,7 +24,7 @@ interface VideoData {
   id: string;
   title: string;
   description?: string;
-  uploadthing_url: string;
+  s3_url: string;
   thumbnail_url?: string;
   duration?: number;
   created_at: string;
@@ -216,7 +216,7 @@ function WatchVideoContent() {
                   className="w-full aspect-video bg-black"
                   controls
                 >
-                  <source src={video.uploadthing_url} type="video/mp4" />
+                  <source src={video.s3_url} type="video/mp4" />
                   Your browser does not support the video tag.
                 </video>
               </div>

@@ -4,8 +4,8 @@ export interface IBackgroundMusic extends Document {
   _id: string;
   name: string;
   description?: string;
-  uploadthing_url: string;
-  uploadthing_key: string;
+  s3_url: string;
+  s3_key: string;
   file_size: number;
   duration?: number;
   category?: string;
@@ -27,11 +27,11 @@ const BackgroundMusicSchema = new Schema<IBackgroundMusic>({
     trim: true,
     default: null,
   },
-  uploadthing_url: {
+  s3_url: {
     type: String,
     required: true,
   },
-  uploadthing_key: {
+  s3_key: {
     type: String,
     required: true,
   },

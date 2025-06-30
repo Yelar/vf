@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AzureOpenAI } from 'openai';
 import { processUploadedFiles } from '@/lib/file-processor';
-import { UTApi } from "uploadthing/server";
+import { deleteS3Objects } from '@/lib/s3';
 
 const client = new AzureOpenAI({
   endpoint: process.env.AZURE_OPENAI_ENDPOINT || "https://vfs-gpt.openai.azure.com/",
@@ -11,7 +11,6 @@ const client = new AzureOpenAI({
 });
 
 export async function POST(request: NextRequest) {
-  const utapi = new UTApi();
   const filesToCleanup: string[] = [];
   const startTime = Date.now();
 
@@ -204,7 +203,7 @@ Generate exactly ${questionCount} multiple choice questions with connecting text
     if (filesToCleanup.length > 0) {
       console.log('\n🗑️ === FILE CLEANUP ===');
       try {
-        await utapi.deleteFiles(filesToCleanup);
+        await deleteS3Objects(filesToCleanup);
         console.log(`✅ Successfully cleaned up ${filesToCleanup.length} temporary files`);
       } catch (cleanupError) {
         console.error('⚠️ Error cleaning up files (non-critical):', cleanupError);
@@ -240,7 +239,7 @@ Generate exactly ${questionCount} multiple choice questions with connecting text
     if (filesToCleanup.length > 0) {
       console.log('\n🗑️ === ERROR CLEANUP ===');
       try {
-        await utapi.deleteFiles(filesToCleanup);
+        await deleteS3Objects(filesToCleanup);
         console.log(`✅ Cleaned up ${filesToCleanup.length} temporary files after error`);
       } catch (cleanupError) {
         console.error('⚠️ Error cleaning up files after error (non-critical):', cleanupError);

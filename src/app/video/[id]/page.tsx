@@ -41,8 +41,9 @@ import {
 } from "lucide-react";
 import Link from 'next/link';
 import { SpeechToText } from '@/components/SpeechToText';
-import { UploadButton } from '@uploadthing/react';
-import type { OurFileRouter } from '@/lib/uploadthing';
+// UploadThing imports removed - using S3 instead
+
+// Background asset types moved to separate type file
 
 function VideoCreationContent() {
   const params = useParams();
@@ -120,7 +121,9 @@ function VideoCreationContent() {
   const fetchBackgroundVideos = async () => {
     try {
       setIsLoadingBackgroundVideos(true);
-      const response = await fetch('/api/background-videos?active=true');
+      const response = await fetch('/api/background-videos?active=true', {
+        credentials: 'include',
+      });
       
       if (!response.ok) {
         throw new Error('Failed to fetch background videos');
@@ -139,9 +142,9 @@ function VideoCreationContent() {
   const fetchBackgroundMusic = async () => {
     try {
       setIsLoadingBackgroundMusic(true);
-      console.log(isLoadingBackgroundMusic)
-      console.log(isLoadingBackgroundVideos)
-      const response = await fetch('/api/background-music?active=true');
+      const response = await fetch('/api/background-music?active=true', {
+        credentials: 'include',
+      });
       
       if (!response.ok) {
         throw new Error('Failed to fetch background music');
@@ -175,7 +178,8 @@ function VideoCreationContent() {
     _id: string;
     name: string;
     description?: string;
-    uploadthing_url: string;
+    s3_url: string;
+    s3_key: string;
     category: string;
     tags: string[];
     is_active: boolean;
@@ -189,7 +193,8 @@ function VideoCreationContent() {
     _id: string;
     name: string;
     description?: string;
-    uploadthing_url: string;
+    s3_url: string;
+    s3_key: string;
     category: string;
     tags: string[];
     is_active: boolean;
@@ -209,7 +214,7 @@ function VideoCreationContent() {
   const [isGeneratingSpeech, setIsGeneratingSpeech] = useState(false);
   const [audioDuration, setAudioDuration] = useState<number | null>(null);
   const [selectedVoiceProvider, setSelectedVoiceProvider] = useState<'azure' | 'elevenlabs'>('azure');
-  const [selectedVoice, setSelectedVoice] = useState('alloy');
+  const [selectedVoice, setSelectedVoice] = useState('alloy'); // Default Azure voice
 
   // Add new state for TTS instructions
   const [ttsInstructions, setTtsInstructions] = useState<string>('');
@@ -311,7 +316,7 @@ function VideoCreationContent() {
     ...backgroundVideos.map(video => ({
       value: video._id,
       label: `🎬 ${video.name}`,
-      path: video.uploadthing_url
+      path: video.s3_url
     }))
   ];
 
@@ -321,7 +326,7 @@ function VideoCreationContent() {
     ...backgroundMusic.map(music => ({
       value: music._id,
       label: `🎵 ${music.name}`,
-      path: music.uploadthing_url
+      path: music.s3_url
     }))
   ];
 
@@ -812,15 +817,12 @@ function VideoCreationContent() {
   // Generate audio segments for quiz
   const generateQuizAudio = async () => {
     if (quizData.length === 0) {
-      alert('Please generate quiz content first');
+      alert('Please add quiz items first');
       return;
     }
 
     setIsGeneratingSpeech(true);
     try {
-      console.log('🎤 Generating quiz audio segments...');
-      
-      // Create audio segments based on quiz structure
       const audioSegments: Array<{
         id: string;
         type: 'question' | 'choices' | 'wait' | 'answer' | 'text';
@@ -859,7 +861,6 @@ function VideoCreationContent() {
 
           // 3. Wait time (countdown)
           const waitTime = item.wait_time || 5;
-          // Create countdown text: "5, 4, 3, 2, 1" for 5 seconds
           const countdownNumbers = Array.from({length: waitTime}, (_, i) => waitTime - i);
           const countdownText = countdownNumbers.join(', ');
           
@@ -888,7 +889,7 @@ function VideoCreationContent() {
         if (segment.type !== 'wait' && segment.text.trim()) {
           console.log(`🎤 Generating audio for: ${segment.text.slice(0, 50)}...`);
           
-          const response = await fetch('/api/generate-speech', {
+          const response = await fetch('/api/generate-speech/azure-tts', { // Use Azure TTS endpoint
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -896,12 +897,14 @@ function VideoCreationContent() {
             body: JSON.stringify({
               text: segment.text,
               voiceId: selectedVoice,
-              useSegments: false // Generate individual audio
+              useSegments: false, // Generate individual audio
+              instructions: ttsInstructions // Pass any voice instructions
             }),
           });
 
           if (!response.ok) {
-            throw new Error(`Failed to generate audio for segment: ${segment.text.slice(0, 30)}...`);
+            const errorData = await response.json();
+            throw new Error(errorData.error || `Failed to generate audio for segment: ${segment.text.slice(0, 30)}...`);
           }
 
           const audioData = await response.json();
@@ -932,21 +935,42 @@ function VideoCreationContent() {
   };
 
   // File upload handlers for quiz
-  const handleQuizFileUpload = (files: Array<{
-    key: string;
-    url: string;
-    name: string;
-    type?: string;
-    size: number;
-  }>) => {
-    const newFiles = files.map(file => ({
-      key: file.key,
-      url: file.url,
-      name: file.name,
-      type: file.type || 'unknown',
-      size: file.size
-    }));
-    setUploadedQuizFiles(prev => [...prev, ...newFiles]);
+  const handleQuizFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    const formData = new FormData();
+    for (let i = 0; i < files.length; i++) {
+      formData.append('files', files[i]);
+    }
+    formData.append('type', 'document'); // Specify document type for quiz references
+
+    try {
+      const response = await fetch('/api/upload-s3', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Upload failed: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.error || 'Upload failed');
+      }
+      
+      console.log('📎 Files uploaded:', result.files);
+      
+      // Add uploaded files to the list
+      if (result.files && result.files.length > 0) {
+        setUploadedQuizFiles(prev => [...prev, ...result.files]);
+      }
+    } catch (error) {
+      console.error('❌ Upload error:', error);
+      alert(`Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   };
 
   const removeQuizFile = (keyToRemove: string) => {
@@ -2032,24 +2056,40 @@ function VideoCreationContent() {
                     <div className="space-y-4">
                       <Label>Upload Reference Files (Optional)</Label>
                       <div className="border-2 border-dashed border-gray-600 rounded-lg p-6 text-center">
-                        <UploadButton<OurFileRouter, "backgroundVideoUploader">
-                          endpoint="backgroundVideoUploader"
-                          onClientUploadComplete={(res) => {
-                            console.log('📎 Files uploaded:', res);
-                            if (res) handleQuizFileUpload(res);
-                          }}
-                          onUploadError={(error: Error) => {
-                            console.error('❌ Upload error:', error);
-                            alert(`Upload failed: ${error.message}`);
-                          }}
-                          appearance={{
-                            button: "bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md",
-                            allowedContent: "text-gray-400 text-sm"
-                          }}
+                        <input
+                          type="file"
+                          accept=".txt,.pdf,.doc,.docx"
+                          onChange={handleQuizFileUpload}
+                          className="hidden"
+                          id="quizFileUpload"
+                          multiple
                         />
-                        <p className="text-gray-400 text-sm mt-2">
-                          PDFs, text files, and documents (up to 32MB each)
-                        </p>
+                        <label
+                          htmlFor="quizFileUpload"
+                          className="cursor-pointer flex flex-col items-center justify-center space-y-2"
+                        >
+                          <div className="p-4 rounded-full bg-gray-800">
+                            <svg
+                              className="w-8 h-8 text-gray-400"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                              />
+                            </svg>
+                          </div>
+                          <div className="text-gray-400">
+                            <span className="font-semibold text-purple-500">Click to upload</span> or drag and drop
+                          </div>
+                          <p className="text-xs text-gray-500">
+                            TXT, PDF, DOC, DOCX (max 10MB each)
+                          </p>
+                        </label>
                       </div>
 
                       {/* Uploaded Files List */}
@@ -2735,11 +2775,13 @@ function VideoCreationContent() {
                 <div className="space-y-2">
                   <Label>Preset Videos</Label>
                   <Select value={selectedPresetVideo} onValueChange={handlePresetVideoChange}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Choose a preset video" />
+                    <SelectTrigger disabled={isLoadingBackgroundVideos}>
+                      <SelectValue placeholder={isLoadingBackgroundVideos ? "Loading videos..." : "Choose a preset video"} />
                     </SelectTrigger>
                     <SelectContent>
-                      {presetVideos.map((preset) => (
+                      {isLoadingBackgroundVideos ? (
+                        <SelectItem value="loading" disabled>Loading videos...</SelectItem>
+                      ) : presetVideos.map((preset) => (
                         <SelectItem key={preset.value} value={preset.value}>
                           {preset.label}
                         </SelectItem>
@@ -2856,11 +2898,13 @@ function VideoCreationContent() {
                 <div className="space-y-2">
                   <Label>Music Selection</Label>
                   <Select value={selectedBgMusic} onValueChange={setSelectedBgMusic}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Choose background music" />
+                    <SelectTrigger disabled={isLoadingBackgroundMusic}>
+                      <SelectValue placeholder={isLoadingBackgroundMusic ? "Loading music..." : "Choose background music"} />
                     </SelectTrigger>
                     <SelectContent>
-                      {bgMusicOptions.map((music) => (
+                      {isLoadingBackgroundMusic ? (
+                        <SelectItem value="loading" disabled>Loading music...</SelectItem>
+                      ) : bgMusicOptions.map((music) => (
                         <SelectItem key={music.value} value={music.value}>
                           {music.label}
                         </SelectItem>

@@ -43,19 +43,18 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-interface UserVideo {
+interface Video {
   id: string;
-  user_id: string;
   title: string;
   description?: string;
-  uploadthing_url: string;
-  uploadthing_key: string;
+  s3_url: string;
+  s3_key: string;
   file_size: number;
   duration?: number;
-  thumbnail_url?: string;
-  metadata: string;
-  is_shared: boolean;
   created_at: string;
+  is_public: boolean;
+  user_id: string;
+  user_email?: string;
 }
 
 type ViewMode = 'grid' | 'list';
@@ -64,7 +63,7 @@ type SortOrder = 'asc' | 'desc';
 
 function LibraryContent() {
   const { data: session } = useSession();
-  const [videos, setVideos] = useState<UserVideo[]>([]);
+  const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -121,8 +120,8 @@ function LibraryContent() {
       
       // Sharing filter
       const shareMatch = selectedFilter === 'all' || 
-        (selectedFilter === 'shared' && video.is_shared) ||
-        (selectedFilter === 'private' && !video.is_shared);
+        (selectedFilter === 'shared' && video.is_public) ||
+        (selectedFilter === 'private' && !video.is_public);
       
       return searchMatch && shareMatch;
     });
@@ -225,7 +224,7 @@ function LibraryContent() {
     }
   };
 
-  const startEditingTitle = (video: UserVideo) => {
+  const startEditingTitle = (video: Video) => {
     setEditingVideoId(video.id);
     setEditingTitle(video.title);
   };
@@ -255,10 +254,10 @@ function LibraryContent() {
     setEditingTitle('');
   };
 
-  const downloadVideo = async (video: UserVideo) => {
+  const downloadVideo = async (video: Video) => {
     try {
     const link = document.createElement('a');
-    link.href = video.uploadthing_url;
+    link.href = video.s3_url;
       link.download = `${video.title}.mp4`;
       document.body.appendChild(link);
     link.click();
@@ -268,7 +267,7 @@ function LibraryContent() {
     }
   };
 
-  const toggleSharing = async (video: UserVideo) => {
+  const toggleSharing = async (video: Video) => {
     try {
       const response = await fetch(`/api/videos/${video.id}`, {
         method: 'PATCH',
@@ -276,7 +275,7 @@ function LibraryContent() {
 
       if (response.ok) {
       setVideos(videos.map(v =>
-          v.id === video.id ? { ...v, is_shared: !v.is_shared } : v
+          v.id === video.id ? { ...v, is_public: !v.is_public } : v
       ));
       }
     } catch (error) {
@@ -457,7 +456,7 @@ function LibraryContent() {
                           )}
                           
                           {/* Shared Badge */}
-                          {video.is_shared && (
+                          {video.is_public && (
                             <div className="absolute top-2 left-2">
                               <Badge className="bg-green-500/80 text-white border-0">
                                 <Globe className="w-3 h-3 mr-1" />
@@ -538,7 +537,7 @@ function LibraryContent() {
                                   <Edit3 className="mr-2 h-4 w-4" />
                                   Rename
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => copyVideoUrl(video.uploadthing_url, video.id)} className="text-gray-300 hover:text-white hover:bg-white/10">
+                                <DropdownMenuItem onClick={() => copyVideoUrl(video.s3_url, video.id)} className="text-gray-300 hover:text-white hover:bg-white/10">
                                   {copyingVideoId === video.id ? (
                                     <Check className="mr-2 h-4 w-4 text-green-400" />
                                   ) : (
@@ -551,7 +550,7 @@ function LibraryContent() {
                             Download
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => toggleSharing(video)} className="text-gray-300 hover:text-white hover:bg-white/10">
-                                  {video.is_shared ? (
+                                  {video.is_public ? (
                                     <>
                                       <EyeOff className="mr-2 h-4 w-4" />
                                       Make Private
@@ -609,7 +608,7 @@ function LibraryContent() {
                                   <span>{formatDateFull(video.created_at)}</span>
                                   <span>{formatFileSize(video.file_size)}</span>
                                   {video.duration && <span>{formatDuration(video.duration)}</span>}
-                                  {video.is_shared && (
+                                  {video.is_public && (
                               <Badge className="bg-green-500/20 text-green-300 border-green-500/30 text-xs">
                                 <Globe className="w-2 h-2 mr-1" />
                                       Shared
@@ -644,7 +643,7 @@ function LibraryContent() {
                                 <Edit3 className="mr-2 h-4 w-4" />
                                 Rename
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => copyVideoUrl(video.uploadthing_url, video.id)} className="text-gray-300 hover:text-white hover:bg-white/10">
+                              <DropdownMenuItem onClick={() => copyVideoUrl(video.s3_url, video.id)} className="text-gray-300 hover:text-white hover:bg-white/10">
                                 {copyingVideoId === video.id ? (
                                   <Check className="mr-2 h-4 w-4 text-green-400" />
                                 ) : (
@@ -657,7 +656,7 @@ function LibraryContent() {
                                 Download
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => toggleSharing(video)} className="text-gray-300 hover:text-white hover:bg-white/10">
-                                {video.is_shared ? (
+                                {video.is_public ? (
                                   <>
                                     <EyeOff className="mr-2 h-4 w-4" />
                                     Make Private

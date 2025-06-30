@@ -48,17 +48,17 @@ export async function POST(req: NextRequest) {
     const { 
       name, 
       description, 
-      uploadthingUrl, 
-      uploadthingKey, 
+      s3_url, 
+      s3_key, 
       fileSize, 
       duration, 
       category = 'general',
       tags = []
     } = await req.json();
 
-    if (!name || !uploadthingUrl || !uploadthingKey || !fileSize) {
+    if (!name || !s3_url || !s3_key || !fileSize) {
       return NextResponse.json({ 
-        error: 'Missing required fields: name, uploadthingUrl, uploadthingKey, fileSize' 
+        error: 'Missing required fields: name, s3_url, s3_key, fileSize' 
       }, { status: 400 });
     }
 
@@ -67,8 +67,8 @@ export async function POST(req: NextRequest) {
     const music = new BackgroundMusic({
       name,
       description,
-      uploadthing_url: uploadthingUrl,
-      uploadthing_key: uploadthingKey,
+      s3_url,
+      s3_key,
       file_size: fileSize,
       duration,
       category,

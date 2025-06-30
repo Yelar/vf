@@ -30,7 +30,7 @@ async function handleRequest(
     }
 
     // Check if video has uploaded URL
-    if (!video.uploadthing_url) {
+    if (!video.s3_url) {
       return NextResponse.json({ error: 'Video not yet processed' }, { status: 404 });
     }
 
@@ -39,11 +39,11 @@ async function handleRequest(
     const filename = `${safeTitle}.mp4`;
     
     // Try to add download parameters to the URL
-    const downloadUrl = new URL(video.uploadthing_url);
+    const downloadUrl = new URL(video.s3_url);
     downloadUrl.searchParams.set('response-content-disposition', `attachment; filename="${filename}"`);
     downloadUrl.searchParams.set('response-content-type', 'video/mp4');
     
-    console.log('Redirecting to UploadThing with download parameters...');
+    console.log('Redirecting to S3 with download parameters...');
     return NextResponse.redirect(downloadUrl.toString());
 
   } catch (error) {

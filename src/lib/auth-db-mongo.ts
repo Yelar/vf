@@ -24,8 +24,8 @@ export interface MongoUserVideo {
   user_id: string;
   title: string;
   description?: string;
-  uploadthing_url?: string;
-  uploadthing_key?: string;
+  s3_url?: string;
+  s3_key?: string;
   file_size: number;
   duration?: number;
   thumbnail_url?: string;
@@ -66,8 +66,8 @@ function mongoVideoToInterface(video: IVideo): MongoUserVideo {
     user_id: video.user_id.toString(),
     title: video.title,
     description: video.description || undefined,
-    uploadthing_url: video.uploadthing_url || undefined,
-    uploadthing_key: video.uploadthing_key || undefined,
+    s3_url: video.s3_url || undefined,
+    s3_key: video.s3_key || undefined,
     file_size: video.file_size,
     duration: video.duration || undefined,
     thumbnail_url: video.thumbnail_url || undefined,
@@ -173,8 +173,8 @@ export async function verifyPassword(email: string, password: string): Promise<M
 export async function createVideo(
   userId: string,
   title: string,
-  uploadthingUrl?: string,
-  uploadthingKey?: string,
+  s3Url?: string,
+  s3Key?: string,
   fileSize?: number,
   metadata?: object,
   description?: string,
@@ -192,8 +192,8 @@ export async function createVideo(
       user_id: new mongoose.Types.ObjectId(userId),
       title,
       description: description || null,
-      uploadthing_url: uploadthingUrl || null,
-      uploadthing_key: uploadthingKey || null,
+      s3_url: s3Url || null,
+      s3_key: s3Key || null,
       file_size: fileSize || 0,
       duration: duration || null,
       thumbnail_url: thumbnailUrl || null,
@@ -275,28 +275,50 @@ export async function updateVideoTitle(id: string, userId: string, title: string
 // Update complete video record after processing
 export async function updateVideo(
   id: string,
-  uploadthingUrl: string,
-  uploadthingKey: string,
+  s3Url: string,
+  s3Key: string,
   fileSize: number,
   duration?: number,
   thumbnailUrl?: string
 ): Promise<boolean> {
   try {
     await ensureConnection();
-    if (!mongoose.Types.ObjectId.isValid(id)) {
+    
+    // Validate required parameters
+    if (!id || !s3Url || !s3Key || typeof fileSize !== 'number') {
+      console.error('Missing required parameters for video update:', { id, s3Url, s3Key, fileSize });
       return false;
     }
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      console.error('Invalid video ID for update:', id);
+      return false;
+    }
+
+    // Ensure S3 URLs are properly formatted
+    if (!s3Url.startsWith('http://') && !s3Url.startsWith('https://')) {
+      console.error('Invalid S3 URL format:', s3Url);
+      return false;
+    }
+
     const result = await Video.updateOne(
       { _id: new mongoose.Types.ObjectId(id) },
       {
-        uploadthing_url: uploadthingUrl,
-        uploadthing_key: uploadthingKey,
+        s3_url: s3Url,
+        s3_key: s3Key,
         file_size: fileSize,
         duration: duration || null,
         thumbnail_url: thumbnailUrl || null,
+        // Add updated_at timestamp
+        updated_at: new Date(),
       }
     ).exec();
-    return result.modifiedCount > 0;
+
+    const success = result.modifiedCount > 0;
+    if (!success) {
+      console.error('Video update failed - no document modified:', id);
+    }
+    return success;
   } catch (error) {
     console.error('Error updating video:', error);
     return false;
