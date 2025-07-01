@@ -1,7 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@/lib/auth';
+import { checkGenerationLimit, decrementGenerationLimit } from '@/lib/auth-db-mongo';
 
 export async function POST(request: NextRequest) {
   try {
+    // Check authentication
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Check generation limit
+    const limitCheck = await checkGenerationLimit(session.user.id);
+    if (!limitCheck) {
+      return NextResponse.json({ error: 'Failed to check generation limit' }, { status: 500 });
+    }
+    if (!limitCheck.canGenerate) {
+      return NextResponse.json({ 
+        error: 'Generation limit reached', 
+        details: {
+          remaining: limitCheck.remaining,
+          resetDate: limitCheck.resetDate
+        }
+      }, { status: 429 });
+    }
+
     const { segments, promptData } = await request.json();
 
     // Get user info from middleware headers
@@ -120,6 +143,9 @@ export async function POST(request: NextRequest) {
 
     const results = await Promise.all(imagePromises);
     const validImages = results.filter(result => result !== null);
+
+    // Decrement the generation limit after successful generation
+    await decrementGenerationLimit(session.user.id);
 
     console.log(`✅ Successfully generated ${validImages.length}/${segments.length} images with Azure OpenAI DALL-E 3`);
 

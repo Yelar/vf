@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { parseBuffer } from 'music-metadata';
+import { auth } from '@/lib/auth';
+import { checkGenerationLimit, decrementGenerationLimit } from '@/lib/auth-db-mongo';
 
 // Azure OpenAI TTS voice options
 const AZURE_VOICES = {
@@ -235,6 +237,27 @@ async function generateAudioChunk(text: string, voiceId: string): Promise<{
 
 export async function POST(request: NextRequest) {
   try {
+    // Check authentication
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Check generation limit
+    const limitCheck = await checkGenerationLimit(session.user.id);
+    if (!limitCheck) {
+      return NextResponse.json({ error: 'Failed to check generation limit' }, { status: 500 });
+    }
+    if (!limitCheck.canGenerate) {
+      return NextResponse.json({ 
+        error: 'Generation limit reached', 
+        details: {
+          remaining: limitCheck.remaining,
+          resetDate: limitCheck.resetDate
+        }
+      }, { status: 429 });
+    }
+
     const { text, voiceId = 'alloy', useSegments = true } = await request.json();
 
     // Get user info from middleware headers
@@ -252,6 +275,10 @@ export async function POST(request: NextRequest) {
     // If useSegments is false, use the old single-request method
     if (!useSegments) {
       const audioResult = await generateAudioChunk(text, voiceId);
+      
+      // Decrement the generation limit after successful generation
+      await decrementGenerationLimit(session.user.id);
+      
       return NextResponse.json({
         audio: `data:audio/mpeg;base64,${audioResult.audio}`,
         audioDuration: audioResult.duration,
@@ -312,6 +339,9 @@ export async function POST(request: NextRequest) {
         throw new Error(`Failed to generate audio for segment: "${chunk.slice(0, 30)}..." - ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
     }
+
+    // Decrement the generation limit after successful generation
+    await decrementGenerationLimit(session.user.id);
 
     console.log(`✅ Successfully generated ${audioSegments.length} audio segments (${totalDuration.toFixed(2)}s total)`);
 

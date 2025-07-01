@@ -17,6 +17,9 @@ export interface MongoUser {
   password_reset_token?: string;
   password_reset_token_expires?: Date;
   created_at: Date;
+  monthly_generation_limit: number;
+  remaining_generation_limit: number;
+  generation_limit_reset_date: Date;
 }
 
 export interface MongoUserVideo {
@@ -57,6 +60,9 @@ function mongoUserToInterface(user: IUser): MongoUser {
     password_reset_token: user.password_reset_token || undefined,
     password_reset_token_expires: user.password_reset_token_expires || undefined,
     created_at: user.created_at,
+    monthly_generation_limit: user.monthly_generation_limit,
+    remaining_generation_limit: user.remaining_generation_limit,
+    generation_limit_reset_date: user.generation_limit_reset_date,
   };
 }
 
@@ -568,4 +574,52 @@ export async function verifyCurrentPassword(userId: string, currentPassword: str
     console.error('Error verifying current password:', error);
     return false;
   }
-} 
+}
+
+// Functions for content generation limit management
+export async function checkGenerationLimit(userId: string): Promise<{ canGenerate: boolean; remaining: number; resetDate: Date } | null> {
+  try {
+    await ensureConnection();
+    
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return null;
+    }
+    
+    const user = await User.findById(userId).exec();
+    if (!user) {
+      return null;
+    }
+    
+    // This will automatically handle reset if needed
+    const canGenerate = user.canGenerateContent();
+    
+    return {
+      canGenerate,
+      remaining: user.remaining_generation_limit,
+      resetDate: user.generation_limit_reset_date
+    };
+  } catch (error) {
+    console.error('Error checking generation limit:', error);
+    return null;
+  }
+}
+
+export async function decrementGenerationLimit(userId: string): Promise<boolean> {
+  try {
+    await ensureConnection();
+    
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return false;
+    }
+    
+    const user = await User.findById(userId).exec();
+    if (!user) {
+      return false;
+    }
+    
+    return user.decrementGenerationLimit();
+  } catch (error) {
+    console.error('Error decrementing generation limit:', error);
+    return false;
+  }
+}

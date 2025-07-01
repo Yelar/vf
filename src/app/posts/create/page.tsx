@@ -5,16 +5,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { NavigationHeader } from '@/components/ui/navigation-header';
-import { Copy, Code, Sparkles, ChevronLeft, Library, Globe, Palette, Camera } from 'lucide-react';
-import Link from 'next/link';
-import { ModernCard, ModernCardContent } from '@/components/ui/modern-card';
-import { SpeechToText } from '@/components/SpeechToText';
+import { Copy, Code, Sparkles, Palette, Camera } from 'lucide-react';
 import html2canvas from 'html2canvas-pro';
 import JSZip from 'jszip';
+import { LimitWarning } from '@/components/ui/limit-warning';
+import { ModernCard, ModernCardContent } from '@/components/ui/modern-card';
+import { SpeechToText } from '@/components/SpeechToText';
 
 interface PostVariant {
   id: string;
@@ -35,6 +34,12 @@ interface GenerationResult {
   success: boolean;
   reasoning: string;
   variants: PostVariant[];
+  timestamp: string;
+  debug_info?: {
+    request_id: string;
+    prompt_hash: string;
+    variants_count: number;
+  };
 }
 
 interface JSXPreviewRef {
@@ -471,13 +476,13 @@ const EXAMPLE_PROMPTS = [
 ];
 
 export default function CreatePost() {
-  const [prompt, setPrompt] = useState('');
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [selectedVariant, setSelectedVariant] = useState<string | null>(null);
   const [result, setResult] = useState<GenerationResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [selectedVariant, setSelectedVariant] = useState<string | null>(null);
+  const [prompt, setPrompt] = useState<string>('');
   const [currentSlide, setCurrentSlide] = useState(0);
   const [useAiImage, setUseAiImage] = useState(false);
+  const [showLimitWarning, setShowLimitWarning] = useState(false);
 
   const handleGenerate = async () => {
     if (!prompt.trim()) {
@@ -485,7 +490,6 @@ export default function CreatePost() {
       return;
     }
 
-    setIsGenerating(true);
     setError(null);
     setResult(null);
     setSelectedVariant(null);
@@ -568,8 +572,14 @@ export default function CreatePost() {
     } catch (error) {
       console.error('Generation error:', error);
       setError(error instanceof Error ? error.message : 'An error occurred');
-    } finally {
-      setIsGenerating(false);
+    }
+  };
+
+  const handleSpeechToText = (text: string, shouldAppend: boolean) => {
+    if (shouldAppend) {
+      setPrompt(prev => prev + ' ' + text);
+    } else {
+      setPrompt(text);
     }
   };
 
@@ -579,6 +589,12 @@ export default function CreatePost() {
     <AuthGuard>
       <div className="min-h-screen bg-gradient-to-br from-gray-950 via-black to-purple-950/50">
         <NavigationHeader />
+
+        <LimitWarning 
+          show={showLimitWarning}
+          onClose={() => setShowLimitWarning(false)}
+          message="You've reached your monthly post generation limit"
+        />
 
         {/* Main Content */}
         <main className="container mx-auto px-4 py-8 space-y-8">
@@ -598,28 +614,6 @@ export default function CreatePost() {
             <p className="text-xl text-gray-400 max-w-2xl mx-auto leading-relaxed">
               Generate stunning Instagram posts with AI. Perfect for creators, marketers, and social media managers.
             </p>
-
-            {/* Quick Navigation */}
-            <div className="flex items-center gap-4 mt-4">
-              <Link href="/dashboard">
-                <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
-                  <ChevronLeft className="w-4 h-4 mr-1" />
-                  Dashboard
-                </Button>
-              </Link>
-              <Link href="/library">
-                <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
-                  <Library className="w-4 h-4 mr-1" />
-                  My Library
-                </Button>
-              </Link>
-              <Link href="/shared">
-                <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
-                  <Globe className="w-4 h-4 mr-1" />
-                  Shared Posts
-                </Button>
-              </Link>
-            </div>
           </div>
 
           {/* Main Card */}
@@ -635,8 +629,7 @@ export default function CreatePost() {
                         value={prompt}
                         onChange={(e) => setPrompt(e.target.value)}
                         className="h-14 text-lg bg-gray-800/50 border-gray-700 text-white placeholder:text-gray-500 focus:border-purple-500 focus:ring-purple-500/20"
-                        disabled={isGenerating}
-                        onKeyPress={(e) => e.key === 'Enter' && !isGenerating && handleGenerate()}
+                        onKeyPress={(e) => e.key === 'Enter' && !handleGenerate() && handleGenerate()}
                       />
                       <div className="flex items-center gap-2">
                         <label className="text-sm text-gray-400">AI Images</label>
@@ -649,14 +642,7 @@ export default function CreatePost() {
                       </div>
                     </div>
                     <SpeechToText
-                      onTranscriptionComplete={(text, shouldAppend) => {
-                        if (shouldAppend && prompt) {
-                          setPrompt(prev => `${prev} ${text}`);
-                        } else {
-                          setPrompt(text);
-                        }
-                      }}
-                      disabled={isGenerating}
+                      onTranscriptionComplete={handleSpeechToText}
                       className="w-full"
                     />
                   </div>
@@ -669,7 +655,6 @@ export default function CreatePost() {
                           variant="outline"
                           size="sm"
                           onClick={() => setPrompt(example)}
-                          disabled={isGenerating}
                           className="text-xs bg-gray-800/50 border-gray-700 text-gray-300 hover:text-white hover:border-purple-500 hover:bg-purple-500/10"
                         >
                           {example.slice(0, 35)}...
@@ -678,33 +663,13 @@ export default function CreatePost() {
                     </div>
                     <Button 
                       onClick={handleGenerate}
-                      disabled={isGenerating || !prompt.trim()}
+                      disabled={!prompt.trim()}
                       className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-8 py-3 h-auto font-semibold shadow-lg"
                     >
-                      {isGenerating ? (
-                        <>
-                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></div>
-                          Generating...
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="w-4 h-4 mr-2" />
-                          Generate Posts
-                        </>
-                      )}
+                      Generate Posts
                     </Button>
                   </div>
                 </div>
-
-                {isGenerating && (
-                  <div className="space-y-3">
-                    <Progress value={66} className="h-2 bg-gray-800" />
-                    <p className="text-sm text-gray-400 text-center flex items-center justify-center gap-2">
-                      <Sparkles className="w-4 h-4 text-purple-400 animate-pulse" />
-                      AI is crafting your perfect Instagram posts...
-                    </p>
-                  </div>
-                )}
 
                 {error && (
                   <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">

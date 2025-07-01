@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { AzureOpenAI } from 'openai';
 import { processUploadedFiles } from '@/lib/file-processor';
 import { deleteS3Objects } from '@/lib/s3';
+import { auth } from '@/lib/auth';
+import { checkGenerationLimit, decrementGenerationLimit } from '@/lib/auth-db-mongo';
 
 const client = new AzureOpenAI({
   endpoint: process.env.AZURE_OPENAI_ENDPOINT || "https://vfs-gpt.openai.azure.com/",
@@ -16,6 +18,27 @@ export async function POST(request: NextRequest) {
 
   try {
     console.log('\n🚀 === QUIZ GENERATION REQUEST STARTED ===');
+    
+    // Check authentication
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Check generation limit
+    const limitCheck = await checkGenerationLimit(session.user.id);
+    if (!limitCheck) {
+      return NextResponse.json({ error: 'Failed to check generation limit' }, { status: 500 });
+    }
+    if (!limitCheck.canGenerate) {
+      return NextResponse.json({ 
+        error: 'Generation limit reached', 
+        details: {
+          remaining: limitCheck.remaining,
+          resetDate: limitCheck.resetDate
+        }
+      }, { status: 429 });
+    }
     
     const { topic, questionCount = 5, difficulty = 'intermediate', additionalContent = null, uploadedFiles = [] } = await request.json();
 
@@ -186,6 +209,9 @@ Generate exactly ${questionCount} multiple choice questions with connecting text
     const questionCount_actual = quizData.filter(item => item.type === 'question').length;
     const textCount = quizData.filter(item => item.type === 'text').length;
 
+    // After successful generation, decrement the limit
+    await decrementGenerationLimit(session.user.id);
+
     const endTime = Date.now();
     const processingTime = endTime - startTime;
     
@@ -224,6 +250,11 @@ Generate exactly ${questionCount} multiple choice questions with connecting text
         difficulty,
         estimatedDuration: `${quizData.length * 10-15} seconds`, // Rough estimate
         processingTimeMs: processingTime
+      },
+      stats: {
+        questions: questionCount_actual,
+        textSegments: textCount,
+        processingTime
       }
     });
 

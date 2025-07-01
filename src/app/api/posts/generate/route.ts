@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AzureOpenAI } from 'openai';
 import { auth } from '@/lib/auth';
+import { checkGenerationLimit, decrementGenerationLimit } from '@/lib/auth-db-mongo';
+import { createLimitErrorResponse } from '@/lib/utils';
 
 const client = new AzureOpenAI({
   endpoint: process.env.AZURE_OPENAI_ENDPOINT,
@@ -39,6 +41,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
+      );
+    }
+
+    // Check generation limit
+    const limitCheck = await checkGenerationLimit(session.user.id);
+    if (!limitCheck) {
+      return NextResponse.json({ error: 'Failed to check generation limit' }, { status: 500 });
+    }
+    if (!limitCheck.canGenerate) {
+      return NextResponse.json(
+        createLimitErrorResponse(limitCheck.remaining, limitCheck.resetDate),
+        { status: 429 }
       );
     }
 
@@ -333,6 +347,8 @@ GENERATE SINGLE POST JSX:`
     }));
 
     // Return the complete response
+    await decrementGenerationLimit(session.user.id);
+
     return NextResponse.json({
       success: true,
       reasoning: structure.reasoning,

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AzureOpenAI } from 'openai';
+import { auth } from '@/lib/auth';
+import { checkGenerationLimit, decrementGenerationLimit } from '@/lib/auth-db-mongo';
 
 const client = new AzureOpenAI({
   endpoint: process.env.AZURE_OPENAI_ENDPOINT || "https://vfs-gpt.openai.azure.com/",
@@ -10,6 +12,27 @@ const client = new AzureOpenAI({
 
 export async function POST(request: NextRequest) {
   try {
+    // Check authentication
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Check generation limit
+    const limitCheck = await checkGenerationLimit(session.user.id);
+    if (!limitCheck) {
+      return NextResponse.json({ error: 'Failed to check generation limit' }, { status: 500 });
+    }
+    if (!limitCheck.canGenerate) {
+      return NextResponse.json({ 
+        error: 'Generation limit reached', 
+        details: {
+          remaining: limitCheck.remaining,
+          resetDate: limitCheck.resetDate
+        }
+      }, { status: 429 });
+    }
+
     const { topic, videoLength = 'short', difficulty = 'beginner', templatePrompt = null } = await request.json();
 
     // Get user info from middleware headers
@@ -100,6 +123,9 @@ Make it engaging, informative, and perfect for a YouTube Short video. Focus on t
     if (!generatedContent) {
       throw new Error('No content generated from Azure OpenAI');
     }
+
+    // Decrement the generation limit after successful generation
+    await decrementGenerationLimit(session.user.id);
 
     console.log(`✅ Generated ${contentType} (${generatedContent.split(' ').length} words): "${generatedContent.slice(0, 100)}..."`);
 

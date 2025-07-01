@@ -3,10 +3,12 @@ import { bundle } from '@remotion/bundler';
 import { getCompositions, renderMedia } from '@remotion/renderer';
 import { auth } from '@/lib/auth';
 import { createVideo, updateVideo } from '@/lib/auth-db-mongo';
+import { checkGenerationLimit, decrementGenerationLimit } from '@/lib/auth-db-mongo';
 import { sendVideoCompletionEmail } from '@/lib/email';
 import path from 'path';
 import { v4 as uuid } from 'uuid';
 import fs from 'fs/promises';
+import Video from '@/lib/models/Video';
 
 // Define types for segments and segmentImages
 interface QuizSegment {
@@ -166,6 +168,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Check generation limit
+    const limitCheck = await checkGenerationLimit(session.user.id);
+    if (!limitCheck) {
+      return NextResponse.json({ error: 'Failed to check generation limit' }, { status: 500 });
+    }
+    if (!limitCheck.canGenerate) {
+      return NextResponse.json({ 
+        error: 'Generation limit reached', 
+        details: {
+          remaining: limitCheck.remaining,
+          resetDate: limitCheck.resetDate,
+          message: `You have reached your monthly limit of generations. Your limit will reset on ${limitCheck.resetDate.toLocaleDateString()}.`
+        }
+      }, { status: 429 });
+    }
+
     const body = await request.json();
     const {
       segments,
@@ -237,9 +255,9 @@ export async function POST(request: NextRequest) {
     const savedVideo = await createVideo(
       session.user.id,
       videoTitle,
-      undefined, // Placeholder URL - will be updated after processing
-      undefined, // Placeholder key - will be updated after processing
-      0, // Placeholder size - will be updated after processing
+      undefined,
+      undefined,
+      0,
       videoMetadata,
       videoDescription,
       totalDuration
@@ -247,6 +265,14 @@ export async function POST(request: NextRequest) {
 
     if (!savedVideo) {
       return NextResponse.json({ error: 'Failed to create video record' }, { status: 500 });
+    }
+
+    // Decrement the generation limit
+    const decremented = await decrementGenerationLimit(session.user.id);
+    if (!decremented) {
+      // If we fail to decrement, delete the video record to maintain consistency
+      await Video.findByIdAndDelete(savedVideo.id);
+      return NextResponse.json({ error: 'Failed to update generation limit' }, { status: 500 });
     }
 
     // Return immediately with processing status and video ID
