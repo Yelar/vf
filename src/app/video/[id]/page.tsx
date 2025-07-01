@@ -37,7 +37,8 @@ import {
   GripVertical,
   Image,
   Edit3,
-  Plus
+  Plus,
+  Mail
 } from "lucide-react";
 import Link from 'next/link';
 import { SpeechToText } from '@/components/SpeechToText';
@@ -258,6 +259,23 @@ function VideoCreationContent() {
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [videoTitle, setVideoTitle] = useState('');
   const [videoDescription, setVideoDescription] = useState('');
+  
+  // Success popup states
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
+  const [successData, setSuccessData] = useState<{
+    title: string;
+    message: string;
+    estimatedTime: string;
+    isQuiz?: boolean;
+  } | null>(null);
+  
+  // Error popup states
+  const [showErrorPopup, setShowErrorPopup] = useState(false);
+  const [errorData, setErrorData] = useState<{
+    title: string;
+    message: string;
+    details?: string;
+  } | null>(null);
 
   // Quiz generation states
   const [isQuizMode, setIsQuizMode] = useState(false);
@@ -1267,7 +1285,12 @@ function VideoCreationContent() {
   // Function to generate and save video to library
   const handleSaveToLibrary = async () => {
     if (!videoTitle.trim()) {
-      alert('Please enter a title for your video');
+      setErrorData({
+        title: 'Title Required',
+        message: 'Please enter a title for your video before saving to library.',
+        details: 'A video title is required to identify your content in the library.'
+      });
+      setShowErrorPopup(true);
       return;
     }
 
@@ -1315,11 +1338,17 @@ function VideoCreationContent() {
         const result = await response.json();
         
         if (result.success) {
-          alert(`🧠 Quiz video "${videoTitle}" is being processed!\n\n${result.message}\n\nEstimated time: ${result.estimatedTime}\n\nYou'll receive an email notification when it's ready.`);
-          // If this is a new video and we got a video ID back, do NOT navigate away, just close dialog
-            setShowSaveDialog(false);
-            setVideoTitle('');
-            setVideoDescription('');
+          // Show success popup instead of alert
+          setSuccessData({
+            title: videoTitle,
+            message: result.message,
+            estimatedTime: result.estimatedTime,
+            isQuiz: true
+          });
+          setShowSuccessPopup(true);
+          setShowSaveDialog(false);
+          setVideoTitle('');
+          setVideoDescription('');
         } else {
           throw new Error(result.error || 'Failed to start quiz video processing');
         }
@@ -1376,14 +1405,20 @@ function VideoCreationContent() {
         const result = await response.json();
         
         if (result.success) {
-          alert(`🎬 Video "${videoTitle}" is being processed!\n\n${result.message}\n\nEstimated time: ${result.estimatedTime}\n\nYou'll receive an email notification when it's ready.`);
-          // If this is a new video and we got a video ID back, do NOT navigate away, just close dialog
-            if (result.videoUrl) {
-              setVideoUrl(result.videoUrl);
-            }
-            setShowSaveDialog(false);
-            setVideoTitle('');
-            setVideoDescription('');
+          // Show success popup instead of alert
+          setSuccessData({
+            title: videoTitle,
+            message: result.message,
+            estimatedTime: result.estimatedTime,
+            isQuiz: false
+          });
+          setShowSuccessPopup(true);
+          if (result.videoUrl) {
+            setVideoUrl(result.videoUrl);
+          }
+          setShowSaveDialog(false);
+          setVideoTitle('');
+          setVideoDescription('');
         } else {
           throw new Error(result.error || 'Failed to start video processing');
         }
@@ -1391,7 +1426,12 @@ function VideoCreationContent() {
       
     } catch (error) {
       console.error('❌ Error generating/saving video:', error);
-      alert(`❌ Failed to generate/save video: ${error instanceof Error ? error.message : 'Unknown error'}\n\nTry:\n1. Use a smaller background video file\n2. Use MP4 format for background\n3. Check browser console for details`);
+      setErrorData({
+        title: 'Video Processing Failed',
+        message: error instanceof Error ? error.message : 'Unknown error occurred',
+        details: 'Try: 1. Use a smaller background video file\n2. Use MP4 format for background\n3. Check browser console for details'
+      });
+      setShowErrorPopup(true);
     } finally {
       setIsSaving(false);
     }
@@ -1447,13 +1487,23 @@ function VideoCreationContent() {
 
       // Validate file type
       if (!file.type.startsWith('video/')) {
-        alert('Please select a video file (MP4, WebM, MOV, etc.)');
+        setErrorData({
+          title: 'Invalid File Type',
+          message: 'Please select a video file (MP4, WebM, MOV, etc.)',
+          details: 'Only video files are supported for background videos.'
+        });
+        setShowErrorPopup(true);
         return;
       }
 
       // Validate file size (limit to 100MB)
       if (file.size > 100 * 1024 * 1024) {
-        alert('File size too large. Please select a video smaller than 100MB.');
+        setErrorData({
+          title: 'File Too Large',
+          message: 'File size too large. Please select a video smaller than 100MB.',
+          details: 'Large files may cause processing delays and upload failures.'
+        });
+        setShowErrorPopup(true);
         return;
       }
 
@@ -1979,28 +2029,20 @@ function VideoCreationContent() {
               <CardHeader>
                 <CardTitle className="flex items-center justify-between text-white">
                   <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-2">
-                      {isQuizMode ? (
-                        <Brain className="h-3 w-3 text-white" />
-                      ) : (
-                        <Mic className="h-3 w-3 text-white" />
-                      )}
-                    </div>
-                    {isQuizMode ? '🧠 Quiz Generation' : '🎤 AI Voice Synthesis'}
+                    {isQuizMode ? (
+                      <Brain className="h-3 w-3 text-white" />
+                    ) : (
+                      <Mic className="h-3 w-3 text-white" />
+                    )}
                   </div>
-                  {((generatedAudio || audioSegments) && !isQuizMode) || (quizAudioSegments && quizAudioSegments.length > 0) && (
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                      <span className="text-xs text-green-400 font-medium">Ready</span>
-                    </div>
-                  )}
+                  {isQuizMode ? '🧠 Quiz Generation' : '🎤 AI Voice Synthesis'}
                 </CardTitle>
-                <CardDescription className="text-gray-400">
-                  {isQuizMode 
-                    ? 'Generate interactive quiz videos with questions and answers'
-                    : 'Generate premium AI voice with intelligent text segmentation'
-                  }
-                </CardDescription>
+                {((generatedAudio || audioSegments) && !isQuizMode) || (quizAudioSegments && quizAudioSegments.length > 0) && (
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                    <span className="text-xs text-green-400 font-medium">Ready</span>
+                  </div>
+                )}
               </CardHeader>
               <CardContent className="space-y-4">
                 {isQuizMode ? (
@@ -3349,6 +3391,139 @@ function VideoCreationContent() {
                     )}
                   </Button>
                 </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Success Popup */}
+        {showSuccessPopup && successData && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+            <Card className="w-full max-w-md mx-4 bg-white/10 border-white/20 backdrop-blur-xl">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-white">
+                  {successData.isQuiz ? (
+                    <>
+                      <Brain className="w-5 h-5 text-purple-400" />
+                      Quiz Video Processing Started
+                    </>
+                  ) : (
+                    <>
+                      <Film className="w-5 h-5 text-blue-400" />
+                      Video Processing Started
+                    </>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="text-center space-y-3">
+                  <div className="w-16 h-16 mx-auto bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
+                    <Upload className="w-8 h-8 text-white animate-pulse" />
+                  </div>
+                  
+                  <div>
+                    <h3 className="text-lg font-semibold text-white mb-1">
+                      &ldquo;{successData.title}&rdquo; is being processed!
+                    </h3>
+                    <p className="text-gray-300 text-sm">
+                      {successData.message}
+                    </p>
+                  </div>
+
+                  <div className="bg-gradient-to-r from-purple-500/20 to-blue-500/20 border border-purple-500/30 rounded-lg p-4 space-y-3">
+                    <div className="flex items-center justify-center gap-2 text-yellow-300">
+                      <Clock className="w-5 h-5" />
+                      <span className="font-medium">Estimated Processing Time</span>
+                    </div>
+                    <div className="text-2xl font-bold text-white text-center">
+                      {successData.estimatedTime}
+                    </div>
+                    <div className="text-xs text-gray-400 text-center">
+                      Processing time may vary based on video length and complexity
+                    </div>
+                  </div>
+
+                  <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 border border-green-500/30 rounded-lg p-4 space-y-2">
+                    <div className="flex items-center justify-center gap-2 text-green-300">
+                      <Mail className="w-5 h-5" />
+                      <span className="font-medium">Email Notification</span>
+                    </div>
+                    <p className="text-sm text-gray-300 text-center">
+                      You&apos;ll receive an email when your video is ready to view and download
+                    </p>
+                  </div>
+
+                  <div className="text-xs text-gray-400 text-center">
+                    You can close this dialog and continue creating more content. 
+                    Check your email or visit your library when the video is ready.
+                  </div>
+                </div>
+
+                <Button
+                  onClick={() => {
+                    setShowSuccessPopup(false);
+                    setSuccessData(null);
+                  }}
+                  className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                >
+                  <Check className="mr-2 h-4 w-4" />
+                  Got it!
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Error Popup */}
+        {showErrorPopup && errorData && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+            <Card className="w-full max-w-md mx-4 bg-white/10 border-white/20 backdrop-blur-xl">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-white">
+                  <Brain className="w-5 h-5 text-red-400" />
+                  Error Processing Video
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="text-center space-y-3">
+                  <div className="w-16 h-16 mx-auto bg-gradient-to-r from-red-500 to-orange-500 rounded-full flex items-center justify-center">
+                    <Brain className="w-8 h-8 text-white animate-pulse" />
+                  </div>
+                  
+                  <div>
+                    <h3 className="text-lg font-semibold text-white mb-1">
+                      {errorData.title}
+                    </h3>
+                    <p className="text-gray-300 text-sm">
+                      {errorData.message}
+                    </p>
+                  </div>
+
+                  <div className="bg-gradient-to-r from-red-500/20 to-orange-500/20 border border-red-500/30 rounded-lg p-4 space-y-2">
+                    <div className="flex items-center justify-center gap-2 text-orange-300">
+                      <Clock className="w-5 h-5" />
+                      <span className="font-medium">Error Details</span>
+                    </div>
+                    <p className="text-sm text-gray-300 text-center">
+                      {errorData.details}
+                    </p>
+                  </div>
+
+                  <div className="text-xs text-gray-400 text-center">
+                    Please try again. If the problem persists, please contact support.
+                  </div>
+                </div>
+
+                <Button
+                  onClick={() => {
+                    setShowErrorPopup(false);
+                    setErrorData(null);
+                  }}
+                  className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                >
+                  <Check className="mr-2 h-4 w-4" />
+                  Got it!
+                </Button>
               </CardContent>
             </Card>
           </div>
