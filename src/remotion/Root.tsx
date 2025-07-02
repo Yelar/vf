@@ -95,7 +95,7 @@ export const RemotionRoot: React.FC = () => {
             {
               id: 'wait1',
               type: 'wait' as const,
-              text: '5, 4, 3, 2, 1',
+              text: '',
               duration: 5,
             },
             {

@@ -6,10 +6,8 @@ import { Button } from "@/components/ui/button";
 import { 
   Film, 
   Library, 
-  Globe, 
   User, 
   LogOut,
-  Plus,
   Settings
 } from "lucide-react";
 import Link from 'next/link';
@@ -23,7 +21,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 
 export function NavigationHeader() {
   const { data: session } = useSession();
@@ -31,85 +28,63 @@ export function NavigationHeader() {
 
   const navigationItems = [
     {
-      href: '/video/new',
-      label: 'Create',
-      icon: Plus,
-      active: pathname.startsWith('/video'),
-      highlight: false
-    },
-    {
-      href: '/posts/create',
-      label: 'Posts',
-      icon: Plus,
-      active: pathname.startsWith('/posts'),
-      highlight: true
-    },
-    {
       href: '/library',
       label: 'Library',
       icon: Library,
       active: pathname === '/library'
-    },
-    {
-      href: '/shared',
-      label: 'Shared',
-      icon: Globe,
-      active: pathname === '/shared'
     }
   ];
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-white/10 bg-black/95 backdrop-blur supports-[backdrop-filter]:bg-black/60">
-      <div className="container mx-auto px-4 flex h-16 items-center justify-between">
+      <div className="container mx-auto px-4 h-16 flex items-center">
         {/* Logo */}
-        <Link href="/dashboard" className="flex items-center space-x-3">
-          <div className="relative">
-            <div className="w-10 h-10 bg-gradient-to-br from-purple-500 via-purple-600 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
-              <Film className="w-6 h-6 text-white" />
+        <div className="flex-shrink-0">
+          <Link href="/dashboard" className="flex items-center space-x-3">
+            <div className="relative">
+              <div className="w-10 h-10 bg-gradient-to-br from-purple-500 via-purple-600 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
+                <Film className="w-6 h-6 text-white" />
+              </div>
+              <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-black animate-pulse"></div>
             </div>
-            <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-black animate-pulse"></div>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-xl font-bold bg-gradient-to-r from-purple-400 via-purple-300 to-blue-400 bg-clip-text text-transparent">
-              VFS Studio
-            </span>
-            <span className="text-xs text-gray-400 -mt-1">AI Content Creator</span>
-          </div>
-        </Link>
+            <div className="flex flex-col">
+              <span className="text-xl font-bold bg-gradient-to-r from-purple-400 via-purple-300 to-blue-400 bg-clip-text text-transparent">
+                VFS Studio
+              </span>
+              <span className="text-xs text-gray-400 -mt-1">AI Content Creator</span>
+            </div>
+          </Link>
+        </div>
 
-        {/* Navigation */}
-        <nav className="hidden md:flex items-center space-x-1">
-          {navigationItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <Link key={item.href} href={item.href}>
-                <Button
-                  variant={item.active ? "default" : "ghost"}
-                  size="sm"
-                  className={`
-                    relative flex items-center space-x-2 px-4 py-2 transition-all duration-200
-                    ${item.active 
-                      ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg shadow-purple-500/25' 
-                      : 'text-gray-300 hover:text-white hover:bg-white/10'
-                    }
-                    ${item.highlight && !item.active ? 'border border-purple-500/50 hover:border-purple-400' : ''}
-                  `}
-                >
-                  <Icon className="w-4 h-4" />
-                  <span className="font-medium">{item.label}</span>
-                  {item.highlight && !item.active && (
-                    <Badge variant="secondary" className="ml-1 px-1.5 py-0.5 text-xs bg-purple-500/20 text-purple-300 border-purple-500/30">
-                      New
-                    </Badge>
-                  )}
-                </Button>
-              </Link>
-            );
-          })}
-        </nav>
+        {/* Navigation - Centered */}
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+          <nav className="hidden md:block">
+            {navigationItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <Link key={item.href} href={item.href}>
+                  <Button
+                    variant={item.active ? "default" : "ghost"}
+                    size="sm"
+                    className={`
+                      relative flex items-center space-x-2 px-4 py-2 transition-all duration-200
+                      ${item.active 
+                        ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg shadow-purple-500/25' 
+                        : 'text-gray-300 hover:text-white hover:bg-white/10'
+                      }
+                    `}
+                  >
+                    <Icon className="w-4 h-4" />
+                    <span className="font-medium">{item.label}</span>
+                  </Button>
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
 
         {/* User Menu */}
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-3 ml-auto">
           {/* User Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -131,9 +106,6 @@ export function NavigationHeader() {
                   <p className="text-xs leading-none text-gray-400">
                     {session?.user?.email}
                   </p>
-                  <Badge variant="secondary" className="w-fit mt-2 bg-purple-500/20 text-purple-300 border-purple-500/30">
-                    Pro Creator
-                  </Badge>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator className="bg-white/10" />

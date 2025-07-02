@@ -2,24 +2,21 @@
 
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
-import { Card } from '@/components/ui/card';
+import { useRouter } from 'next/navigation';
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Badge } from '@/components/ui/badge';
+import { Key } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { LimitWarning } from '@/components/ui/limit-warning';
 import { motion } from 'framer-motion';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { NavigationHeader } from '@/components/ui/navigation-header';
 import { 
   User, 
-  Key, 
   Mail, 
-  Calendar, 
   Zap,
-  AlertCircle,
-  CheckCircle2
+  AlertCircle
 } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
 
 interface LimitInfo {
   remaining: number;
@@ -27,25 +24,12 @@ interface LimitInfo {
   resetDate: Date;
 }
 
-interface PasswordChangeForm {
-  currentPassword: string;
-  newPassword: string;
-  confirmPassword: string;
-}
-
 export default function ProfilePage() {
   const { data: session } = useSession();
+  const router = useRouter();
   const [limitInfo, setLimitInfo] = useState<LimitInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showWarning, setShowWarning] = useState(false);
-  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
-  const [passwordForm, setPasswordForm] = useState<PasswordChangeForm>({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: ''
-  });
-  const [passwordError, setPasswordError] = useState<string | null>(null);
-  const [passwordSuccess, setPasswordSuccess] = useState(false);
 
   useEffect(() => {
     const fetchLimitInfo = async () => {
@@ -75,51 +59,6 @@ export default function ProfilePage() {
       fetchLimitInfo();
     }
   }, [session]);
-
-  const handlePasswordChange = async () => {
-    setPasswordError(null);
-    setPasswordSuccess(false);
-
-    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      setPasswordError('New passwords do not match');
-      return;
-    }
-
-    if (passwordForm.newPassword.length < 8) {
-      setPasswordError('Password must be at least 8 characters long');
-      return;
-    }
-
-    try {
-      const response = await fetch('/api/auth/change-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          currentPassword: passwordForm.currentPassword,
-          newPassword: passwordForm.newPassword
-        })
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to change password');
-      }
-
-      setPasswordSuccess(true);
-      setTimeout(() => {
-        setShowPasswordDialog(false);
-        setPasswordSuccess(false);
-        setPasswordForm({
-          currentPassword: '',
-          newPassword: '',
-          confirmPassword: ''
-        });
-      }, 2000);
-    } catch (error) {
-      setPasswordError(error instanceof Error ? error.message : 'Failed to change password');
-    }
-  };
 
   if (!session?.user) {
     return (
@@ -191,16 +130,6 @@ export default function ProfilePage() {
 
                     <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
                       <div className="flex items-center gap-3">
-                        <Calendar className="w-4 h-4 text-gray-400" />
-                        <div>
-                          <p className="text-sm font-medium text-white">Member Since</p>
-                          <p className="text-sm text-gray-400">January 2024</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
-                      <div className="flex items-center gap-3">
                         <Key className="w-4 h-4 text-gray-400" />
                         <div>
                           <p className="text-sm font-medium text-white">Password</p>
@@ -210,7 +139,7 @@ export default function ProfilePage() {
                       <Button 
                         variant="outline" 
                         className="bg-purple-500/10 text-purple-400 border-purple-500/20 hover:bg-purple-500/20"
-                        onClick={() => setShowPasswordDialog(true)}
+                        onClick={() => router.push('/auth/forgot-password')}
                       >
                         Change Password
                       </Button>
@@ -300,81 +229,6 @@ export default function ProfilePage() {
           </div>
         </div>
       </main>
-
-      {/* Password Change Dialog */}
-      <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
-        <DialogContent className="bg-gray-900/95 backdrop-blur-xl border-white/10">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-semibold">Change Password</DialogTitle>
-            <DialogDescription className="text-gray-400">
-              Enter your current password and choose a new one
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-4">
-            {passwordError && (
-              <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2 text-red-400">
-                <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                <p className="text-sm">{passwordError}</p>
-              </div>
-            )}
-
-            {passwordSuccess && (
-              <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg flex items-center gap-2 text-green-400">
-                <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-                <p className="text-sm">Password changed successfully!</p>
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <label className="text-sm text-gray-400">Current Password</label>
-              <Input
-                type="password"
-                value={passwordForm.currentPassword}
-                onChange={(e) => setPasswordForm(prev => ({ ...prev, currentPassword: e.target.value }))}
-                className="bg-black/50 border-white/10 focus:border-purple-500"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm text-gray-400">New Password</label>
-              <Input
-                type="password"
-                value={passwordForm.newPassword}
-                onChange={(e) => setPasswordForm(prev => ({ ...prev, newPassword: e.target.value }))}
-                className="bg-black/50 border-white/10 focus:border-purple-500"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm text-gray-400">Confirm New Password</label>
-              <Input
-                type="password"
-                value={passwordForm.confirmPassword}
-                onChange={(e) => setPasswordForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                className="bg-black/50 border-white/10 focus:border-purple-500"
-              />
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-3 mt-4">
-            <Button
-              variant="outline"
-              onClick={() => setShowPasswordDialog(false)}
-              className="bg-white/5 hover:bg-white/10 border-white/10"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handlePasswordChange}
-              className="bg-purple-600 hover:bg-purple-700"
-              disabled={!passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword}
-            >
-              Change Password
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 } 

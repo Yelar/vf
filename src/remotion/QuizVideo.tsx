@@ -223,130 +223,143 @@ export const QuizVideo: React.FC<QuizVideoProps> = ({
         return null;
       })()}
 
-      {/* Quiz Content */}
-      <div
-        style={{
-          position: 'relative',
-          zIndex: 3,
-          padding: '40px',
-          width: '90%',
-          maxWidth: '800px',
-          textAlign: textAlignment,
-        }}
-      >
-        {/* Segment Type Badge */}
+      {/* Countdown Display (for wait segments) - ONLY the number */}
+      {currentSegment.type === 'wait' ? (
         <div
           style={{
-            marginBottom: '20px',
-            display: 'flex',
-            justifyContent: textAlignment,
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: getSegmentColor(currentSegment.type),
-              color: 'white',
-              padding: '8px 16px',
-              borderRadius: '20px',
-              fontSize: '14px',
-              fontWeight: 'bold',
-              textTransform: 'uppercase',
-              letterSpacing: '1px',
-            }}
-          >
-            {getSegmentLabel(currentSegment.type)}
-          </div>
-        </div>
-
-        {/* Main Text with Word Highlighting - HIDDEN during choice segments */}
-        {currentSegment.type !== 'choices' && (
-          <div
-            style={{
-              fontSize: `${fontSize}px`,
-              lineHeight: 1.2,
-              fontWeight: 'bold',
-              color: textColor,
-              textShadow: '2px 2px 4px rgba(0, 0, 0, 0.8)',
-              marginBottom: '20px',
-            }}
-          >
-            {renderHighlightedText(words, currentWordIndex, textColor)}
-          </div>
-        )}
-
-        {/* Question Choices (for choice segments) */}
-        {currentSegment.type === 'choices' && (
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: '15px',
-              marginTop: '30px',
-              fontSize: `${fontSize * 0.6}px`,
-            }}
-          >
-            {parseChoices(currentSegment.text).map((choice, index) => (
-              <div
-                key={index}
-                style={{
-                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                  padding: '15px',
-                  borderRadius: '10px',
-                  border: '2px solid rgba(255, 255, 255, 0.2)',
-                  backdropFilter: 'blur(10px)',
-                }}
-              >
-                <span style={{ color: '#FFD700', fontWeight: 'bold' }}>
-                  {choice.letter}:
-                </span>{' '}
-                <span style={{ color: textColor }}>{choice.text}</span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Countdown Display (for wait segments) */}
-        {currentSegment.type === 'wait' && (
-          <div
-            style={{
-              fontSize: `${fontSize * 1.5}px`,
-              color: '#FFD700',
-              fontWeight: 'bold',
-              textAlign: 'center',
-              marginTop: '20px',
-            }}
-          >
-            {getCountdownDisplay(currentSegment.text, segmentProgress)}
-          </div>
-        )}
-
-        {/* Progress Bar */}
-        <div
-          style={{
+            fontSize: `${fontSize * 3}px`,
+            color: textColor,
+            fontWeight: '900',
+            textAlign: 'center',
+            textShadow: '2px 2px 4px rgba(0, 0, 0, 0.8)',
+            lineHeight: 1,
             position: 'absolute',
-            bottom: '20px',
-            left: '40px',
-            right: '40px',
-            height: '4px',
-            backgroundColor: 'rgba(255, 255, 255, 0.2)',
-            borderRadius: '2px',
-            overflow: 'hidden',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            zIndex: 10,
           }}
         >
+          {getCountdownDisplay(currentSegment.text, segmentProgress)}
+        </div>
+      ) : (
+        /* Quiz Content - All other segments */
+        <div
+          style={{
+            position: 'relative',
+            zIndex: 3,
+            padding: '40px',
+            width: '90%',
+            maxWidth: '800px',
+            textAlign: textAlignment,
+          }}
+        >
+          {/* Segment Type Badge */}
           <div
             style={{
-              width: `${segmentProgress * 100}%`,
-              height: '100%',
-              backgroundColor: getSegmentColor(currentSegment.type),
-              borderRadius: '2px',
-              transition: 'width 0.1s ease-out',
+              marginBottom: '20px',
+              display: 'flex',
+              justifyContent: textAlignment,
             }}
-          />
-        </div>
-      </div>
+          >
+            <div
+              style={{
+                backgroundColor: getSegmentColor(currentSegment.type),
+                color: 'white',
+                padding: '30px 60px',
+                borderRadius: '50px',
+                fontSize: '48px',
+                fontWeight: 'bold',
+                textTransform: 'uppercase',
+                letterSpacing: '4px',
+              }}
+            >
+              {getSegmentLabel(currentSegment.type)}
+            </div>
+          </div>
 
-      {/* Background Image */}
-      {currentSegment.image && (
+          {/* Main Text with Word Highlighting - HIDDEN during choice segments */}
+          {currentSegment.type !== 'choices' && (
+            <div
+              style={{
+                fontSize: `${fontSize}px`,
+                lineHeight: 1.2,
+                fontWeight: 'bold',
+                color: textColor,
+                textShadow: '2px 2px 4px rgba(0, 0, 0, 0.8)',
+                marginBottom: '20px',
+              }}
+            >
+              {renderHighlightedText(words, currentWordIndex, textColor)}
+            </div>
+          )}
+
+          {/* Question Choices (for choice segments) */}
+          {currentSegment.type === 'choices' && (
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: '15px',
+                marginTop: '30px',
+                fontSize: `${fontSize * 0.7}px`,
+              }}
+            >
+              {parseChoices(currentSegment.text).map((choice, index) => (
+                <div
+                  key={index}
+                  style={{
+                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                    padding: '16px',
+                    borderRadius: '12px',
+                    border: '2px solid rgba(255, 255, 255, 0.2)',
+                    backdropFilter: 'blur(10px)',
+                  }}
+                >
+                  <span style={{ 
+                    color: '#FFD700', 
+                    fontWeight: 'bold',
+                    fontSize: `${fontSize * 0.7}px`
+                  }}>
+                    {choice.letter}:
+                  </span>{' '}
+                  <span style={{ 
+                    color: textColor,
+                    fontSize: `${fontSize * 0.6}px`
+                  }}>{choice.text}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Progress Bar */}
+          <div
+            style={{
+              position: 'absolute',
+              bottom: '20px',
+              left: '40px',
+              right: '40px',
+              height: '4px',
+              backgroundColor: 'rgba(255, 255, 255, 0.2)',
+              borderRadius: '2px',
+              overflow: 'hidden',
+            }}
+          >
+            <div
+              style={{
+                width: `${segmentProgress * 100}%`,
+                height: '100%',
+                backgroundColor: getSegmentColor(currentSegment.type),
+                borderRadius: '2px',
+                transition: 'width 0.1s ease-out',
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Background Image - Hidden during countdown */}
+      {currentSegment.image && currentSegment.type !== 'wait' && (
         <Img
           src={currentSegment.image}
           style={{
@@ -385,7 +398,7 @@ function getFontFamily(font: string): string {
     poppins: 'Poppins, sans-serif',
   };
   return fontMap[font] || 'Arial, sans-serif';
-}
+} 
 
 function getSegmentColor(type: string): string {
   const colors: Record<string, string> = {
@@ -441,12 +454,18 @@ function parseChoices(text: string): Array<{ letter: string; text: string }> {
 }
 
 function getCountdownDisplay(text: string, progress: number): string {
-  // Parse countdown numbers from text like "5, 4, 3, 2, 1"
-  const numbers = text.split(', ').map(n => parseInt(n.trim())).filter(n => !isNaN(n));
-  if (numbers.length === 0) return '⏰';
+  // Parse the starting number (e.g., "5" instead of "5, 4, 3, 2, 1")
+  const startingNumber = parseInt(text.trim());
+  if (isNaN(startingNumber) || startingNumber <= 0) return '⏰';
   
-  const currentIndex = Math.floor(progress * numbers.length);
-  const currentNumber = numbers[currentIndex];
+  // Ensure progress is between 0 and 1
+  const clampedProgress = Math.max(0, Math.min(1, progress));
   
-  return currentNumber ? currentNumber.toString() : '⏰';
+  // Calculate current countdown number based on progress
+  // Progress 0 = starting number, Progress 1 = 1
+  const remainingTime = Math.ceil(startingNumber * (1 - clampedProgress));
+  const currentNumber = Math.max(1, remainingTime);
+  
+  // Show only the current number
+  return currentNumber.toString();
 } 

@@ -214,7 +214,7 @@ function VideoCreationContent() {
   }> | null>(null);
   const [isGeneratingSpeech, setIsGeneratingSpeech] = useState(false);
   const [audioDuration, setAudioDuration] = useState<number | null>(null);
-  const [selectedVoiceProvider, setSelectedVoiceProvider] = useState<'azure' | 'elevenlabs'>('azure');
+  const [selectedVoiceProvider] = useState<'azure'>('azure');
   const [selectedVoice, setSelectedVoice] = useState('alloy'); // Default Azure voice
 
   // Add new state for TTS instructions
@@ -348,13 +348,7 @@ function VideoCreationContent() {
     }))
   ];
 
-  // Available voice options
-  const voiceProviders = [
-    { value: 'azure', label: '🔊 Azure OpenAI TTS (Active)', disabled: false },
-    { value: 'elevenlabs', label: '🔇 Eleven Labs (Out of tokens)', disabled: true }
-  ] as const;
-
-  // Azure OpenAI TTS voices
+  // Available voice options - Only Azure TTS
   const azureVoices = [
     { value: 'alloy', label: '👩 Alloy - Versatile, well-rounded voice' },
     { value: 'echo', label: '👨 Echo - Clear, well-modulated voice' },
@@ -363,16 +357,6 @@ function VideoCreationContent() {
     { value: 'nova', label: '👩 Nova - Energetic, engaging voice' },
     { value: 'shimmer', label: '👩 Shimmer - Warm, welcoming voice' }
   ] as const;
-
-  // Eleven Labs voices (currently unavailable)
-  const elevenLabsVoices = [
-    { value: 'EXAVITQu4vr4xnSDxMaL', label: '👩 Bella - Friendly Female', available: false },
-    { value: 'pNInz6obpgDQGcFmaJgB', label: '👨 Adam - Professional Male', available: false },
-    { value: 'ErXwobaYiN019PkySvjV', label: '👨 Antoni - Warm Male', available: false },
-    { value: 'VR6AewLTigWG4xSOukaG', label: '👨 Arnold - Deep Male', available: false },
-    { value: 'MF3mGyEYCl7XYWbV9V6O', label: '👩 Elli - Young Female', available: false },
-    { value: 'TxGEqnHWrfWFTfGW9XjX', label: '👨 Josh - Casual Male', available: false }
-  ];
 
   // Available font styles
   const fontOptions = [
@@ -420,7 +404,7 @@ function VideoCreationContent() {
         alignment: 'center',
         blur: false,
         animation: 'fade-in',
-        voice: 'EXAVITQu4vr4xnSDxMaL', // Bella - Friendly Female
+        voice: 'nova', // Nova - Energetic, engaging voice
         bgVideo: 'none',
         bgMusic: 'none'
       }
@@ -437,7 +421,7 @@ function VideoCreationContent() {
         alignment: 'center',
         blur: true,
         animation: 'fade-in',
-        voice: 'VR6AewLTigWG4xSOukaG', // Arnold - Deep Male
+        voice: 'onyx', // Onyx - Authoritative, refined voice
         bgVideo: 'none',
         bgMusic: 'none'
       }
@@ -454,7 +438,7 @@ function VideoCreationContent() {
         alignment: 'center',
         blur: false,
         animation: 'typewriter',
-        voice: 'MF3mGyEYCl7XYWbV9V6O', // Elli - Young Female
+        voice: 'fable', // Fable - Expressive, dynamic voice
         bgVideo: 'none',
         bgMusic: 'mii'
       }
@@ -471,7 +455,7 @@ function VideoCreationContent() {
         alignment: 'center',
         blur: false,
         animation: 'fade-in',
-        voice: 'pNInz6obpgDQGcFmaJgB', // Adam - Professional Male
+        voice: 'echo', // Echo - Clear, well-modulated voice
         bgVideo: 'none',
         bgMusic: 'none'
       }
@@ -488,7 +472,7 @@ function VideoCreationContent() {
         alignment: 'center',
         blur: true,
         animation: 'typewriter',
-        voice: 'VR6AewLTigWG4xSOukaG', // Arnold - Deep Male
+        voice: 'onyx', // Onyx - Authoritative, refined voice
         bgVideo: 'none',
         bgMusic: 'none'
       }
@@ -505,7 +489,7 @@ function VideoCreationContent() {
         alignment: 'center',
         blur: false,
         animation: 'fade-in',
-        voice: 'TxGEqnHWrfWFTfGW9XjX', // Josh - Casual Male
+        voice: 'alloy', // Alloy - Versatile, well-rounded voice
         bgVideo: 'none',
         bgMusic: 'mii'
       }
@@ -522,7 +506,7 @@ function VideoCreationContent() {
         alignment: 'center',
         blur: false,
         animation: 'none',
-        voice: 'EXAVITQu4vr4xnSDxMaL', // Bella - Friendly Female
+        voice: 'shimmer', // Shimmer - Warm, welcoming voice
         bgVideo: 'none',
         bgMusic: 'none'
       }
@@ -539,7 +523,7 @@ function VideoCreationContent() {
         alignment: 'center',
         blur: false,
         animation: 'fade-in',
-        voice: 'EXAVITQu4vr4xnSDxMaL', // Bella - Friendly Female
+        voice: 'nova', // Nova - Energetic, engaging voice
         bgVideo: 'none',
         bgMusic: 'none'
       }
@@ -879,13 +863,11 @@ function VideoCreationContent() {
 
           // 3. Wait time (countdown)
           const waitTime = item.wait_time || 5;
-          const countdownNumbers = Array.from({length: waitTime}, (_, i) => waitTime - i);
-          const countdownText = countdownNumbers.join(', ');
-          
+          // Store only the wait time, not the full countdown text
           audioSegments.push({
             id: `${item.id}-wait`,
             type: 'wait',
-            text: countdownText,
+            text: waitTime.toString(), // Just store the starting number
             duration: waitTime
           });
 
@@ -1566,8 +1548,52 @@ function VideoCreationContent() {
       <div className="relative z-10">
         {/* Header */}
         <header className="border-b border-white/10 backdrop-blur-xl bg-black/30">
-          <div className="container mx-auto px-6 py-4">
-            <div className="flex items-center justify-between">
+          <div className="container mx-auto px-4 sm:px-6 py-3 sm:py-4">
+            {/* Mobile Header */}
+            <div className="block lg:hidden">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Link href="/dashboard">
+                    <Button variant="ghost" size="sm" className="text-gray-300 hover:text-white p-2">
+                      <ArrowLeft className="h-4 w-4" />
+                    </Button>
+                  </Link>
+                  <div className="w-6 h-6 bg-gradient-to-r from-purple-500 to-blue-500 rounded flex items-center justify-center">
+                    <Video className="w-3 h-3 text-white" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h1 className="text-sm font-bold text-white truncate">
+                      {isNew ? '🎬 Create Video' : `✏️ ${videoData?.title || 'Edit Video'}`}
+                    </h1>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1">
+                  {!isNew && videoUrl && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={copyVideoUrl}
+                      className="text-blue-300 hover:text-blue-200 p-2"
+                    >
+                      {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                    </Button>
+                  )}
+                  <Link href="/library">
+                    <Button variant="ghost" size="sm" className="text-gray-300 hover:text-white p-2">
+                      <Film className="h-4 w-4" />
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+              {!isNew && videoUrl && copied && (
+                <div className="mt-1">
+                  <p className="text-xs text-green-400">✅ Video URL copied!</p>
+                </div>
+              )}
+            </div>
+
+            {/* Desktop Header */}
+            <div className="hidden lg:flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <Link href="/dashboard">
                   <Button variant="ghost" className="text-gray-300 hover:text-white">
@@ -1619,24 +1645,24 @@ function VideoCreationContent() {
           </div>
         </header>
 
-        <div className="container mx-auto px-6 py-8 space-y-8">
+        <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-8 space-y-6 sm:space-y-8">
 
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
           {/* Video Preview */}
-          <Card className="bg-white/5 border-white/10 backdrop-blur-sm xl:sticky xl:top-8 xl:h-fit">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-white">
-                <div className="w-6 h-6 bg-gradient-to-r from-purple-500 to-blue-500 rounded flex items-center justify-center">
+          <Card className="bg-white/5 border-white/10 backdrop-blur-sm lg:sticky lg:top-8 lg:h-fit order-2 lg:order-1">
+            <CardHeader className="pb-3 sm:pb-6">
+              <CardTitle className="flex items-center gap-2 text-white text-base sm:text-lg">
+                <div className="w-5 h-5 sm:w-6 sm:h-6 bg-gradient-to-r from-purple-500 to-blue-500 rounded flex items-center justify-center">
                   <Play className="h-3 w-3 text-white" />
                 </div>
                 Live Preview
               </CardTitle>
-              <CardDescription className="text-gray-400">
+              <CardDescription className="text-gray-400 text-sm">
                 Real-time preview of your AI-generated video
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="mx-auto bg-black rounded-xl overflow-hidden border border-white/20 shadow-2xl" style={{ aspectRatio: '9/16', maxHeight: '600px' }}>
+            <CardContent className="pt-0">
+              <div className="mx-auto bg-black rounded-xl overflow-hidden border border-white/20 shadow-2xl" style={{ aspectRatio: '9/16', maxHeight: '70vh', maxWidth: '400px' }}>
                 {isQuizMode ? (
                   <Player
                     component={QuizVideo}
@@ -1704,24 +1730,24 @@ function VideoCreationContent() {
                   />
                 )}
               </div>
-              <div className="flex items-center justify-center gap-3 mt-4">
-                <Badge className="bg-purple-500/20 text-purple-300 border-purple-500/30">
+              <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 mt-3 sm:mt-4">
+                <Badge className="bg-purple-500/20 text-purple-300 border-purple-500/30 text-xs">
                   📱 9:16 Vertical
                 </Badge>
-                <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30">
+                <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30 text-xs">
                   🚀 AI Powered
                 </Badge>
                 {isQuizMode && quizAudioSegments.length > 0 ? (
-                  <Badge className="bg-purple-500/20 text-purple-300 border-purple-500/30">
+                  <Badge className="bg-purple-500/20 text-purple-300 border-purple-500/30 text-xs">
                     🧠 {quizAudioSegments.length} Quiz Segments
                   </Badge>
                 ) : audioSegments && audioSegments.length > 0 && (
-                  <Badge className="bg-green-500/20 text-green-300 border-green-500/30">
+                  <Badge className="bg-green-500/20 text-green-300 border-green-500/30 text-xs">
                     🎵 {audioSegments.length} Segments
                   </Badge>
                 )}
                 {segmentImages && segmentImages.length > 0 && (
-                  <Badge className="bg-orange-500/20 text-orange-300 border-orange-500/30">
+                  <Badge className="bg-orange-500/20 text-orange-300 border-orange-500/30 text-xs">
                     🖼️ {segmentImages.length} Images
                   </Badge>
                 )}
@@ -1730,17 +1756,17 @@ function VideoCreationContent() {
           </Card>
 
           {/* Controls */}
-          <div className="space-y-8">
+          <div className="space-y-6 sm:space-y-8 order-1 lg:order-2">
             {/* Quick Stats */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
               <Card className="bg-white/5 border-white/10 backdrop-blur-sm">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-r from-purple-500/20 to-blue-500/20 rounded-lg flex items-center justify-center">
-                      <Mic className="w-5 h-5 text-purple-400" />
+                <CardContent className="p-3 sm:p-4">
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-purple-500/20 to-blue-500/20 rounded-lg flex items-center justify-center">
+                      <Mic className="w-4 h-4 sm:w-5 sm:h-5 text-purple-400" />
                     </div>
-                    <div>
-                      <p className="text-sm font-medium text-white">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-white truncate">
                         {isQuizMode ? quizData.filter(item => item.type === 'question').length : (speechText ? speechText.split(' ').length : 0)}
                       </p>
                       <p className="text-xs text-gray-400">{isQuizMode ? 'Questions' : 'Words'}</p>
@@ -1750,13 +1776,13 @@ function VideoCreationContent() {
               </Card>
               
               <Card className="bg-white/5 border-white/10 backdrop-blur-sm">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-r from-green-500/20 to-emerald-500/20 rounded-lg flex items-center justify-center">
-                      <Clock className="w-5 h-5 text-green-400" />
+                <CardContent className="p-3 sm:p-4">
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-green-500/20 to-emerald-500/20 rounded-lg flex items-center justify-center">
+                      <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-green-400" />
                     </div>
-                    <div>
-                      <p className="text-sm font-medium text-white">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-white truncate">
                         {isQuizMode && quizAudioSegments.length > 0 
                           ? `${quizAudioSegments.reduce((acc, seg) => acc + (seg.duration || 2), 0).toFixed(1)}s`
                           : audioDuration ? `${audioDuration.toFixed(1)}s` 
@@ -1771,13 +1797,13 @@ function VideoCreationContent() {
               </Card>
               
               <Card className="bg-white/5 border-white/10 backdrop-blur-sm">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-r from-orange-500/20 to-red-500/20 rounded-lg flex items-center justify-center">
-                      <Video className="w-5 h-5 text-orange-400" />
+                <CardContent className="p-3 sm:p-4">
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-orange-500/20 to-red-500/20 rounded-lg flex items-center justify-center">
+                      <Video className="w-4 h-4 sm:w-5 sm:h-5 text-orange-400" />
                     </div>
-                    <div>
-                      <p className="text-sm font-medium text-white">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-white truncate">
                         {isQuizMode ? quizAudioSegments?.length || 0 : audioSegments?.length || 0}
                       </p>
                       <p className="text-xs text-gray-400">{isQuizMode ? 'Quiz Parts' : 'Segments'}</p>
@@ -1805,18 +1831,18 @@ function VideoCreationContent() {
 
             {/* Templates/Presets */}
             <Card className="bg-white/5 border-white/10 backdrop-blur-sm">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-white">
-                  <div className="w-6 h-6 bg-gradient-to-r from-purple-500 to-pink-500 rounded flex items-center justify-center">
+              <CardHeader className="pb-3 sm:pb-6">
+                <CardTitle className="flex items-center gap-2 text-white text-base sm:text-lg">
+                  <div className="w-5 h-5 sm:w-6 sm:h-6 bg-gradient-to-r from-purple-500 to-pink-500 rounded flex items-center justify-center">
                     <Wand2 className="h-3 w-3 text-white" />
                   </div>
                   🪄 AI Templates & Presets
                 </CardTitle>
-                <CardDescription className="text-gray-400">
+                <CardDescription className="text-gray-400 text-sm">
                   Quick-start with AI-powered content generation and styling
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-3 sm:space-y-4 pt-0">
                 <div className="space-y-2">
                   <Label>Choose Template</Label>
                   <Select value={selectedTemplate} onValueChange={handleTemplateChange}>
@@ -1902,7 +1928,7 @@ function VideoCreationContent() {
                       </div>
 
                       {/* Template Parameters */}
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                         {/* Video Length */}
                                                  <div className="space-y-2">
                            <Label className="text-xs">Video Length</Label>
@@ -1980,7 +2006,7 @@ function VideoCreationContent() {
                         });
                       }}
                       disabled={isGeneratingContent}
-                      className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
+                      className="w-full h-12 sm:h-10 text-sm sm:text-base bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
                     >
                       {isGeneratingContent ? (
                         <>
@@ -2324,49 +2350,58 @@ function VideoCreationContent() {
                           </Label>
                         </div>
                         
-                        {/* Quiz Styling Controls */}
+                        {/* Voice & Audio Controls */}
                         <div className="space-y-4 p-4 bg-white/5 border border-white/10 rounded-lg">
                           <Label className="text-sm font-medium text-white flex items-center gap-2">
-                            <div className="w-4 h-4 bg-gradient-to-r from-purple-500 to-pink-500 rounded">
-                              <Zap className="h-3 w-3 text-white p-0.5" />
+                            <div className="w-4 h-4 bg-gradient-to-r from-blue-500 to-cyan-500 rounded">
+                              <Volume2 className="h-3 w-3 text-white p-0.5" />
                             </div>
-                            Quiz Styling & Effects
+                            Voice & Audio
                           </Label>
 
-                          <div className="grid grid-cols-2 gap-4">
+                          <div className="grid grid-cols-1 gap-4">
                             {/* Voice Selection */}
                             <div className="space-y-2">
-                              <Label className="text-xs">Voice</Label>
+                              <Label className="text-xs">🎤 Voice Selection</Label>
                               <Select 
                                 value={selectedVoice} 
                                 onValueChange={setSelectedVoice}
-                                disabled={selectedVoiceProvider === 'elevenlabs'}
                               >
                                 <SelectTrigger>
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {(selectedVoiceProvider === 'azure' ? azureVoices : elevenLabsVoices).map((voice) => (
+                                  {azureVoices.map((voice) => (
                                     <SelectItem 
                                       key={voice.value} 
                                       value={voice.value}
-                                      disabled={selectedVoiceProvider === 'elevenlabs'}
                                     >
                                       {voice.label}
-                                      {selectedVoiceProvider === 'elevenlabs' && (
-                                        <span className="ml-2 text-xs text-red-400">(Unavailable)</span>
-                                      )}
                                     </SelectItem>
                                   ))}
                                 </SelectContent>
                               </Select>
-                              {selectedVoiceProvider === 'azure' && (
-                                <p className="text-xs text-muted-foreground">
-                                  🎯 Azure TTS provides high-quality voices with natural intonation and expression
-                                </p>
-                              )}
+                              <p className="text-xs text-muted-foreground">
+                                🎯 Azure TTS provides high-quality voices with natural intonation and expression
+                              </p>
                             </div>
+                          </div>
+                          
+                          <p className="text-xs text-muted-foreground">
+                            🎵 Select the perfect voice for your quiz narration
+                          </p>
+                        </div>
 
+                        {/* Text Styling Features */}
+                        <div className="space-y-4 p-4 bg-white/5 border border-white/10 rounded-lg">
+                          <Label className="text-sm font-medium text-white flex items-center gap-2">
+                            <div className="w-4 h-4 bg-gradient-to-r from-purple-500 to-pink-500 rounded">
+                              <Zap className="h-3 w-3 text-white p-0.5" />
+                            </div>
+                            Text Styling Features
+                          </Label>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                             {/* Font Style */}
                             <div className="space-y-2">
                               <Label className="text-xs">Font Style</Label>
@@ -2466,7 +2501,7 @@ function VideoCreationContent() {
                           </div>
                           
                           <p className="text-xs text-muted-foreground">
-                            🎨 Customize quiz video appearance and animations
+                            🎨 Customize text appearance and visual effects
                           </p>
                         </div>
 
@@ -2474,7 +2509,7 @@ function VideoCreationContent() {
                         <Button
                           onClick={generateQuizAudio}
                           disabled={isGeneratingSpeech}
-                          className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white"
+                          className="w-full h-12 sm:h-10 text-sm sm:text-base bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white"
                         >
                           {isGeneratingSpeech ? (
                             <>
@@ -2523,67 +2558,45 @@ function VideoCreationContent() {
                       />
                     </div>
                     
-                    <div className="space-y-4">
-                    <div className="space-y-2">
-                        <Label>Voice Provider</Label>
-                        <div className="grid grid-cols-2 gap-2">
-                          {voiceProviders.map((provider) => (
-                            <Button
-                              key={provider.value}
-                              onClick={() => setSelectedVoiceProvider(provider.value as 'azure' | 'elevenlabs')}
-                              disabled={provider.disabled}
-                              variant={selectedVoiceProvider === provider.value ? 'default' : 'outline'}
-                              className={`w-full justify-start ${provider.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-                            >
-                              <div className="flex items-center gap-2">
-                                <div className={`w-2 h-2 rounded-full ${provider.disabled ? 'bg-red-400' : 'bg-green-400'}`} />
-                                {provider.label}
-                              </div>
-                            </Button>
-                          ))}
+                    {/* Voice & Audio Controls */}
+                    <div className="space-y-4 p-4 bg-white/5 border border-white/10 rounded-lg">
+                      <Label className="text-sm font-medium text-white flex items-center gap-2">
+                        <div className="w-4 h-4 bg-gradient-to-r from-blue-500 to-cyan-500 rounded">
+                          <Volume2 className="h-3 w-3 text-white p-0.5" />
                         </div>
-                        {selectedVoiceProvider === 'elevenlabs' && (
-                          <p className="text-xs text-amber-400">
-                            ⚠️ Eleven Labs is currently unavailable due to token limits. Please use Azure TTS instead.
-                          </p>
-                        )}
-                    </div>
+                        Voice & Audio
+                      </Label>
 
-                    <div className="space-y-2">
-                        <Label>Voice Selection</Label>
-                        <Select 
-                          value={selectedVoice} 
-                          onValueChange={setSelectedVoice}
-                          disabled={selectedVoiceProvider === 'elevenlabs'}
-                        >
-                        <SelectTrigger>
-                            <SelectValue placeholder="Choose a voice" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {(selectedVoiceProvider === 'azure' ? azureVoices : elevenLabsVoices).map((voice) => (
-                              <SelectItem 
-                                key={voice.value} 
-                                value={voice.value}
-                                disabled={selectedVoiceProvider === 'elevenlabs'}
-                              >
-                                {voice.label}
-                                {selectedVoiceProvider === 'elevenlabs' && (
-                                  <span className="ml-2 text-xs text-red-400">(Unavailable)</span>
-                                )}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                        {selectedVoiceProvider === 'azure' && (
-                      <p className="text-xs text-muted-foreground">
-                            🎯 Azure TTS provides high-quality voices with natural intonation and expression
-                      </p>
-                        )}
-                    </div>
+                      <div className="space-y-4">
 
-                      {selectedVoiceProvider === 'azure' && (
+
                         <div className="space-y-2">
-                          <Label htmlFor="tts-instructions">Voice Instructions (Optional)</Label>
+                          <Label>🎤 Voice Selection</Label>
+                          <Select 
+                            value={selectedVoice} 
+                            onValueChange={setSelectedVoice}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Choose a voice" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {azureVoices.map((voice) => (
+                                <SelectItem 
+                                  key={voice.value} 
+                                  value={voice.value}
+                                >
+                                  {voice.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <p className="text-xs text-muted-foreground">
+                            🎯 Azure TTS provides high-quality voices with natural intonation and expression
+                          </p>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="tts-instructions">⚙️ Voice Instructions (Optional)</Label>
                           <Textarea
                             id="tts-instructions"
                             value={ttsInstructions}
@@ -2600,21 +2613,25 @@ function VideoCreationContent() {
                               <li>Date formatting (MM/DD/YYYY)</li>
                               <li>Pauses and breaks between sentences</li>
                             </ul>
-                      </div>
+                          </div>
                         </div>
-                      )}
+                      </div>
+                      
+                      <p className="text-xs text-muted-foreground">
+                        🎵 Configure voice settings and audio generation
+                      </p>
                     </div>
 
-                    {/* Text Formatting Controls */}
+                    {/* Text Styling Features */}
                     <div className="space-y-4 p-4 bg-white/5 border border-white/10 rounded-lg">
                       <Label className="text-sm font-medium text-white flex items-center gap-2">
                         <div className="w-4 h-4 bg-gradient-to-r from-purple-500 to-pink-500 rounded">
                           <Zap className="h-3 w-3 text-white p-0.5" />
                         </div>
-                        Text Styling & Effects
+                        Text Styling Features
                       </Label>
 
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                         {/* Font Style */}
                         <div className="space-y-2">
                           <Label className="text-xs">Font Style</Label>
@@ -2720,7 +2737,7 @@ function VideoCreationContent() {
                       </div>
                       
                       <p className="text-xs text-muted-foreground">
-                        🎨 Customize video text appearance and animations
+                        🎨 Customize text appearance and visual effects
                       </p>
                     </div>
 
@@ -2741,8 +2758,8 @@ function VideoCreationContent() {
 
                     <Button 
                       onClick={generateSpeech}
-                      disabled={isGeneratingSpeech || !speechText.trim() || (selectedVoiceProvider === 'elevenlabs')}
-                      className="w-full"
+                      disabled={isGeneratingSpeech || !speechText.trim()}
+                      className="w-full h-12 sm:h-10 text-sm sm:text-base"
                     >
                       {isGeneratingSpeech ? (
                         <>

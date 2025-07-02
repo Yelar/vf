@@ -13,11 +13,8 @@ import {
   Play, 
   Globe,
   Plus,
-  Library,
-  Share2,
   Copy,
   Check,
-  Zap,
   Sparkles,
   ChevronRight,
   Calendar,
@@ -138,75 +135,23 @@ function DashboardContent() {
           <p className="text-xl md:text-2xl text-gray-400 max-w-4xl mx-auto leading-relaxed">
             Ready to create amazing content? Let&apos;s turn your ideas into engaging posts and videos with AI.
           </p>
+
+          {/* Main Call to Action */}
+          <div className="flex flex-col sm:flex-row gap-4 mt-8">
+            <Link href="/video/new">
+              <Button size="lg" className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 h-14 px-8 text-lg">
+                <Video className="w-5 h-5 mr-2" />
+                Create Video
+              </Button>
+            </Link>
+            <Link href="/posts/create">
+              <Button size="lg" variant="outline" className="border-purple-500/50 text-purple-300 hover:bg-purple-500/10 h-14 px-8 text-lg">
+                <Plus className="w-5 h-5 mr-2" />
+                Generate Post
+              </Button>
+            </Link>
+          </div>
         </div>
-
-        {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Link href="/video/new" className="group">
-            <ModernCard gradient="purple" hover glow className="h-full">
-              <ModernCardContent className="p-6">
-                <div className="flex items-center space-x-4">
-                  <div className="w-14 h-14 bg-gradient-to-br from-purple-600 to-blue-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                    <Plus className="w-7 h-7 text-white" />
-                      </div>
-                  <div className="flex-1">
-                    <h3 className="text-xl font-bold text-white mb-1">Create Video</h3>
-                    <p className="text-purple-200 text-sm">Start with AI-powered content generation</p>
-                    <div className="flex items-center space-x-1 mt-2">
-                      <Zap className="w-3 h-3 text-yellow-400" />
-                      <span className="text-xs text-yellow-400 font-medium">AI Powered</span>
-                         </div>
-                         </div>
-                  <ChevronRight className="w-5 h-5 text-purple-300 group-hover:translate-x-1 transition-transform" />
-                       </div>
-              </ModernCardContent>
-            </ModernCard>
-          </Link>
-
-          <Link href="/library" className="group">
-            <ModernCard gradient="blue" hover glow className="h-full">
-              <ModernCardContent className="p-6">
-                <div className="flex items-center space-x-4">
-                  <div className="w-14 h-14 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                    <Library className="w-7 h-7 text-white" />
-                       </div>
-                  <div className="flex-1">
-                    <h3 className="text-xl font-bold text-white mb-1">My Library</h3>
-                    <p className="text-blue-200 text-sm">Manage and organize your videos</p>
-                    <div className="flex items-center space-x-1 mt-2">
-                      <Video className="w-3 h-3 text-blue-400" />
-                      <span className="text-xs text-blue-400 font-medium">{stats?.totalVideos || 0} Videos</span>
-                    </div>
-                        </div>
-                  <ChevronRight className="w-5 h-5 text-blue-300 group-hover:translate-x-1 transition-transform" />
-                        </div>
-              </ModernCardContent>
-            </ModernCard>
-          </Link>
-
-          <Link href="/shared" className="group">
-            <ModernCard gradient="green" hover glow className="h-full">
-              <ModernCardContent className="p-6">
-                <div className="flex items-center space-x-4">
-                  <div className="w-14 h-14 bg-gradient-to-br from-green-600 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                    <Globe className="w-7 h-7 text-white" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-xl font-bold text-white mb-1">Shared Videos</h3>
-                    <p className="text-green-200 text-sm">Explore community content</p>
-                    <div className="flex items-center space-x-1 mt-2">
-                      <Share2 className="w-3 h-3 text-green-400" />
-                      <span className="text-xs text-green-400 font-medium">{stats?.sharedVideos || 0} Shared</span>
-                </div>
-                </div>
-                  <ChevronRight className="w-5 h-5 text-green-300 group-hover:translate-x-1 transition-transform" />
-                </div>
-              </ModernCardContent>
-            </ModernCard>
-          </Link>
-                </div>
-
-
 
         {/* Recent Videos */}
         <div className="space-y-6">
