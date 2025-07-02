@@ -1,17 +1,20 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { signIn, getSession } from 'next-auth/react';
+import { signIn, getSession, useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { LogIn, Mail, Lock, VideoIcon, ArrowRight, Bot } from "lucide-react";
+import { motion } from "framer-motion";
 
 export default function SignInPage() {
+  const { data: session, status } = useSession();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -20,6 +23,39 @@ export default function SignInPage() {
   const [resendLoading, setResendLoading] = useState(false);
   const [resendMessage, setResendMessage] = useState('');
   const router = useRouter();
+
+  useEffect(() => {
+    if (session) {
+      router.push('/dashboard');
+    }
+  }, [session, router]);
+
+  if (status === 'loading') {
+    return (
+      <div className="fixed inset-0 bg-black flex items-center justify-center">
+        <motion.div 
+          className="w-6 h-6 rounded-full border border-white/10"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.2 }}
+        >
+          <motion.div 
+            className="absolute inset-0 rounded-full border-t border-purple-500"
+            animate={{ rotate: 360 }}
+            transition={{ 
+              duration: 0.8,
+              repeat: Infinity, 
+              ease: "linear"
+            }}
+          />
+        </motion.div>
+      </div>
+    );
+  }
+
+  if (session) {
+    return null;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -161,10 +197,10 @@ export default function SignInPage() {
                       className="w-full bg-blue-500/20 border-blue-500/30 text-blue-300 hover:bg-blue-500/30 text-sm"
                     >
                       {resendLoading ? (
-                        <>
-                          <LogIn className="mr-2 h-4 w-4 animate-spin" />
-                          Sending...
-                        </>
+                        <div className="flex items-center justify-center gap-2">
+                          <LoadingSpinner size="sm" />
+                          <span>Sending...</span>
+                        </div>
                       ) : (
                         <>
                           <Mail className="mr-2 h-4 w-4" />
@@ -224,10 +260,10 @@ export default function SignInPage() {
                   disabled={isLoading}
                 >
                   {isLoading ? (
-                    <>
-                      <LogIn className="mr-2 h-5 w-5 animate-spin" />
-                      Signing in...
-                    </>
+                    <div className="flex items-center justify-center gap-2">
+                      <LoadingSpinner size="sm" />
+                      <span>Signing in...</span>
+                    </div>
                   ) : (
                     <>
                       <LogIn className="mr-2 h-5 w-5" />
