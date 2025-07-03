@@ -7,7 +7,6 @@ import { NavigationHeader } from '@/components/ui/navigation-header';
 import { ModernCard, ModernCardContent } from '@/components/ui/modern-card';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
 import { 
   Video, 
   Play, 
@@ -169,11 +168,9 @@ function DashboardContent() {
                 </div>
 
           {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <Skeleton key={i} className="h-48 bg-white/5" />
-                      ))}
-                </div>
+            <div className="flex items-center justify-center py-20">
+              <div className="w-9 h-9 border-t-2 border-purple-500 rounded-full animate-spin" />
+            </div>
           ) : recentVideos.length ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {recentVideos.map((video) => (

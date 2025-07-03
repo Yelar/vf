@@ -8,12 +8,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { NavigationHeader } from '@/components/ui/navigation-header';
-import { Copy, Code, Sparkles, Palette, Camera } from 'lucide-react';
+import { Copy, Code, Sparkles, Palette, Camera, Wand2 } from 'lucide-react';
 import html2canvas from 'html2canvas-pro';
 import JSZip from 'jszip';
 import { LimitWarning } from '@/components/ui/limit-warning';
 import { ModernCard, ModernCardContent } from '@/components/ui/modern-card';
 import { SpeechToText } from '@/components/SpeechToText';
+import { motion } from 'framer-motion';
 
 interface PostVariant {
   id: string;
@@ -45,6 +46,59 @@ interface GenerationResult {
 interface JSXPreviewRef {
   takeScreenshotAndGetBlob: () => Promise<Blob | null>;
 }
+
+const GenerationProgress = ({ step }: { step: string }) => {
+  const steps = [
+    { id: 'preparing', label: 'Preparing Content' },
+    { id: 'generating', label: 'Generating Post' },
+    { id: 'designing', label: 'Designing Layout' },
+    { id: 'finalizing', label: 'Finalizing' }
+  ];
+
+  const currentIndex = steps.findIndex(s => s.id === step);
+
+  return (
+    <div className="w-full max-w-md mx-auto">
+      <div className="relative">
+        {/* Progress Bar */}
+        <div className="absolute top-5 left-0 w-full h-0.5 bg-white/10">
+          <motion.div 
+            className="absolute top-0 left-0 h-full bg-purple-500"
+            initial={{ width: "0%" }}
+            animate={{ width: `${((currentIndex + 1) / steps.length) * 100}%` }}
+            transition={{ duration: 0.5 }}
+          />
+        </div>
+
+        {/* Steps */}
+        <div className="relative flex justify-between">
+          {steps.map((s, i) => {
+            const isActive = i <= currentIndex;
+            return (
+              <div key={s.id} className="flex flex-col items-center">
+                <motion.div 
+                  className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                    isActive ? 'bg-purple-500' : 'bg-white/10'
+                  }`}
+                  initial={false}
+                  animate={{
+                    scale: isActive ? [1, 1.1, 1] : 1,
+                    transition: { duration: 0.5 }
+                  }}
+                >
+                  <Wand2 className={`w-5 h-5 ${isActive ? 'text-white' : 'text-white/40'}`} />
+                </motion.div>
+                <span className={`mt-2 text-sm ${isActive ? 'text-white' : 'text-white/40'}`}>
+                  {s.label}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const JSXPreview = forwardRef<JSXPreviewRef, {
   jsx: string;
@@ -483,10 +537,17 @@ export default function CreatePost() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [useAiImage, setUseAiImage] = useState(false);
   const [showLimitWarning, setShowLimitWarning] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generationStep, setGenerationStep] = useState<string>('');
 
   const handleGenerate = async () => {
+    setIsGenerating(true);
+    setGenerationStep('preparing');
+    
     if (!prompt.trim()) {
       setError('Please enter a prompt');
+      setIsGenerating(false);
+      setGenerationStep('');
       return;
     }
 
@@ -498,6 +559,10 @@ export default function CreatePost() {
     try {
       const requestId = Date.now().toString();
       console.log(`🚀 Starting generation request ${requestId} for prompt:`, prompt);
+      
+      // Simulate progress steps
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      setGenerationStep('generating');
       
       // First generate the post content
       const response = await fetch('/api/posts/generate', {
@@ -562,6 +627,9 @@ export default function CreatePost() {
         throw new Error(data.error || 'Generation failed');
       }
 
+      await new Promise(resolve => setTimeout(resolve, 500));
+      setGenerationStep('finalizing');
+      
       setResult(data);
       
       // Auto-select first variant
@@ -572,6 +640,9 @@ export default function CreatePost() {
     } catch (error) {
       console.error('Generation error:', error);
       setError(error instanceof Error ? error.message : 'An error occurred');
+    } finally {
+      setIsGenerating(false);
+      setGenerationStep('');
     }
   };
 
@@ -852,6 +923,14 @@ export default function CreatePost() {
                     </ModernCard>
                   )}
                 </div>
+              </div>
+            </div>
+          )}
+
+          {isGenerating && (
+            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50">
+              <div className="w-full max-w-lg p-8">
+                <GenerationProgress step={generationStep} />
               </div>
             </div>
           )}
